@@ -10,7 +10,8 @@ parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
 args = parser.parse_args()
 
-import hashlib, exifread, os, sqlite3, logging
+
+import hashlib, exifread, os, sqlite3, logging, shutil, time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -26,13 +27,13 @@ def hashfile(file):
   return(sha1.hexdigest())
 
 def addPicture(sha1,fileType,origFileName,dateTaken):
-  logging.info('Adding to DB: %s %s %s', sha1,origFileName,dateTaken)
+  logging.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken)
   c.execute ('SELECT id FROM pictures where sha1 = ?',(sha1,))
   id_picture = c.fetchone()
   if id_picture != None:
     return id_picture[0]
   else: 
-    c.execute('INSERT INTO pictures VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFileName, dateTaken))
+    c.execute('INSERT INTO pictures VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFileName, dateTaken,))
     return c.lastrowid
 
 def tagPicture(tagName,id_picture):
@@ -60,7 +61,7 @@ def tagPicture(tagName,id_picture):
     id_tags_pictures = id_tags_pictures[0]
     return id_tags_pictures
 
-def getFileType(origFileName):
+def getfileType(origFileName):
   fileType = origFileName.split('.')[-1].lower()
   logging.info('File type: %s',fileType)
   return fileType
@@ -72,16 +73,33 @@ def getNewFilePath(sha1,fileType):
   logging.info('New Path: %s/%s/%s/%s.%s',dir1,dir2,dir3,sha1,fileType)
   return(dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
 
+def addToNewFilePath(file,sha1,fileType):
+  dir1=sha1[:2]
+  dir2=sha1[2:4]
+  dir3=sha1[4:6]
+  logging.info('Copying %s -> %s/%s/%s/%s.%s',file,dir1,dir2,dir3,sha1,fileType)
+  if not os.path.isdir('pictures/'+dir1+'/'+dir2+'/'+dir3):
+    os.makedirs('pictures/'+dir1+'/'+dir2+'/'+dir3)
+  try:
+      shutil.copy2(file,'pictures/'+dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
+  except Exception, e:
+    raise
+  return(dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
+
 def importFile(file):
   logging.info('Importing file %s', file)
-  sha1=hashfile(file)
   f = open(file, 'rb')
   tags = exifread.process_file(f)
+  if tags:
+    dateTaken = str(tags['Image DateTime'])
+  else:
+    dateTaken = time.ctime(os.path.getmtime(file))
 
-  dateTaken = str(tags['Image DateTime'])
   origFileName = os.path.basename(file)
-  fileType = getFileType(origFileName)
+  fileType = getfileType(origFileName)
+  sha1=hashfile(file)
   newFilePath = getNewFilePath(sha1,fileType)
+  addToNewFilePath(file,sha1,fileType)
 
   # insert pic into db
   id_picture = addPicture(sha1,fileType,origFileName,dateTaken)
@@ -95,7 +113,8 @@ def importFile(file):
       tagPicture(tagName,id_picture)
 
 
-# main
+
+# my code here
 
 conn = sqlite3.connect('pictures.db')
 c = conn.cursor()
@@ -105,3 +124,11 @@ for file in args.files:
 
 conn.commit()
 conn.close()
+
+def main():
+  # main
+  print 'yes'
+
+if __name__ == "__main__":
+    main()
+
