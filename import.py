@@ -11,6 +11,8 @@ parser.add_argument('--tags', help='assign tag(s) to an import')
 args = parser.parse_args()
 
 
+ignoreTags = ['Users','nathan','Pictures','www_pics']
+
 import hashlib, exifread, os, sqlite3, logging, shutil, time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -67,38 +69,41 @@ def getfileType(origFileName):
   return fileType
 
 def getNewFilePath(sha1,fileType):
+  newDirPath=getNewDirPath(sha1)
+  return(newDirPath+'/'+sha1+'.'+fileType)
+
+def getNewDirPath(sha1):
   dir1=sha1[:2]
   dir2=sha1[2:4]
   dir3=sha1[4:6]
-  logging.info('New Path: %s/%s/%s/%s.%s',dir1,dir2,dir3,sha1,fileType)
-  return(dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
+  return(dir1+'/'+dir2+'/'+dir3)
 
 def addToNewFilePath(file,sha1,fileType):
-  dir1=sha1[:2]
-  dir2=sha1[2:4]
-  dir3=sha1[4:6]
-  logging.info('Copying %s -> %s/%s/%s/%s.%s',file,dir1,dir2,dir3,sha1,fileType)
-  if not os.path.isdir('pictures/'+dir1+'/'+dir2+'/'+dir3):
-    os.makedirs('pictures/'+dir1+'/'+dir2+'/'+dir3)
+  newDirPath=getNewDirPath(sha1)
+  logging.info('Copying %s -> %s/%s.%s',file,newDirPath,sha1,fileType)
+  if not os.path.isdir('pictures/'+newDirPath):
+    os.makedirs('pictures/'+newDirPath)
   try:
-      shutil.copy2(file,'pictures/'+dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
+      shutil.copy2(file,'pictures/'+newDirPath+'/'+sha1+'.'+fileType)
   except Exception, e:
     raise
-  return(dir1+'/'+dir2+'/'+dir3+'/'+sha1+'.'+fileType)
+  return(newDirPath+'/'+sha1+'.'+fileType)
 
 def importFile(file):
   logging.info('Importing file %s', file)
   f = open(file, 'rb')
-  tags = exifread.process_file(f)
+  tags = exifread.process_file(f,stop_tag='Image DateTime')
   if tags:
-    dateTaken = str(tags['Image DateTime'])
+    if 'Image DateTime' in tags:
+      dateTaken = str(tags['Image DateTime'])
+    else:
+      dateTaken = time.ctime(os.path.getmtime(file))
   else:
     dateTaken = time.ctime(os.path.getmtime(file))
 
   origFileName = os.path.basename(file)
   fileType = getfileType(origFileName)
   sha1=hashfile(file)
-  newFilePath = getNewFilePath(sha1,fileType)
   addToNewFilePath(file,sha1,fileType)
 
   # insert pic into db
@@ -110,7 +115,10 @@ def importFile(file):
   for dir in origDirPaths:
     tagName = str(dir)
     if tagName != '':
-      tagPicture(tagName,id_picture)
+      if tagName in ignoreTags:
+        print 'skipping tag '+tagName
+      else:
+        tagPicture(tagName,id_picture)
 
 
 
