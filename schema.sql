@@ -27,10 +27,10 @@ CREATE UNIQUE INDEX 'galleries_title_UNIQUE' ON 'galleries' ('title' ASC);
 
 CREATE TABLE tags (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-name TEXT,
+tag TEXT,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX 'tags_name_UNIQUE' ON 'tags' ('name' ASC);
+CREATE UNIQUE INDEX 'tags_tag_UNIQUE' ON 'tags' ('tag' ASC);
 
 CREATE TABLE comments (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,24 +41,24 @@ ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 CREATE TABLE photosets_galleries (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-id_gallery INTEGER REFERENCES galleries (id),
-id_set INTEGER REFERENCES photosets (id),
+galleries_id INTEGER REFERENCES galleries (id),
+photoset_id INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE tags_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-id_tag INTEGER REFERENCES tags (id),
+tag_id INTEGER REFERENCES tags (id),
 photo_id INTEGER REFERENCES photos (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX 'tags_photos_UNIQUE' ON 'tags_photos' ('id_tag','photo_id' ASC);
+CREATE UNIQUE INDEX 'tags_photos_UNIQUE' ON 'tags_photos' ('tag_id','photo_id' ASC);
 
 CREATE TABLE photosets_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 photo_id INTEGER REFERENCES photos (id),
-id_set INTEGER REFERENCES photosets (id),
+photoset_id INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

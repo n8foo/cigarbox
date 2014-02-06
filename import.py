@@ -8,15 +8,15 @@ parser.add_argument('--files', metavar='N', type=str, nargs='+',
 parser.add_argument('--set', help='assign a set to an import set')
 parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
+parser.add_argument('--basedir', help='base directory for the archive', default='photos')
 args = parser.parse_args()
 
 
 ignoreTags = ['Users','nathan','Pictures','www_pics']
 
-import hashlib, exifread, os, sqlite3, logging, shutil, time, re
+import cigarbox, exifread, os, sqlite3, shutil, time,logging,hashlib, re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
-
 
 def hashfile(file):
   BLOCKSIZE = 65536
@@ -28,6 +28,14 @@ def hashfile(file):
         buf = afile.read(BLOCKSIZE)
   return(sha1.hexdigest())
 
+def normalizeString(string):
+  string = string.lower()
+  string = re.sub(r'[\W\s]','',string)
+  return string
+
+def photosetsAddPhoto(title,photo_id,description=None):
+  logging.info('adding photo_id %s to set: %s', photo_id, title)
+
 def addPhoto(sha1,fileType,origFileName,dateTaken):
   logging.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken)
   c.execute ('SELECT id FROM photos where sha1 = ?',(sha1,))
@@ -38,57 +46,52 @@ def addPhoto(sha1,fileType,origFileName,dateTaken):
     c.execute('INSERT INTO photos VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFileName, dateTaken,))
     return c.lastrowid
 
-def tagPhoto(tagName,photo_id):
-  logging.info('tagging photo id %s tag: %s', photo_id, tagName)
-  tagName = tagName.lower()
-  tagName = re.sub(r'[^\w\s]','',tagName)
-  c.execute ('SELECT id FROM tags WHERE name=?',(tagName,))
-  id_tag = c.fetchone()
-  if id_tag == None:
+def photosAddTag(photo_id,tag):
+  tag = normalizeString(tag)
+  logging.info('tagging photo id %s tag: %s', photo_id, tag)
+  c.execute ('SELECT id FROM tags WHERE tag=?',(tag,))
+  tag_id = c.fetchone()
+  if tag_id == None:
     try: 
-      c.execute('INSERT INTO tags VALUES(NULL, ?, CURRENT_TIMESTAMP)',(tagName,))
-      id_tag = c.lastrowid
+      c.execute('INSERT INTO tags VALUES(NULL, ?, CURRENT_TIMESTAMP)',(tag,))
+      tag_id = c.lastrowid
     except Exception as e:
       # Roll back any change if something goes wrong
       conn.rollback()
       raise e
   else:
-    id_tag = id_tag[0]
-  # ok now we have the id_tag and photo_id, let's do this
-  c.execute ('SELECT id FROM tags_photos WHERE id_tag = ? and photo_id = ?',(id_tag,photo_id))
-  id_tags_photos = c.fetchone()
-  if id_tags_photos == None:
-    c.execute('INSERT INTO tags_photos VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(id_tag, photo_id))
+    tag_id = tag_id[0]
+  # ok now we have the tag_id and photo_id, let's do this
+  c.execute ('SELECT id FROM tags_photos WHERE tag_id = ? and photo_id = ?',(tag_id,photo_id))
+  tags_photos_id = c.fetchone()
+  if tags_photos_id == None:
+    c.execute('INSERT INTO tags_photos VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(tag_id, photo_id))
     return c.lastrowid
   else:
-    id_tags_photos = id_tags_photos[0]
-    return id_tags_photos
+    tags_photos_id = tags_photos_id[0]
+    return tags_photos_id
 
 def getfileType(origFileName):
   fileType = origFileName.split('.')[-1].lower()
   logging.info('File type: %s',fileType)
   return fileType
 
-def getNewFilePath(sha1,fileType):
-  newDirPath=getNewDirPath(sha1)
-  return(newDirPath+'/'+sha1+'.'+fileType)
-
-def getNewDirPath(sha1):
+def getArchivePath(sha1):
   dir1=sha1[:2]
   dir2=sha1[2:4]
   dir3=sha1[4:6]
   return(dir1+'/'+dir2+'/'+dir3)
 
-def addToNewFilePath(file,sha1,fileType):
-  newDirPath=getNewDirPath(sha1)
-  logging.info('Copying %s -> %s/%s.%s',file,newDirPath,sha1,fileType)
-  if not os.path.isdir('photos/'+newDirPath):
-    os.makedirs('photos/'+newDirPath)
+def archivePhoto(file,sha1,fileType,basedir='photos'):
+  archivePath=getArchivePath(sha1)
+  logging.info('Copying %s -> %s/%s/%s.%s',file,basedir,archivePath,sha1,fileType)
+  if not os.path.isdir(basedir+'/'+archivePath):
+    os.makedirs(basedir+'/'+archivePath)
   try:
-      shutil.copy2(file,'photos/'+newDirPath+'/'+sha1+'.'+fileType)
+      shutil.copy2(file,basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
   except Exception, e:
     raise
-  return(newDirPath+'/'+sha1+'.'+fileType)
+  return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
 
 def importFile(file):
   logging.info('Importing file %s', file)
@@ -105,7 +108,7 @@ def importFile(file):
   origFileName = os.path.basename(file)
   fileType = getfileType(origFileName)
   sha1=hashfile(file)
-  addToNewFilePath(file,sha1,fileType)
+  archivePhoto(file,sha1,fileType,args.basedir)
 
   # insert pic into db
   photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
@@ -114,12 +117,10 @@ def importFile(file):
   # tag based on directory structure
   origDirPaths = os.path.dirname(file).split('/')
   for dir in origDirPaths:
-    tagName = str(dir)
-    if tagName != '':
-      if tagName in ignoreTags:
-        print 'skipping tag '+tagName
-      else:
-        tagPhoto(tagName,photo_id)
+    tag = str(dir)
+    if tag != '':
+      if tag not in ignoreTags:
+        photosAddTag(photo_id,tag)
 
 
 
@@ -136,7 +137,7 @@ conn.close()
 
 def main():
   # main
-  print 'yes'
+  print 'done'
 
 if __name__ == "__main__":
     main()
