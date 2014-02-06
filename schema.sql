@@ -1,4 +1,4 @@
-CREATE TABLE pictures (
+CREATE TABLE photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 sha1 TEXT NOT NULL,
 fileType TEXT(4) NOT NULL,
@@ -7,24 +7,23 @@ dateTaken TEXT NOT NULL,
 dateAdded INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ts INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX 'pictures_sha1_UNIQUE' ON 'pictures' ('sha1' ASC);
+CREATE UNIQUE INDEX 'photos_sha1_UNIQUE' ON 'photos' ('sha1' ASC);
 
 
-CREATE TABLE sets (
+CREATE TABLE photosets (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-name TEXT NOT NULL,
+title TEXT NOT NULL,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX 'sets_name_UNIQUE' ON 'sets' ('name' ASC);
+CREATE UNIQUE INDEX 'photosets_title_UNIQUE' ON 'photosets' ('title' ASC);
 
 CREATE TABLE galleries (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-name TEXT NOT NULL,
-title TEXT,
+title TEXT NOT NULL,
 description TEXT,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX 'galleries_name_UNIQUE' ON 'galleries' ('name' ASC);
+CREATE UNIQUE INDEX 'galleries_title_UNIQUE' ON 'galleries' ('title' ASC);
 
 CREATE TABLE tags (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,30 +35,30 @@ CREATE UNIQUE INDEX 'tags_name_UNIQUE' ON 'tags' ('name' ASC);
 CREATE TABLE comments (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 comment TEXT,
-id_picture INTEGER REFERENCES pictures (id),
+photo_id INTEGER REFERENCES photos (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE sets_galleries (
+CREATE TABLE photosets_galleries (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 id_gallery INTEGER REFERENCES galleries (id),
-id_set INTEGER REFERENCES sets (id),
+id_set INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE tags_pictures (
+CREATE TABLE tags_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 id_tag INTEGER REFERENCES tags (id),
-id_picture INTEGER REFERENCES pictures (id),
+photo_id INTEGER REFERENCES photos (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX 'tags_pictures_UNIQUE' ON 'tags_pictures' ('id_tag','id_picture' ASC);
+CREATE UNIQUE INDEX 'tags_photos_UNIQUE' ON 'tags_photos' ('id_tag','photo_id' ASC);
 
-CREATE TABLE sets_pictures (
+CREATE TABLE photosets_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-id_picture INTEGER REFERENCES pictures (id),
-id_set INTEGER REFERENCES sets (id),
+photo_id INTEGER REFERENCES photos (id),
+id_set INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
