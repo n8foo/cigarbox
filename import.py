@@ -9,12 +9,15 @@ parser.add_argument('--set', help='assign a set to an import set')
 parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
 parser.add_argument('--basedir', help='base directory for the archive', default='photos')
+#parser.add_argument('--reimport', help='reimport files already in the system', action='store_true')
 args = parser.parse_args()
 
 
 ignoreTags = ['Users','nathan','Pictures','www_pics']
 
-import cigarbox, exifread, os, sqlite3, shutil, time,logging,hashlib, re
+import cigarbox, os, sqlite3, shutil, time, exifread, logging, hashlib, re
+
+# import exifread
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -82,6 +85,11 @@ def getArchivePath(sha1):
   dir3=sha1[4:6]
   return(dir1+'/'+dir2+'/'+dir3)
 
+def getArchiveURI(sha1):
+  archivePath=getArchivePath(sha1)
+  return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
+
+
 def archivePhoto(file,sha1,fileType,basedir='photos'):
   archivePath=getArchivePath(sha1)
   logging.info('Copying %s -> %s/%s/%s.%s',file,basedir,archivePath,sha1,fileType)
@@ -94,7 +102,7 @@ def archivePhoto(file,sha1,fileType,basedir='photos'):
   return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
 
 def importFile(file):
-  logging.info('Importing file %s', file)
+    logging.info('Importing file %s', file)
   f = open(file, 'rb')
   tags = exifread.process_file(f,stop_tag='Image DateTime')
   if tags:

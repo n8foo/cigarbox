@@ -1,6 +1,6 @@
-cibarbox
+CigarBox
 ========
-a small but smokin' fast personal photo archive
+A smokin' fast personal photo archive
 
 # design points
 * lightweight enought to run well on an $8/mo EC2 instance

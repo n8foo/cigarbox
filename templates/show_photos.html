@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+  {% if session.logged_in %}
+   Your are logged in. Good for you.
+  {% endif %}
+  <ul class=photos>
+  {% for photo in photos %}
+    <li><h2>{{ photo.id }}</h2>{{ photo.sha1|safe }}
+  {% else %}
+    <li><em>Unbelievable.  No photos here so far</em>
+  {% endfor %}
+  </ul>
+{% endblock %}
