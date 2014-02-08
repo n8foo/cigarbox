@@ -1,6 +1,6 @@
 CigarBox
 ========
-A smokin' fast personal photo archive
+A smokin' fast personal photostream
 
 # design points
 * lightweight enought to run well on an $8/mo EC2 instance
@@ -10,4 +10,4 @@ A smokin' fast personal photo archive
   - photosets
   - galleries
   - tags
-* #simple
+* #simplify
