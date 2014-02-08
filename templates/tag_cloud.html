@@ -4,7 +4,7 @@
    Your are logged in. Good for you.
   {% endif %}
   {% for tag in tags %}
-    <a href="/tags/{{ tag.tag }}/" style="font-size: {{  ( tag.count / 10 ) + 10 }}px;">{{ tag.tag }}</a></font>
+    <a href="/tags/{{ tag.tag }}/" style="font-size: {{  ( tag.count / 50 ) + 10 }}px;">{{ tag.tag }}</a></font>
   {% else %}
     Unbelievable.  No tags here so far!
   {% endfor %}

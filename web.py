@@ -1,12 +1,11 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 
 # -*- coding: utf-8 -*-
 """
     CigarBox
     ~~~~~~
 
-    A smokin' fast personal photo archive, written in
-    Flask and sqlite3.
+    A smokin' fast personal photostream
 
     :copyright: (c) 2014 by Nathan Hubbard @n8foo.
     :license: Apache, see LICENSE for more details.
@@ -18,26 +17,16 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 import cigarbox.util
 
 import argparse
-
 parser = argparse.ArgumentParser(description='cigarbox webapp.')
-parser.add_argument('--basedir', help='base directory for the archive', default='photos')
 args = parser.parse_args()
-
-basedir=args.basedir
 
 # create the app
 app = Flask(__name__)
 
-# Load default config and override config from an environment variable
-app.config.update(dict(
-    DATABASE='photos.db',
-    DEBUG=True,
-    SECRET_KEY='development key',
-    USERNAME='admin',
-    PASSWORD='changeme2014'
-))
-app.config.from_envvar('CIGARBOX_SETTINGS', silent=True)
+# Load default config and override config from config file
+app.config.from_object('config')
 
+remoteArchivePath=app.config['REMOTEARCHIVEPATH']
 
 def connect_db():
     """Connects to the specific database."""
@@ -77,7 +66,7 @@ def show_photos():
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
-        photo['uri'] = cigarbox.util.getArchiveURI(photo['sha1'],basedir,photo['fileType'])
+        photo['uri'] = cigarbox.util.getArchiveURI(photo['sha1'],remoteArchivePath,photo['fileType'])
     return render_template('show_photos.html', photos=photos)
 
 @app.route('/tags')

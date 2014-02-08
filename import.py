@@ -1,5 +1,16 @@
 #! /usr/bin/env python
 
+# -*- coding: utf-8 -*-
+"""
+    CigarBox
+    ~~~~~~
+
+    A smokin' fast personal photostream
+
+    :copyright: (c) 2014 by Nathan Hubbard @n8foo.
+    :license: Apache, see LICENSE for more details.
+"""
+
 import argparse
 
 parser = argparse.ArgumentParser(description='import photos into photos system.')
@@ -8,17 +19,27 @@ parser.add_argument('--files', metavar='N', type=str, nargs='+',
 parser.add_argument('--set', help='assign a set to an import set')
 parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
-parser.add_argument('--basedir', help='base directory for the archive', default='photos')
 #parser.add_argument('--reimport', help='reimport files already in the system', action='store_true')
 args = parser.parse_args()
 
 
 ignoreTags = ['Users','nathan','Pictures','www_pics']
 
-import os, sqlite3, shutil, time, exifread, logging, hashlib
+import os, sqlite3, shutil, time, logging, hashlib
 import cigarbox.util
 
-# import exifread
+from flask import Flask
+app = Flask(__name__)
+
+# create the app
+app = Flask(__name__)
+
+# Load default config and override config from config file
+app.config.from_object('config')
+
+
+localArchivePath=app.config['LOCALARCHIVEPATH']
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -75,24 +96,24 @@ def getfileType(origFileName):
   logging.info('File type: %s',fileType)
   return fileType
 
-def archivePhoto(file,sha1,fileType,basedir='photos'):
-  archivePath=cigarbox.util.getArchivePath(sha1)
-  logging.info('Copying %s -> %s/%s/%s.%s',file,basedir,archivePath,sha1,fileType)
-  if not os.path.isdir(basedir+'/'+archivePath):
-    os.makedirs(basedir+'/'+archivePath)
+def archivePhoto(file,sha1,fileType,localArchivePath):
+  sha1Path=cigarbox.util.getSha1Path(sha1)
+  logging.info('Copying %s -> %s/%s/%s.%s',file,localArchivePath,sha1Path,sha1,fileType)
+  if not os.path.isdir(localArchivePath+'/'+sha1Path):
+    os.makedirs(localArchivePath+'/'+sha1Path)
   try:
-      shutil.copy2(file,basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
+      shutil.copy2(file,localArchivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
   except Exception, e:
     raise
-  return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
+  return(localArchivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
 
 def importFile(file):
   logging.info('Importing file %s', file)
   f = open(file, 'rb')
-  tags = exifread.process_file(f,stop_tag='Image DateTime')
-  if tags:
-    if 'Image DateTime' in tags:
-      dateTaken = str(tags['Image DateTime'])
+  exifTags = cigarbox.util.getExifTags(f)
+  if exifTags:
+    if 'Image DateTime' in exifTags:
+      dateTaken = str(exifTags['Image DateTime'])
     else:
       dateTaken = time.ctime(os.path.getmtime(file))
   else:
@@ -101,7 +122,7 @@ def importFile(file):
   origFileName = os.path.basename(file)
   fileType = getfileType(origFileName)
   sha1=hashfile(file)
-  archivePhoto(file,sha1,fileType,args.basedir)
+  archivePhoto(file,sha1,fileType,localArchivePath)
 
   # insert pic into db
   photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
@@ -114,6 +135,7 @@ def importFile(file):
     if tag != '':
       if tag not in ignoreTags:
         photosAddTag(photo_id,tag)
+  f.close()
 
 
 
