@@ -15,7 +15,8 @@ args = parser.parse_args()
 
 ignoreTags = ['Users','nathan','Pictures','www_pics']
 
-import cigarbox, os, sqlite3, shutil, time, exifread, logging, hashlib, re
+import os, sqlite3, shutil, time, exifread, logging, hashlib
+import cigarbox.util
 
 # import exifread
 
@@ -31,11 +32,6 @@ def hashfile(file):
         buf = afile.read(BLOCKSIZE)
   return(sha1.hexdigest())
 
-def normalizeString(string):
-  string = string.lower()
-  string = re.sub(r'[\W\s]','',string)
-  return string
-
 def photosetsAddPhoto(title,photo_id,description=None):
   logging.info('adding photo_id %s to set: %s', photo_id, title)
 
@@ -50,7 +46,7 @@ def addPhoto(sha1,fileType,origFileName,dateTaken):
     return c.lastrowid
 
 def photosAddTag(photo_id,tag):
-  tag = normalizeString(tag)
+  tag = cigarbox.util.normalizeString(tag)
   logging.info('tagging photo id %s tag: %s', photo_id, tag)
   c.execute ('SELECT id FROM tags WHERE tag=?',(tag,))
   tag_id = c.fetchone()
@@ -79,19 +75,8 @@ def getfileType(origFileName):
   logging.info('File type: %s',fileType)
   return fileType
 
-def getArchivePath(sha1):
-  dir1=sha1[:2]
-  dir2=sha1[2:4]
-  dir3=sha1[4:6]
-  return(dir1+'/'+dir2+'/'+dir3)
-
-def getArchiveURI(sha1):
-  archivePath=getArchivePath(sha1)
-  return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
-
-
 def archivePhoto(file,sha1,fileType,basedir='photos'):
-  archivePath=getArchivePath(sha1)
+  archivePath=cigarbox.util.getArchivePath(sha1)
   logging.info('Copying %s -> %s/%s/%s.%s',file,basedir,archivePath,sha1,fileType)
   if not os.path.isdir(basedir+'/'+archivePath):
     os.makedirs(basedir+'/'+archivePath)
@@ -102,7 +87,7 @@ def archivePhoto(file,sha1,fileType,basedir='photos'):
   return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
 
 def importFile(file):
-    logging.info('Importing file %s', file)
+  logging.info('Importing file %s', file)
   f = open(file, 'rb')
   tags = exifread.process_file(f,stop_tag='Image DateTime')
   if tags:
@@ -132,7 +117,7 @@ def importFile(file):
 
 
 
-# my code here
+# the meat
 
 conn = sqlite3.connect('photos.db')
 c = conn.cursor()

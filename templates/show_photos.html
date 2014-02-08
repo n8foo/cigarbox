@@ -5,7 +5,7 @@
   {% endif %}
   <ul class=photos>
   {% for photo in photos %}
-    <li><h2>{{ photo.id }}</h2>{{ photo.sha1|safe }}
+    <li><h2>{{ photo.id }}</h2> <a href="file:///{{ photo.uri }}">{{ photo.sha1|safe }}</a>
   {% else %}
     <li><em>Unbelievable.  No photos here so far</em>
   {% endfor %}

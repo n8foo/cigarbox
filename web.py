@@ -15,7 +15,15 @@
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
+import cigarbox.util
 
+import argparse
+
+parser = argparse.ArgumentParser(description='cigarbox webapp.')
+parser.add_argument('--basedir', help='base directory for the archive', default='photos')
+args = parser.parse_args()
+
+basedir=args.basedir
 
 # create the app
 app = Flask(__name__)
@@ -55,19 +63,6 @@ def get_db():
         g.sqlite_db = connect_db()
     return g.sqlite_db
 
-def getArchivePath(sha1):
-    """Returns archive directory"""
-    dir1=sha1[:2]
-    dir2=sha1[2:4]
-    dir3=sha1[4:6]
-    return(dir1+'/'+dir2+'/'+dir3)
-
-def getArchiveURI(sha1):
-    """Returns the full path to archive image"""
-    archivePath=getArchivePath(sha1)
-    return(basedir+'/'+archivePath+'/'+sha1+'.'+fileType)
-
-
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
@@ -78,9 +73,19 @@ def close_db(error):
 @app.route('/')
 def show_photos():
     db = get_db()
-    cur = db.execute('select id,sha1 from photos order by id desc limit 10')
-    photos = cur.fetchall()
+    cur = db.execute('select id,sha1,fileType from photos order by id desc limit 10')
+    # photos = cur.fetchall()
+    photos = [dict(row) for row in cur]
+    for photo in photos:
+        photo['uri'] = cigarbox.util.getArchiveURI(photo['sha1'],basedir,photo['fileType'])
     return render_template('show_photos.html', photos=photos)
+
+@app.route('/tags')
+def show_tags():
+    db = get_db()
+    cur = db.execute('select tags.id,tags.tag,count(tags_photos.id) as count from tags,tags_photos where tags.id = tags_photos.tag_id group by tag')
+    tags = cur.fetchall()
+    return render_template('tag_cloud.html', tags=tags)
 
 
 @app.route('/add', methods=['POST'])
