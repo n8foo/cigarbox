@@ -3,11 +3,9 @@
   {% if session.logged_in %}
    Your are logged in. Good for you.
   {% endif %}
-  <ul class=photos>
   {% for photo in photos %}
-    <li><h2>{{ photo.id }}</h2> <a href="file:///{{ photo.uri }}">{{ photo.sha1|safe }}</a>
+    </h2><img src="/static/cigarbox/{{ photo.uri }}_c.jpg"></a>
   {% else %}
-    <li><em>Unbelievable.  No photos here so far</em>
+    Unbelievable.  No photos here so far</em>
   {% endfor %}
-  </ul>
 {% endblock %}
