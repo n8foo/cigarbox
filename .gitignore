@@ -36,3 +36,4 @@ nosetests.xml
 .pydevproject
 photos.db
 import.log
+static/cigarbox/*

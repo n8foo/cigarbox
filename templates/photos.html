@@ -3,9 +3,12 @@
   {% if session.logged_in %}
    Your are logged in. Good for you.
   {% endif %}
-  {% for photo in photos %}
-    </h2><img src="/static/cigarbox/{{ photo.uri }}_c.jpg"></a>
+  <a href="/static/cigarbox/{{ photo.uri }}.jpg"><img src="/static/cigarbox/{{ photo.uri }}_c.jpg"></a>
+  <br>
+  {% for tag in tags %}
+  <a href="/tags/{{ tag.tag }}">{{  tag.tag  }}</a>
   {% else %}
-    Unbelievable.  No photos here so far</em>
+  No Tags!
   {% endfor %}
+
 {% endblock %}

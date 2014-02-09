@@ -7,8 +7,8 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # Photo archive directory
 # local
-LOCALARCHIVEPATH='/Users/nathan/Pictures/cigarbox'
-REMOTEARCHIVEPATH='/Users/nathan/Pictures/cigarbox'
+LOCALARCHIVEPATH='static/cigarbox'
+REMOTEARCHIVEPATH='static/cigarbox'
 
 # Define the database - we are working with
 # SQLite for this example

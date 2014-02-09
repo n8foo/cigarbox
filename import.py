@@ -122,16 +122,18 @@ def importFile(file):
   origFileName = os.path.basename(file)
   fileType = getfileType(origFileName)
   sha1=hashfile(file)
-  archivePhoto(file,sha1,fileType,localArchivePath)
+  archivedPhoto=archivePhoto(file,sha1,fileType,localArchivePath)
 
+  logging.info('Generating thumb for file %s', archivedPhoto)
+  cigarbox.util.genThumbnails(archivedPhoto)
   # insert pic into db
   photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
 
 
   # tag based on directory structure
-  origDirPaths = os.path.dirname(file).split('/')
-  for dir in origDirPaths:
-    tag = str(dir)
+  osPathDirnames = os.path.dirname(file).split('/')
+  for osPathDirname in osPathDirnames:
+    tag = str(osPathDirname)
     if tag != '':
       if tag not in ignoreTags:
         photosAddTag(photo_id,tag)

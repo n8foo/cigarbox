@@ -60,14 +60,26 @@ def close_db(error):
 
 
 @app.route('/')
-def show_photos():
+def photostream():
+    """the list of the most recently added pictures"""
     db = get_db()
-    cur = db.execute('select id,sha1,fileType from photos order by id desc limit 10')
+    cur = db.execute('select id,sha1,fileType from photos order by id desc limit 200')
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
-        photo['uri'] = cigarbox.util.getArchiveURI(photo['sha1'],remoteArchivePath,photo['fileType'])
-    return render_template('show_photos.html', photos=photos)
+        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+    return render_template('photostream.html', photos=photos)
+
+@app.route('/photos/<int:photo_id>')
+def show_photo(photo_id):
+    """a single photo with metadata and tags"""
+    db = get_db()
+    cur = db.execute('select id,sha1,fileType from photos where id = ' + str(photo_id))
+    # photos = cur.fetchall()
+    photo = [dict(row) for row in cur][0]
+    photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+    tags = db.execute('select tags.tag from tags,tags_photos where tags.id=tag_id and photo_id = ?',[photo_id])
+    return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/tags')
 def show_tags():

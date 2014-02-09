@@ -4,8 +4,8 @@
    Your are logged in. Good for you.
   {% endif %}
   {% for photo in photos %}
-    </h2> <a href="/photos/{{ photo.id }}"><img src="static/cigarbox/{{ photo.uri }}_t.jpg"></a>
+  <a href="/photos/{{ photo.id }}"><img src="static/cigarbox/{{ photo.uri }}_t.jpg"></a>
   {% else %}
-    Unbelievable.  No photos here so far</em>
+    Unbelievable.  No photos here so far
   {% endfor %}
 {% endblock %}
