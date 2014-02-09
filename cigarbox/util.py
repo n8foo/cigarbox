@@ -4,6 +4,21 @@
 
 import re, exifread
 
+# base58 functions for short URL's
+
+alphabet = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+base = len(alphabet)
+
+def b58encode(div, s=''):
+    if div >= base:
+        div, mod = divmod(div, base)
+        return b58encode(div, alphabet[mod] + s)
+    return alphabet[div] + s
+
+def b58decode(s):
+    return sum(alphabet.index(c) * pow(base, i) for i, c in enumerate(reversed(s)))
+
+
 def normalizeString(string):
   string = string.lower()
   string = re.sub(r'[\W\s]','',string)
