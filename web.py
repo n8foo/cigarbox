@@ -46,8 +46,7 @@ def init_db():
 
 def get_db():
     """Opens a new database connection if there is none yet for the
-    current application context.
-    """
+    current application context."""
     if not hasattr(g, 'sqlite_db'):
         g.sqlite_db = connect_db()
     return g.sqlite_db
@@ -63,7 +62,7 @@ def close_db(error):
 def photostream():
     """the list of the most recently added pictures"""
     db = get_db()
-    cur = db.execute('select id,sha1,fileType from photos order by id desc limit 200')
+    cur = db.execute('SELECT id,sha1,fileType FROM photos ORDER BY id DESC LIMIT 200')
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
@@ -74,17 +73,17 @@ def photostream():
 def show_photo(photo_id):
     """a single photo with metadata and tags"""
     db = get_db()
-    cur = db.execute('select id,sha1,fileType from photos where id = ' + str(photo_id))
+    cur = db.execute('SELECT id,sha1,fileType FROM photos WHERE id = ' + str(photo_id))
     # photos = cur.fetchall()
     photo = [dict(row) for row in cur][0]
     photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
-    tags = db.execute('select tags.tag from tags,tags_photos where tags.id=tag_id and photo_id = ?',[photo_id])
+    tags = db.execute('SELECT tags.tag FROM tags,tags_photos WHERE tags.id=tag_id and photo_id = ?',[photo_id])
     return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/tags')
 def show_tags():
     db = get_db()
-    cur = db.execute('select tags.id,tags.tag,count(tags_photos.id) as count from tags,tags_photos where tags.id = tags_photos.tag_id group by tag')
+    cur = db.execute('SELECT tags.id,tags.tag,count(tags_photos.id) AS count FROM tags,tags_photos WHERE tags.id = tags_photos.tag_id GROUP BY tag')
     tags = cur.fetchall()
     return render_template('tag_cloud.html', tags=tags)
 
