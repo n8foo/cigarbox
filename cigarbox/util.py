@@ -2,10 +2,10 @@
 
 """utility methods"""
 
-import re, exifread
+import re, exifread, os.path
 from PIL import Image
 
-def genThumbnail(filename,abbr):
+def genThumbnail(filename,abbr,regen=False):
   '''generate a single thumbnail'''
   # define the sizes of the various thumbnails
   thumbnailDefinitions={
@@ -18,22 +18,25 @@ def genThumbnail(filename,abbr):
     'c': (800,800),
     'b': (1024,1024)}
   size = thumbnailDefinitions[abbr]
-  try:
-    thumbFileName = filename.split('.')[0] + '_' + abbr + '.jpg'
-    im = Image.open(filename)
-    icc_profile = im.info.get('icc_profile')
-    im.thumbnail(size,Image.ANTIALIAS)
-    im.save(thumbFileName, 'JPEG', icc_profile=icc_profile)
+  thumbFileName = filename.split('.')[0] + '_' + abbr + '.jpg'
+  if os.path.isfile(thumbFileName) and regen == False:
     return(thumbFileName)
-  except IOError:
-    print('cannot create thumbnail for %s' %filename)
+  else:
+    try:
+      im = Image.open(filename)
+      icc_profile = im.info.get('icc_profile')
+      im.thumbnail(size,Image.ANTIALIAS)
+      im.save(thumbFileName, 'JPEG', icc_profile=icc_profile)
+      return(thumbFileName)
+    except IOError as e:
+      raise e
 
-def genThumbnails(filename):
-  genThumbnail(filename,abbr='t')
-  genThumbnail(filename,abbr='m')
-  genThumbnail(filename,abbr='n')
-  genThumbnail(filename,abbr='c')
-  genThumbnail(filename,abbr='b')
+def genThumbnails(filename,regen):
+  genThumbnail(filename,abbr='t',regen=regen)
+  genThumbnail(filename,abbr='m',regen=regen)
+  genThumbnail(filename,abbr='n',regen=regen)
+  genThumbnail(filename,abbr='c',regen=regen)
+  genThumbnail(filename,abbr='b',regen=regen)
 
 
 # base58 functions for short URL's

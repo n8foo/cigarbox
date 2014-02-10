@@ -21,6 +21,7 @@ parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
+parser.add_argument('--regen', help='regenerate thumbnails', action='store_true')
 args = parser.parse_args()
 
 
