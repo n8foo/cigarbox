@@ -5,21 +5,36 @@
 import re, exifread
 from PIL import Image
 
-def genThumbnail(filename,size=(500,500),abbr='m'):
+def genThumbnail(filename,abbr):
+  '''generate a single thumbnail'''
+  # define the sizes of the various thumbnails
+  thumbnailDefinitions={
+    's': (75,75), #should be square eventually
+    'q': (150,150), #should be square eventually
+    't': (100,100),
+    'm': (240,240),
+    'n': (320,230),
+    'k': (500,500),
+    'c': (800,800),
+    'b': (1024,1024)}
+  size = thumbnailDefinitions[abbr]
   try:
     thumbFileName = filename.split('.')[0] + '_' + abbr + '.jpg'
     im = Image.open(filename)
-    im.thumbnail(size)
-    im.save(thumbFileName, 'JPEG')
+    icc_profile = im.info.get('icc_profile')
+    im.thumbnail(size,Image.ANTIALIAS)
+    im.save(thumbFileName, 'JPEG', icc_profile=icc_profile)
     return(thumbFileName)
   except IOError:
     print('cannot create thumbnail for %s' %filename)
 
 def genThumbnails(filename):
-  genThumbnail(filename,size=(100,100),abbr='t')
-  genThumbnail(filename,size=(500,500),abbr='m')
-  genThumbnail(filename,size=(320,320),abbr='n')
-  genThumbnail(filename,size=(800,800),abbr='c')
+  genThumbnail(filename,abbr='t')
+  genThumbnail(filename,abbr='m')
+  genThumbnail(filename,abbr='n')
+  genThumbnail(filename,abbr='c')
+  genThumbnail(filename,abbr='b')
+
 
 # base58 functions for short URL's
 
