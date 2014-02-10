@@ -1,11 +1,8 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% if session.logged_in %}
-   Your are logged in. Good for you.
-  {% endif %}
   {% for photo in photos %}
-  <a href="/photos/{{ photo.id }}"><img src="static/cigarbox/{{ photo.uri }}_t.jpg"></a>
+    <a href="/photos/{{ photo.id }}"><img src="/static/cigarbox/{{ photo.uri }}_m.jpg"></a>
   {% else %}
-    Unbelievable.  No photos here so far
+    You should really take more photos.
   {% endfor %}
 {% endblock %}

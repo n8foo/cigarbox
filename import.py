@@ -19,7 +19,8 @@ parser.add_argument('--files', metavar='N', type=str, nargs='+',
 parser.add_argument('--set', help='assign a set to an import set')
 parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign tag(s) to an import')
-#parser.add_argument('--reimport', help='reimport files already in the system', action='store_true')
+parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
+parser.add_argument('--photoset', help='add this import to a photoset')
 args = parser.parse_args()
 
 
@@ -29,9 +30,6 @@ import os, sqlite3, shutil, time, logging, hashlib
 import cigarbox.util
 
 from flask import Flask
-app = Flask(__name__)
-
-# create the app
 app = Flask(__name__)
 
 # Load default config and override config from config file
@@ -53,8 +51,23 @@ def hashfile(file):
         buf = afile.read(BLOCKSIZE)
   return(sha1.hexdigest())
 
-def photosetsAddPhoto(title,photo_id,description=None):
-  logging.info('adding photo_id %s to set: %s', photo_id, title)
+def photosetsCreate(title,description=None):
+  logging.info('creating photoset: %s', title)
+  c.execute('SELECT id FROM photosets where title=?',(title,))
+  photoset_id = c.fetchone()
+  if photoset_id != None:
+    return photoset_id[0]
+  else:
+    c.execute('INSERT INTO photosets VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(title,description,))
+    return c.lastrowid
+
+def photosetsAddPhoto(photoset_id,photo_id):
+  try:
+    c.execute('INSERT INTO photosets_photos VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(photoset_id,photo_id,))
+    logging.info('adding photo id: %s to photoset id: %s',photo_id,photoset_id,)
+  except Exception, e:
+    return e
+
 
 def addPhoto(sha1,fileType,origFileName,dateTaken):
   logging.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken)
@@ -68,7 +81,6 @@ def addPhoto(sha1,fileType,origFileName,dateTaken):
 
 def photosAddTag(photo_id,tag):
   tag = cigarbox.util.normalizeString(tag)
-  logging.info('tagging photo id %s tag: %s', photo_id, tag)
   c.execute ('SELECT id FROM tags WHERE tag=?',(tag,))
   tag_id = c.fetchone()
   if tag_id == None:
@@ -82,14 +94,12 @@ def photosAddTag(photo_id,tag):
   else:
     tag_id = tag_id[0]
   # ok now we have the tag_id and photo_id, let's do this
-  c.execute ('SELECT id FROM tags_photos WHERE tag_id = ? and photo_id = ?',(tag_id,photo_id))
-  tags_photos_id = c.fetchone()
-  if tags_photos_id == None:
+  try:
     c.execute('INSERT INTO tags_photos VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(tag_id, photo_id))
+    logging.info('tagging photo id %s tag: %s', photo_id, tag)
     return c.lastrowid
-  else:
-    tags_photos_id = tags_photos_id[0]
-    return tags_photos_id
+  except Exception, e:
+    return e
 
 def getfileType(origFileName):
   fileType = origFileName.split('.')[-1].lower()
@@ -107,7 +117,19 @@ def archivePhoto(file,sha1,fileType,localArchivePath):
     raise
   return(localArchivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
 
-def importFile(file):
+def dirTags(photo_id,file):
+  # tag based on directory structure
+  osPathDirnames = os.path.dirname(file).split('/')
+  dirTags = []
+  for osPathDirname in osPathDirnames:
+    tag = str(osPathDirname)
+    if tag != '':
+      if tag not in ignoreTags:
+        dirTags.append(tag)
+        photosAddTag(photo_id,tag)
+  return True
+
+def importFile(file,photoset=None):
   logging.info('Importing file %s', file)
   f = open(file, 'rb')
   exifTags = cigarbox.util.getExifTags(f)
@@ -124,20 +146,14 @@ def importFile(file):
   sha1=hashfile(file)
   archivedPhoto=archivePhoto(file,sha1,fileType,localArchivePath)
 
-  logging.info('Generating thumb for file %s', archivedPhoto)
-  cigarbox.util.genThumbnails(archivedPhoto)
+  cigarbox.util.genThumbnails(archivedPhoto,regen=args.regen)
   # insert pic into db
   photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
-
-
-  # tag based on directory structure
-  osPathDirnames = os.path.dirname(file).split('/')
-  for osPathDirname in osPathDirnames:
-    tag = str(osPathDirname)
-    if tag != '':
-      if tag not in ignoreTags:
-        photosAddTag(photo_id,tag)
+  dirTags(photo_id,file)
+  # close file
   f.close()
+  # add to photoset
+  photosetsAddPhoto(photoset_id,photo_id)
 
 
 
@@ -146,8 +162,14 @@ def importFile(file):
 conn = sqlite3.connect('photos.db')
 c = conn.cursor()
 
+photoset_id = None
+if args.photoset != None:
+  photoset_id = photosetsCreate(args.photoset)
+
 for file in args.files:
-  importFile(file)
+  importFile(file,photoset_id)
+
+
 
 conn.commit()
 conn.close()

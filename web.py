@@ -88,6 +88,27 @@ def show_tags():
     tags = cur.fetchall()
     return render_template('tag_cloud.html', tags=tags)
 
+@app.route('/photosets/')
+def show_photosets():
+    db = get_db()
+    cur = db.execute('SELECT id,title FROM photosets ORDER BY ts')
+    photosets = cur.fetchall()
+    return render_template('photosets.html', photosets=photosets)
+
+@app.route('/photosets/<int:photoset_id>/')
+def show_photoset(photoset_id):
+    db = get_db()
+    cur = db.execute('SELECT photos.id,photos.sha1,fileType \
+        FROM photos,photosets_photos \
+        WHERE photos.id = photosets_photos.photo_id \
+        AND photosets_photos.photoset_id = ? \
+        ORDER BY photos.ts DESC \
+        LIMIT 500',[photoset_id])
+    # photos = cur.fetchall()
+    photos = [dict(row) for row in cur]
+    for photo in photos:
+        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+    return render_template('photostream.html', photos=photos)
 
 @app.route('/add', methods=['POST'])
 def add_photo():

@@ -13,6 +13,7 @@ CREATE UNIQUE INDEX 'photos_sha1_UNIQUE' ON 'photos' ('sha1' ASC);
 CREATE TABLE photosets (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 title TEXT NOT NULL,
+description TEXT,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX 'photosets_title_UNIQUE' ON 'photosets' ('title' ASC);
@@ -41,17 +42,19 @@ ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 CREATE TABLE importmeta (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-origFileName TEXT,
+origFileAbsName TEXT,
 photo_id INTEGER REFERENCES photos (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE photosets_galleries (
+CREATE TABLE galleries_photosets (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 galleries_id INTEGER REFERENCES galleries (id),
 photoset_id INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX 'galleries_photosets_UNIQUE' ON 'galleries_photosets' ('galleries_id','photoset_id' ASC);
 
 CREATE TABLE tags_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,9 +67,10 @@ CREATE UNIQUE INDEX 'tags_photos_UNIQUE' ON 'tags_photos' ('tag_id','photo_id' A
 
 CREATE TABLE photosets_photos (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-photo_id INTEGER REFERENCES photos (id),
-photoset_id INTEGER REFERENCES photosets (id),
+photoset_id INTEGER REFERENCES photos (id),
+photo_id INTEGER REFERENCES photosets (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX 'photosets_photos_UNIQUE' ON 'photosets_photos' ('photoset_id','photo_id' ASC);
 
