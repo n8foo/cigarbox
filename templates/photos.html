@@ -1,8 +1,5 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% if session.logged_in %}
-   Your are logged in. Good for you.
-  {% endif %}
   <a href="/static/cigarbox/{{ photo.uri }}.jpg"><img src="/static/cigarbox/{{ photo.uri }}_c.jpg"></a>
   <br>
   {% for tag in tags %}
@@ -10,5 +7,4 @@
   {% else %}
   No Tags!
   {% endfor %}
-
 {% endblock %}

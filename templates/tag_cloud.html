@@ -1,8 +1,5 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% if session.logged_in %}
-   Your are logged in. Good for you.
-  {% endif %}
   {% for tag in tags %}
     <a href="/tags/{{ tag.tag }}/" style="font-size: {{  ( tag.count / 50 ) + 10 }}px;">{{ tag.tag }}</a></font>
   {% else %}
