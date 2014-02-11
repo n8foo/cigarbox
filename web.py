@@ -66,7 +66,8 @@ def photostream():
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
-        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+        (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
+        photo['uri'] = sha1Path + '/' + filename
     return render_template('photostream.html', photos=photos)
 
 @app.route('/photos/<int:photo_id>')
@@ -76,7 +77,8 @@ def show_photo(photo_id):
     cur = db.execute('SELECT id,sha1,fileType FROM photos WHERE id = ' + str(photo_id))
     # photos = cur.fetchall()
     photo = [dict(row) for row in cur][0]
-    photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+    (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
+    photo['uri'] = sha1Path + '/' + filename
     tags = db.execute('SELECT tags.tag FROM tags,tags_photos WHERE tags.id=tag_id and photo_id = ?',[photo_id])
     return render_template('photos.html', photo=photo, tags=tags)
 
@@ -100,7 +102,8 @@ def show_taged_photos(tag):
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
-        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+        (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
+        photo['uri'] = sha1Path + '/' + filename
     return render_template('photostream.html', photos=photos)
 
 @app.route('/photosets')
@@ -122,7 +125,8 @@ def show_photoset(photoset_id):
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
-        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+        (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
+        photo['uri'] = sha1Path + '/' + filename
     return render_template('photostream.html', photos=photos)
 
 @app.route('/add', methods=['POST'])

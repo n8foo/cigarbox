@@ -108,15 +108,15 @@ def getfileType(origFileName):
   return fileType
 
 def archivePhoto(file,sha1,fileType,localArchivePath):
-  sha1Path=cigarbox.util.getSha1Path(sha1)
-  logging.info('Copying %s -> %s/%s/%s.%s',file,localArchivePath,sha1Path,sha1,fileType)
+  (sha1Path,sha1FileName)=cigarbox.util.getSha1Path(sha1)
+  logging.info('Copying %s -> %s/%s/%s.%s',file,localArchivePath,sha1Path,sha1FileName,fileType)
   if not os.path.isdir(localArchivePath+'/'+sha1Path):
     os.makedirs(localArchivePath+'/'+sha1Path)
   try:
-      shutil.copy2(file,localArchivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
+      shutil.copy2(file,localArchivePath+'/'+sha1Path+'/'+sha1FileName+'.'+fileType)
   except Exception, e:
     raise
-  return(localArchivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
+  return(localArchivePath+'/'+sha1Path+'/'+sha1FileName+'.'+fileType)
 
 def dirTags(photo_id,file):
   # tag based on directory structure

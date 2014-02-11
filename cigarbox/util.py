@@ -64,12 +64,13 @@ def getSha1Path(sha1):
   dir1=sha1[:2]
   dir2=sha1[2:4]
   dir3=sha1[4:6]
-  return(dir1+'/'+dir2+'/'+dir3)
+  filename=sha1[6:40]
+  return(dir1+'/'+dir2+'/'+dir3,filename)
 
 def getArchiveURI(sha1,archivePath,fileType='jpg'):
   """returns absolute path to archive file"""
-  sha1Path=getSha1Path(sha1)
-  return(archivePath+'/'+sha1Path+'/'+sha1+'.'+fileType)
+  (sha1Path,filename)=getSha1Path(sha1)
+  return(archivePath+'/'+sha1Path+'/'+filename+'.'+fileType)
 
 def getExifTags(fileObj,tag=None):
   exifTags = exifread.process_file(fileObj,details=False)
