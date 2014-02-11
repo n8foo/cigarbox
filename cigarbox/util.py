@@ -26,7 +26,7 @@ def genThumbnail(filename,abbr,regen=False):
       im = Image.open(filename)
       icc_profile = im.info.get('icc_profile')
       im.thumbnail(size,Image.ANTIALIAS)
-      im.save(thumbFileName, 'JPEG', icc_profile=icc_profile)
+      im.save(thumbFileName, 'JPEG', icc_profile=icc_profile, quality=95)
       return(thumbFileName)
     except IOError as e:
       raise e
