@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
   {% for photoset in photosets %}
-    <a href="/photosets/{{ photoset.id }}/">{{ photoset.title }}</a><br>
+    <a href="/photosets/{{ photoset.id }}">{{ photoset.title }}</a><br>
   {% else %}
     No photosets!
   {% endfor %}

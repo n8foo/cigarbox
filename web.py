@@ -87,21 +87,37 @@ def show_tags():
     tags = cur.fetchall()
     return render_template('tag_cloud.html', tags=tags)
 
-@app.route('/photosets/')
+@app.route('/tags/<string:tag>')
+def show_taged_photos(tag):
+    db = get_db()
+    cur = db.execute('SELECT photos.id,photos.sha1,fileType \
+        FROM photos,tags_photos,tags \
+        WHERE photos.id = tags_photos.photo_id \
+        AND tags_photos.tag_id = tags.id \
+        AND tags.tag =  ? \
+        ORDER BY photos.id DESC \
+        LIMIT 500',[tag])
+    # photos = cur.fetchall()
+    photos = [dict(row) for row in cur]
+    for photo in photos:
+        photo['uri'] = cigarbox.util.getSha1Path(photo['sha1']) + '/' + photo['sha1']
+    return render_template('photostream.html', photos=photos)
+
+@app.route('/photosets')
 def show_photosets():
     db = get_db()
     cur = db.execute('SELECT id,title FROM photosets ORDER BY ts')
     photosets = cur.fetchall()
     return render_template('photosets.html', photosets=photosets)
 
-@app.route('/photosets/<int:photoset_id>/')
+@app.route('/photosets/<int:photoset_id>')
 def show_photoset(photoset_id):
     db = get_db()
     cur = db.execute('SELECT photos.id,photos.sha1,fileType \
         FROM photos,photosets_photos \
         WHERE photos.id = photosets_photos.photo_id \
         AND photosets_photos.photoset_id = ? \
-        ORDER BY photos.ts DESC \
+        ORDER BY photos.dateTaken \
         LIMIT 500',[photoset_id])
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]

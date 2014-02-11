@@ -151,6 +151,12 @@ def importFile(file,photoset=None):
   # insert pic into db
   photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
   dirTags(photo_id,file)
+
+  if args.tags != None:
+    tags = args.tags.split(',')
+    for tag in tags:
+      photosAddTag(photo_id,tag)
+
   # close file
   f.close()
   # add to photoset
