@@ -120,7 +120,7 @@ def show_photoset(photoset_id):
         FROM photos,photosets_photos \
         WHERE photos.id = photosets_photos.photo_id \
         AND photosets_photos.photoset_id = ? \
-        ORDER BY photos.dateTaken \
+        ORDER BY photos.dateTaken DESC \
         LIMIT 500',[photoset_id])
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
