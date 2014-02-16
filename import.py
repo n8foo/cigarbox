@@ -25,8 +25,6 @@ parser.add_argument('--regen', help='regenerate thumbnails', action='store_true'
 args = parser.parse_args()
 
 
-ignoreTags = ['Users','nathan','Pictures','www_pics']
-
 import os, sqlite3, shutil, time, logging, hashlib
 import cigarbox.util
 
