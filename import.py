@@ -22,6 +22,7 @@ parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true')
+parser.add_argument('--S3', help='upload to S3', action='store_true', default=True)
 args = parser.parse_args()
 
 
@@ -107,6 +108,10 @@ def archivePhoto(file,sha1,fileType,localArchivePath,args):
       shutil.copy2(file,archivedPhoto)
     except Exception, e:
       raise e
+  if args.S3:
+      S3Key='%s/%s.%s' % (sha1Path,sha1FileName,fileType)
+      logging.info('Uploading %s -> %s',file,S3Key)
+      cigarbox.aws.uploadToS3(file,S3Key,app.config)
 
   return(archivedPhoto)
 

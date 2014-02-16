@@ -4,6 +4,8 @@
 
 import re, exifread, os.path, hashlib
 from PIL import Image
+# our own libs
+import aws
 
 def genThumbnail(filename,abbr,regen=False):
   '''generate a single thumbnail'''
@@ -31,8 +33,10 @@ def genThumbnail(filename,abbr,regen=False):
     except IOError as e:
       raise e
 
-def genThumbnails(filename,regen):
-  genThumbnail(filename,abbr='t',regen=regen)
+def genThumbnails(filename,config,regen):
+  t_thumb = genThumbnail(filename,abbr='t',regen=regen)
+  aws.uploadToS3(t_thumb,t_thumb,config)
+
   genThumbnail(filename,abbr='m',regen=regen)
   genThumbnail(filename,abbr='n',regen=regen)
   genThumbnail(filename,abbr='c',regen=regen)

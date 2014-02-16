@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
   {% for photo in photos %}
-    <a href="/photos/{{ photo.id }}"><img src="/static/cigarbox/{{ photo.uri }}_m.jpg"></a>
+    <a href="/photos/{{ photo.id }}"><img src="http://s3.amazonaws.com/cigarbox/static/cigarbox/{{ photo.uri }}_t.jpg"></a>
   {% else %}
     You should really take more photos.
   {% endfor %}
