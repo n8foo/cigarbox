@@ -2,7 +2,7 @@
 
 """utility methods"""
 
-import re, exifread, os.path
+import re, exifread, os.path, hashlib
 from PIL import Image
 
 def genThumbnail(filename,abbr,regen=False):
@@ -60,18 +60,32 @@ def normalizeString(string):
   return string
 
 def getSha1Path(sha1):
-  """returns sha1 dir structure"""
+  """returns a list consisting of (sha1Path,filename)"""
   dir1=sha1[:2]
   dir2=sha1[2:4]
   dir3=sha1[4:6]
   filename=sha1[6:40]
   return(dir1+'/'+dir2+'/'+dir3,filename)
 
+def hashfile(filename):
+  """returns a sha1 hash of a local file"""
+  BLOCKSIZE = 65536
+  sha1 = hashlib.sha1()
+  with open(filename, 'rb') as afile:
+    buf = afile.read(BLOCKSIZE)
+    while len(buf) > 0:
+        sha1.update(buf)
+        buf = afile.read(BLOCKSIZE)
+  return(sha1.hexdigest())
+
 def getArchiveURI(sha1,archivePath,fileType='jpg'):
   """returns absolute path to archive file"""
   (sha1Path,filename)=getSha1Path(sha1)
   return(archivePath+'/'+sha1Path+'/'+filename+'.'+fileType)
 
-def getExifTags(fileObj,tag=None):
-  exifTags = exifread.process_file(fileObj,details=False)
+def getExifTags(filename,tag=None):
+  f = open(filename, 'rb')
+  exifTags = exifread.process_file(f,details=False)
+  f.close()
   return exifTags
+

@@ -18,15 +18,15 @@ parser.add_argument('--files', metavar='N', type=str, nargs='+',
                    help='files to import', required=True)
 parser.add_argument('--set', help='assign a set to an import set')
 parser.add_argument('--gallery', help='assign a gallery to an import')
-parser.add_argument('--tags', help='assign tag(s) to an import')
+parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true')
 args = parser.parse_args()
 
 
-import os, sqlite3, shutil, time, logging, hashlib
-import cigarbox.util
+import os, sqlite3, shutil, time, logging
+import cigarbox.util, cigarbox.aws
 
 from flask import Flask
 app = Flask(__name__)
@@ -40,15 +40,6 @@ localArchivePath=app.config['LOCALARCHIVEPATH']
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
-def hashfile(file):
-  BLOCKSIZE = 65536
-  sha1 = hashlib.sha1()
-  with open(file, 'rb') as afile:
-    buf = afile.read(BLOCKSIZE)
-    while len(buf) > 0:
-        sha1.update(buf)
-        buf = afile.read(BLOCKSIZE)
-  return(sha1.hexdigest())
 
 def photosetsCreate(title,description=None):
   logging.info('creating photoset: %s', title)
@@ -68,7 +59,7 @@ def photosetsAddPhoto(photoset_id,photo_id):
     return e
 
 
-def addPhoto(sha1,fileType,origFileName,dateTaken):
+def addPhotoToDB(sha1,fileType,origFileName,dateTaken):
   logging.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken)
   c.execute ('SELECT id FROM photos where sha1 = ?',(sha1,))
   photo_id = c.fetchone()
@@ -105,19 +96,22 @@ def getfileType(origFileName):
   logging.info('File type: %s',fileType)
   return fileType
 
-def archivePhoto(file,sha1,fileType,localArchivePath):
+def archivePhoto(file,sha1,fileType,localArchivePath,args):
   (sha1Path,sha1FileName)=cigarbox.util.getSha1Path(sha1)
-  logging.info('Copying %s -> %s/%s/%s.%s',file,localArchivePath,sha1Path,sha1FileName,fileType)
+  archivedPhoto='%s/%s/%s.%s' % (localArchivePath,sha1Path,sha1FileName,fileType)
+  logging.info('Copying %s -> %s',file,archivedPhoto)
   if not os.path.isdir(localArchivePath+'/'+sha1Path):
     os.makedirs(localArchivePath+'/'+sha1Path)
-  try:
-      shutil.copy2(file,localArchivePath+'/'+sha1Path+'/'+sha1FileName+'.'+fileType)
-  except Exception, e:
-    raise
-  return(localArchivePath+'/'+sha1Path+'/'+sha1FileName+'.'+fileType)
+  if not os.path.isfile(archivedPhoto):
+    try:
+      shutil.copy2(file,archivedPhoto)
+    except Exception, e:
+      raise e
 
-def dirTags(photo_id,file):
-  # tag based on directory structure
+  return(archivedPhoto)
+
+def dirTags(photo_id,file,ignoreTags):
+  # add tags based on directory structure
   osPathDirnames = os.path.dirname(file).split('/')
   dirTags = []
   for osPathDirname in osPathDirnames:
@@ -128,10 +122,9 @@ def dirTags(photo_id,file):
         photosAddTag(photo_id,tag)
   return True
 
-def importFile(file,photoset=None):
+def importFile(file):
   logging.info('Importing file %s', file)
-  f = open(file, 'rb')
-  exifTags = cigarbox.util.getExifTags(f)
+  exifTags = cigarbox.util.getExifTags(file)
   if exifTags:
     if 'Image DateTime' in exifTags:
       dateTaken = str(exifTags['Image DateTime'])
@@ -139,27 +132,18 @@ def importFile(file,photoset=None):
       dateTaken = time.ctime(os.path.getmtime(file))
   else:
     dateTaken = time.ctime(os.path.getmtime(file))
-
+  # set some variables
   origFileName = os.path.basename(file)
   fileType = getfileType(origFileName)
-  sha1=hashfile(file)
-  archivedPhoto=archivePhoto(file,sha1,fileType,localArchivePath)
-
-  cigarbox.util.genThumbnails(archivedPhoto,regen=args.regen)
+  sha1=cigarbox.util.hashfile(file)
   # insert pic into db
-  photo_id = addPhoto(sha1,fileType,origFileName,dateTaken)
-  dirTags(photo_id,file)
+  photo_id = addPhotoToDB(sha1,fileType,origFileName,dateTaken)
+  # archive the photo
+  archivedPhoto=archivePhoto(file,sha1,fileType,localArchivePath,args)
+  # generate thumbnails
+  cigarbox.util.genThumbnails(archivedPhoto,app.config,regen=args.regen)
 
-  if args.tags != None:
-    tags = args.tags.split(',')
-    for tag in tags:
-      photosAddTag(photo_id,tag)
-
-  # close file
-  f.close()
-  # add to photoset
-  photosetsAddPhoto(photoset_id,photo_id)
-
+  return photo_id
 
 
 # the meat
@@ -167,12 +151,25 @@ def importFile(file,photoset=None):
 conn = sqlite3.connect('photos.db')
 c = conn.cursor()
 
-photoset_id = None
-if args.photoset != None:
+if args.photoset:
   photoset_id = photosetsCreate(args.photoset)
 
 for file in args.files:
-  importFile(file,photoset_id)
+  # import the file
+  photo_id = importFile(file)
+  # add tags
+  if args.tags:
+    tags = args.tags.split(',')
+    for tag in tags:
+      photosAddTag(photo_id,tag)
+  # add dirtags
+  if args.dirtags:
+    ignoreTags=app.config['IGNORETAGS']
+    dirTags(photo_id,file,ignoreTags)
+  # add to photoset
+  if args.photoset:
+    photosetsAddPhoto(photoset_id,photo_id)
+    
 
 
 
