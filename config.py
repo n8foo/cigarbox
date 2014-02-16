@@ -10,13 +10,25 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 LOCALARCHIVEPATH='static/cigarbox'
 REMOTEARCHIVEPATH='static/cigarbox'
 
+# For directory tagging, ignore these directories/tags
+IGNORETAGS = ['Users','Pictures']
+
+
+
+# AWS Credentials
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+S3_BUCKET_NAME=''
+
 # Define the database - we are working with
 # SQLite for this example
 
 DATABASE='photos.db'
-SECRET_KEY='development key'
 USERNAME='admin'
 PASSWORD='changeme2014'
+
+# Secrete Key
+SECRET_KEY=''
 
 # Application threads. A common general assumption is
 # using 2 per available processor cores - to handle
@@ -29,8 +41,8 @@ CSRF_ENABLED     = True
 
 # Use a secure, unique and absolutely secret key for
 # signing the data. 
-CSRF_SESSION_KEY = "secret"
+CSRF_SESSION_KEY = 'secret'
 
 # Secret key for signing cookies
-SECRET_KEY = "secret"
+SECRET_KEY = 'secret'
 
