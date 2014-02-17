@@ -16,13 +16,13 @@ import argparse
 parser = argparse.ArgumentParser(description='import photos into photos system.')
 parser.add_argument('--files', metavar='N', type=str, nargs='+',
                    help='files to import', required=True)
-parser.add_argument('--set', help='assign a set to an import set')
-parser.add_argument('--gallery', help='assign a gallery to an import')
+#parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
+parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true', default=False)
-parser.add_argument('--S3', help='upload to S3', action='store_true', default=True)
+parser.add_argument('--S3', help='upload to S3', action='store_true', default=False)
 args = parser.parse_args()
 
 
@@ -43,12 +43,12 @@ localArchivePath=app.config['LOCALARCHIVEPATH']
 
 
 def photosetsCreate(title,description=None):
-  logger.info('creating photoset: %s', title)
   c.execute('SELECT id FROM photosets where title=?',(title,))
   photoset_id = c.fetchone()
   if photoset_id != None:
     return photoset_id[0]
   else:
+    logger.info('creating photoset: %s', title)
     c.execute('INSERT INTO photosets VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(title,description,))
     return c.lastrowid
 
@@ -61,12 +61,13 @@ def photosetsAddPhoto(photoset_id,photo_id):
 
 
 def addPhotoToDB(sha1,fileType,origFileName,dateTaken):
-  logger.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken)
+  """adds photo to photos table"""
   c.execute ('SELECT id FROM photos where sha1 = ?',(sha1,))
   photo_id = c.fetchone()
   if photo_id != None:
     return photo_id[0]
-  else: 
+  else:
+    logger.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken) 
     c.execute('INSERT INTO photos VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFileName, dateTaken,))
     return c.lastrowid
 
@@ -94,23 +95,21 @@ def photosAddTag(photo_id,tag):
 
 def getfileType(origFileName):
   fileType = origFileName.split('.')[-1].lower()
-  logger.info('File type: %s',fileType)
   return fileType
 
 def archivePhoto(file,sha1,fileType,localArchivePath,args):
   (sha1Path,sha1FileName)=cigarbox.util.getSha1Path(sha1)
   archivedPhoto='%s/%s/%s.%s' % (localArchivePath,sha1Path,sha1FileName,fileType)
-  logger.info('Copying %s -> %s',file,archivedPhoto)
   if not os.path.isdir(localArchivePath+'/'+sha1Path):
     os.makedirs(localArchivePath+'/'+sha1Path)
   if not os.path.isfile(archivedPhoto):
     try:
+      logger.info('Copying %s -> %s',file,archivedPhoto)
       shutil.copy2(file,archivedPhoto)
     except Exception, e:
       raise e
-  if args.S3:
+  if args.S3 == True:
       S3Key='%s/%s.%s' % (sha1Path,sha1FileName,fileType)
-      logger.info('Uploading %s -> %s',file,S3Key)
       cigarbox.aws.uploadToS3(file,S3Key,app.config)
 
   return(archivedPhoto)
@@ -125,11 +124,18 @@ def dirTags(photo_id,file,ignoreTags):
       if tag not in ignoreTags:
         dirTags.append(tag)
         photosAddTag(photo_id,tag)
+  return dirTags
+
+def parentDirPhotoSet(photo_id,file):
+  # add tags based on parent directory
+  parentDir = osPathDirnames = os.path.dirname(file).split('/')[-1]
+  photoset_id = photosetsCreate(parentDir)
+  photosetsAddPhoto(photoset_id,photo_id)
   return True
 
 def importFile(filename):
   """import a file"""
-  logger.info('Importing file %s', filename)
+  logger.info('Analyzing file %s', filename)
   exifTags = cigarbox.util.getExifTags(filename)
   if exifTags:
     if 'Image DateTime' in exifTags:
@@ -172,10 +178,13 @@ for filename in args.files:
   if args.dirtags:
     ignoreTags=app.config['IGNORETAGS']
     dirTags(photo_id,filename,ignoreTags)
+  # add parent dir tag
+  if args.parentdirphotoset:
+    parentDirPhotoSet(photo_id,filename)
   # add to photoset
   if args.photoset:
     photosetsAddPhoto(photoset_id,photo_id)
-    
+
 
 
 
