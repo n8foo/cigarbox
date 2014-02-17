@@ -74,18 +74,26 @@ def photostream():
 def show_photo(photo_id):
     """a single photo with metadata and tags"""
     db = get_db()
-    cur = db.execute('SELECT id,sha1,fileType FROM photos WHERE id = ' + str(photo_id))
+    cur = db.execute('SELECT id,sha1,fileType \
+        FROM photos \
+        WHERE id = ' + str(photo_id))
     # photos = cur.fetchall()
     photo = [dict(row) for row in cur][0]
     (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
     photo['uri'] = sha1Path + '/' + filename
-    tags = db.execute('SELECT tags.tag FROM tags,tags_photos WHERE tags.id=tag_id and photo_id = ?',[photo_id])
+    tags = db.execute('SELECT tags.tag \
+        FROM tags,tags_photos \
+        WHERE tags.id=tag_id \
+        AND photo_id = ?',[photo_id])
     return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/tags')
 def show_tags():
     db = get_db()
-    cur = db.execute('SELECT tags.id,tags.tag,count(tags_photos.id) AS count FROM tags,tags_photos WHERE tags.id = tags_photos.tag_id GROUP BY tag')
+    cur = db.execute('SELECT tags.id,tags.tag,count(tags_photos.id) AS count \
+        FROM tags,tags_photos \
+        WHERE tags.id = tags_photos.tag_id \
+        GROUP BY tag')
     tags = cur.fetchall()
     return render_template('tag_cloud.html', tags=tags)
 
@@ -109,7 +117,10 @@ def show_taged_photos(tag):
 @app.route('/photosets')
 def show_photosets():
     db = get_db()
-    cur = db.execute('SELECT id,title FROM photosets ORDER BY ts')
+    cur = db.execute('SELECT id,title \
+        FROM photosets \
+        ORDER BY ts DESC \
+        LIMIT 50')
     photosets = cur.fetchall()
     return render_template('photosets.html', photosets=photosets)
 
