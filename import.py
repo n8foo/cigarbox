@@ -59,16 +59,27 @@ def photosetsAddPhoto(photoset_id,photo_id):
   except Exception, e:
     return e
 
+def getSha1FromPhotoID (photo_id):
+  c.execute ('SELECT sha1 FROM photos where id = ?',(id,))
+  sha1 = c.fetchone()
+  return(sha1)
 
-def addPhotoToDB(sha1,fileType,origFileName,dateTaken):
+def getOriginalPhotoName (photo_id):
+  sha1 = getSha1FromPhotoID(photo_id)
+  secret_key = app.config['SECRET_KEY']
+  # some as yet undefined sorcery
+  return(originalPhotoName)
+
+
+def addPhotoToDB(sha1,fileType,origFilename,dateTaken):
   """adds photo to photos table"""
   c.execute ('SELECT id FROM photos where sha1 = ?',(sha1,))
   photo_id = c.fetchone()
   if photo_id != None:
     return photo_id[0]
   else:
-    logger.info('Adding to DB: %s %s %s %s', sha1,fileType,origFileName,dateTaken) 
-    c.execute('INSERT INTO photos VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFileName, dateTaken,))
+    logger.info('Adding to DB: %s %s %s %s', sha1,fileType,origFilename,dateTaken)
+    c.execute('INSERT INTO photos VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFilename, dateTaken,))
     return c.lastrowid
 
 def photosAddTag(photo_id,tag):
@@ -93,13 +104,13 @@ def photosAddTag(photo_id,tag):
   except Exception, e:
     return e
 
-def getfileType(origFileName):
-  fileType = origFileName.split('.')[-1].lower()
+def getfileType(origFilename):
+  fileType = origFilename.split('.')[-1].lower()
   return fileType
 
 def archivePhoto(file,sha1,fileType,localArchivePath,args):
-  (sha1Path,sha1FileName)=cigarbox.util.getSha1Path(sha1)
-  archivedPhoto='%s/%s/%s.%s' % (localArchivePath,sha1Path,sha1FileName,fileType)
+  (sha1Path,sha1Filename)=cigarbox.util.getSha1Path(sha1)
+  archivedPhoto='%s/%s/%s.%s' % (localArchivePath,sha1Path,sha1Filename,fileType)
   if not os.path.isdir(localArchivePath+'/'+sha1Path):
     os.makedirs(localArchivePath+'/'+sha1Path)
   if not os.path.isfile(archivedPhoto):
@@ -109,7 +120,7 @@ def archivePhoto(file,sha1,fileType,localArchivePath,args):
     except Exception, e:
       raise e
   if args.S3 == True:
-      S3Key='%s/%s.%s' % (sha1Path,sha1FileName,fileType)
+      S3Key='%s/%s.%s' % (sha1Path,sha1Filename,fileType)
       cigarbox.aws.uploadToS3(file,S3Key,app.config)
 
   return(archivedPhoto)
@@ -145,19 +156,19 @@ def importFile(filename):
   else:
     dateTaken = time.ctime(os.path.getmtime(filename))
   # set some variables
-  origFileName = os.path.basename(filename)
-  fileType = getfileType(origFileName)
+  origFilename = os.path.basename(filename)
+  fileType = getfileType(origFilename)
   sha1=cigarbox.util.hashfile(filename)
   # insert pic into db
-  photo_id = addPhotoToDB(sha1,fileType,origFileName,dateTaken)
+  photo_id = addPhotoToDB(sha1,fileType,origFilename,dateTaken)
   # archive the photo
   archivedPhoto=archivePhoto(filename,sha1,fileType,localArchivePath,args)
   # generate thumbnails
-  thumbFileNames = cigarbox.util.genThumbnails(archivedPhoto,app.config,regen=args.regen)
+  thumbFilenames = cigarbox.util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
   # send thumbnails to S3
   if args.S3 == True:
-    for thumbFileName in thumbFileNames:
-      cigarbox.aws.uploadToS3(thumbFileName,thumbFileName,app.config,regen=args.regen)
+    for thumbFilename in thumbFilenames:
+      cigarbox.aws.uploadToS3(app.config['LOCALARCHIVEPATH']+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen)
 
   return photo_id
 

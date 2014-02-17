@@ -22,10 +22,10 @@ def setup_custom_logger(name):
     logger.addHandler(handler)
     return logger
 
-def genThumbnail(filename,abbr,regen=False):
-  '''generate a single thumbnail'''
+def genThumbnail(filename,thumbnailType,config,regen=False):
+  """generate a single thumbnail from a filename"""
   # define the sizes of the various thumbnails
-  thumbnailDefinitions={
+  thumbnailTypeDefinitions={
     's': (75,75), #should be square eventually
     'q': (150,150), #should be square eventually
     't': (100,100),
@@ -34,28 +34,32 @@ def genThumbnail(filename,abbr,regen=False):
     'k': (500,500),
     'c': (800,800),
     'b': (1024,1024)}
-  size = thumbnailDefinitions[abbr]
-  thumbFileName = filename.split('.')[0] + '_' + abbr + '.jpg'
-  if os.path.isfile(thumbFileName) and regen == False:
-    return(thumbFileName)
+  size = thumbnailTypeDefinitions[thumbnailType]
+  thumbFilename = filename.split('.')[0] + '_' + thumbnailType + '.' + filename.split('.')[1]
+  if os.path.isfile(config['LOCALARCHIVEPATH']+'/'+thumbFilename) and regen == False:
+    return(thumbFilename)
   else:
     try:
-      logger.info('Generating thumbnail: %s' %(thumbFileName))
-      im = Image.open(filename)
+      logger.info('Generating thumbnail: %s' %(config['LOCALARCHIVEPATH']+'/'+thumbFilename))
+      im = Image.open(config['LOCALARCHIVEPATH']+'/'+filename)
       icc_profile = im.info.get('icc_profile')
       im.thumbnail(size,Image.ANTIALIAS)
-      im.save(thumbFileName, 'JPEG', icc_profile=icc_profile, quality=95)
-      return(thumbFileName)
+      im.save(config['LOCALARCHIVEPATH']+'/'+thumbFilename, 'JPEG', icc_profile=icc_profile, quality=95)
+      return(thumbFilename)
     except IOError as e:
       raise e
 
-def genThumbnails(filename,config,regen=False):
-  thumbTypes = ['t','m','n','c','b']
-  thumbnailFiles = []
-  for thumbType in thumbTypes:
-    thumbFileName = genThumbnail(filename,abbr=thumbType,regen=regen)
-    thumbnailFiles.append(thumbFileName)
-  return thumbnailFiles
+def genThumbnails(sha1,fileType,config,regen=False):
+  """takes sha1, filetype, config and runs thumbnail generation for all sizes"""
+  (sha1Path,filename) = getSha1Path(sha1)
+  relativeFilename = '%s/%s.%s' % (sha1Path,filename,fileType)
+
+  thumbnailTypes = ['t','m','n','c','b']
+  thumbnailFilenames = []
+  for thumbnailType in thumbnailTypes:
+    thumbFilename = genThumbnail(relativeFilename,thumbnailType,config,regen=regen)
+    thumbnailFilenames.append(thumbFilename)
+  return thumbnailFilenames
 
 
 # base58 functions for short URL's
