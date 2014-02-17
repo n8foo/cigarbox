@@ -49,14 +49,11 @@ def genThumbnail(filename,abbr,regen=False):
     except IOError as e:
       raise e
 
-def genThumbnails(filename,config,regen):
-  t_thumb = genThumbnail(filename,abbr='t',regen=regen)
-  aws.uploadToS3(t_thumb,t_thumb,config)
-
-  genThumbnail(filename,abbr='m',regen=regen)
-  genThumbnail(filename,abbr='n',regen=regen)
-  genThumbnail(filename,abbr='c',regen=regen)
-  genThumbnail(filename,abbr='b',regen=regen)
+def genThumbnails(filename,config,regen=False):
+  thumbTypes = ['t','m','n','c','b']
+  for thumbType in thumbTypes:
+    thumbFilename = genThumbnail(filename,abbr=thumbType,regen=regen)
+    aws.uploadToS3(thumbFilename,thumbFilename,config,regen=regen)
 
 
 # base58 functions for short URL's
