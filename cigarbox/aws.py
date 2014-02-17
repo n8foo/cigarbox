@@ -3,13 +3,16 @@
 """aws methods"""
 
 # std libs
-import sys
+import sys, logging
 
 # third party
 import boto
 
+# set up logging
+logger = logging.getLogger('cigarbox')
 
-def uploadToS3(localfile,s3Key,config,replace=False):
+
+def uploadToS3(localfile,S3Key,config,regen=False):
   bucket_name = config['S3_BUCKET_NAME']
   conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
 
@@ -19,8 +22,9 @@ def uploadToS3(localfile,s3Key,config,replace=False):
   def percent_cb(complete, total):
       sys.stdout.write('.')
       sys.stdout.flush()
-
+  logger.info('Uploading to S3: %s -> %s' % (localfile,S3Key))
   from boto.s3.key import Key
   k = Key(bucket)
-  k.key = s3Key
-  k.set_contents_from_filename(localfile,cb=percent_cb, num_cb=10, replace=replace, policy='public-read')
+  k.key = S3Key
+  k.set_contents_from_filename(localfile,cb=percent_cb, num_cb=100, replace=regen, policy='public-read')
+  

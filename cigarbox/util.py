@@ -2,10 +2,25 @@
 
 """utility methods"""
 
-import re, exifread, os.path, hashlib
+import re, exifread, os.path, hashlib, logging
 from PIL import Image
 # our own libs
 import aws
+
+# set up logging
+logger = logging.getLogger('cigarbox')
+
+
+def setup_custom_logger(name):
+    formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    return logger
 
 def genThumbnail(filename,abbr,regen=False):
   '''generate a single thumbnail'''
@@ -25,6 +40,7 @@ def genThumbnail(filename,abbr,regen=False):
     return(thumbFileName)
   else:
     try:
+      logger.info('Generating thumbnail: %s' %(thumbFileName))
       im = Image.open(filename)
       icc_profile = im.info.get('icc_profile')
       im.thumbnail(size,Image.ANTIALIAS)

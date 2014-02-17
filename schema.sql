@@ -40,10 +40,11 @@ photo_id INTEGER REFERENCES photos (id),
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE importmeta (
+CREATE TABLE import_meta (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
-origFileAbsName TEXT,
 photo_id INTEGER REFERENCES photos (id),
+importPath TEXT,
+importSource TEXT,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
