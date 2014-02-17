@@ -153,7 +153,11 @@ def importFile(filename):
   # archive the photo
   archivedPhoto=archivePhoto(filename,sha1,fileType,localArchivePath,args)
   # generate thumbnails
-  cigarbox.util.genThumbnails(archivedPhoto,app.config,regen=args.regen)
+  thumbFileNames = cigarbox.util.genThumbnails(archivedPhoto,app.config,regen=args.regen)
+  # send thumbnails to S3
+  if args.S3 == True:
+    for thumbFileName in thumbFileNames:
+      cigarbox.aws.uploadToS3(thumbFileName,thumbFileName,app.config,regen=args.regen)
 
   return photo_id
 

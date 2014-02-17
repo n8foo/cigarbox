@@ -22,9 +22,9 @@ def uploadToS3(localfile,S3Key,config,regen=False):
   def percent_cb(complete, total):
       sys.stdout.write('.')
       sys.stdout.flush()
-  logger.info('Uploading to S3: %s -> %s' % (localfile,S3Key))
+  logger.info('Syncing to S3: %s -> %s' % (localfile,S3Key))
   from boto.s3.key import Key
   k = Key(bucket)
   k.key = S3Key
-  k.set_contents_from_filename(localfile,cb=percent_cb, num_cb=100, replace=regen, policy='public-read')
+  k.set_contents_from_filename(localfile, replace=regen, policy='public-read')
   

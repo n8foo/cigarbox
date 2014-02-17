@@ -51,9 +51,11 @@ def genThumbnail(filename,abbr,regen=False):
 
 def genThumbnails(filename,config,regen=False):
   thumbTypes = ['t','m','n','c','b']
+  thumbnailFiles = []
   for thumbType in thumbTypes:
-    thumbFilename = genThumbnail(filename,abbr=thumbType,regen=regen)
-    aws.uploadToS3(thumbFilename,thumbFilename,config,regen=regen)
+    thumbFileName = genThumbnail(filename,abbr=thumbType,regen=regen)
+    thumbnailFiles.append(thumbFileName)
+  return thumbnailFiles
 
 
 # base58 functions for short URL's
