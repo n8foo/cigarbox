@@ -1,8 +1,15 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% for photo in photos %}
-    <a href="/photos/{{ photo.id }}"><img src="http://s3.amazonaws.com/cigarbox/static/cigarbox/{{ photo.uri }}_t.jpg"></a>
+  {% for row in photos|batch(4,'&nbsp;') %}
+  <div class="row">
+    {%- for photo in row %}
+    <div class="col-xs-6 col-md-3">
+      <a href="/photos/{{ photo.id }}" class='thumbnail'><img src="https://s3.amazonaws.com/cigarbox/{{ photo.uri }}_n.jpg"></a>
+    </div>
+    {% endfor %}
+  </div>
   {% else %}
     You should really take more photos.
   {% endfor %}
+</div>
 {% endblock %}

@@ -1,10 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
-  <a href="/static/cigarbox/{{ photo.uri }}.jpg"><img src="/static/cigarbox/{{ photo.uri }}_c.jpg"></a>
+  <div class="container">
+  <a href="https://s3.amazonaws.com/cigarbox/{{ photo.uri }}.jpg"><img src="https://s3.amazonaws.com/cigarbox/{{ photo.uri }}_b.jpg"></a>
   <br>
   {% for tag in tags %}
   <a href="/tags/{{ tag.tag }}">{{  tag.tag  }}</a>
   {% else %}
   No Tags!
   {% endfor %}
+  </div>
 {% endblock %}
