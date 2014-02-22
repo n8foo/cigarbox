@@ -45,8 +45,11 @@ id INTEGER PRIMARY KEY AUTOINCREMENT,
 photo_id INTEGER REFERENCES photos (id),
 importPath TEXT,
 importSource TEXT,
+S3 integer,
 ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX 'import_meta_photo_id_UNIQUE' ON 'import_meta' ('photo_id' ASC);
 
 CREATE TABLE galleries_photosets (
 id INTEGER PRIMARY KEY AUTOINCREMENT,

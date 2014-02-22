@@ -26,5 +26,9 @@ def uploadToS3(localfile,S3Key,config,regen=False):
   from boto.s3.key import Key
   k = Key(bucket)
   k.key = S3Key
-  k.set_contents_from_filename(localfile, replace=regen, policy='public-read')
+  try:
+     k.set_contents_from_filename(localfile, replace=regen, policy='public-read')
+     return True
+  except Exception, e:
+     return False 
   

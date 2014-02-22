@@ -23,6 +23,7 @@ parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true', default=False)
 parser.add_argument('--S3', help='upload to S3', action='store_true', default=False)
+parser.add_argument('--importsource', help='override import source')
 args = parser.parse_args()
 
 
@@ -41,7 +42,6 @@ app.config.from_object('config')
 
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
-
 def photosetsCreate(title,description=None):
   c.execute('SELECT id FROM photosets where title=?',(title,))
   photoset_id = c.fetchone()
@@ -51,6 +51,14 @@ def photosetsCreate(title,description=None):
     logger.info('creating photoset: %s', title)
     c.execute('INSERT INTO photosets VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(title,description,))
     return c.lastrowid
+
+def saveImportMeta(photo_id,importPath,importSource=args.importsource,S3=False):
+  importPath = os.path.abspath(filename)
+  try:
+    c.execute('INSERT INTO import_meta VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP)',(photo_id,importPath,importSource,S3,))
+    logger.info('adding photo id: %s to import meta',photo_id)
+  except Exception, e:
+    return e
 
 def photosetsAddPhoto(photoset_id,photo_id):
   try:
@@ -166,10 +174,12 @@ def importFile(filename):
   # generate thumbnails
   thumbFilenames = cigarbox.util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
   # send thumbnails to S3
+  S3success = False
   if args.S3 == True:
     for thumbFilename in thumbFilenames:
-      cigarbox.aws.uploadToS3(app.config['LOCALARCHIVEPATH']+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen)
+      S3success = cigarbox.aws.uploadToS3(app.config['LOCALARCHIVEPATH']+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen)
 
+  saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)
   return photo_id
 
 
@@ -199,11 +209,8 @@ for filename in args.files:
   # add to photoset
   if args.photoset:
     photosetsAddPhoto(photoset_id,photo_id)
+  conn.commit()
 
-
-
-
-conn.commit()
 conn.close()
 
 def main():
