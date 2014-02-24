@@ -59,6 +59,14 @@ def saveImportMeta(photo_id,importPath,importSource=args.importsource,S3=False):
     logger.info('adding photo id: %s to import meta',photo_id)
   except Exception, e:
     return e
+def checkImportStatusS3(photo_id):
+  get_db()
+  try:
+    c.execute('SELECT S3 FROM import_meta WHERE photo_id = ?',(photo_id,))
+    status = c.fetchone()
+  except Exception, e:
+    return e
+  return status
 
 def photosetsAddPhoto(photoset_id,photo_id):
   try:
@@ -68,7 +76,7 @@ def photosetsAddPhoto(photoset_id,photo_id):
     return e
 
 def getSha1FromPhotoID (photo_id):
-  c.execute ('SELECT sha1 FROM photos where id = ?',(id,))
+  c.execute ('SELECT sha1 FROM photos where id = ?',(photo_id,))
   sha1 = c.fetchone()
   return(sha1)
 
