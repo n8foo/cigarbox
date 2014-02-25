@@ -11,13 +11,18 @@ import boto
 # set up logging
 logger = logging.getLogger('cigarbox')
 
+def createS3Bucket(config):
+  bucket_name = config['S3_BUCKET_NAME']
+  conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
+
+  bucket = conn.create_bucket(bucket_name,location=boto.s3.connection.Location.DEFAULT)
+
 
 def uploadToS3(localfile,S3Key,config,regen=False):
   bucket_name = config['S3_BUCKET_NAME']
   conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
 
-  bucket = conn.create_bucket(bucket_name,
-        location=boto.s3.connection.Location.DEFAULT)
+  bucket = conn.get_bucket(bucket_name)
 
   def percent_cb(complete, total):
       sys.stdout.write('.')
@@ -31,4 +36,3 @@ def uploadToS3(localfile,S3Key,config,regen=False):
      return True
   except Exception, e:
      return False 
-  
