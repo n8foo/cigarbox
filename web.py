@@ -142,7 +142,10 @@ def show_photoset(photoset_id):
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
         photo['uri'] = sha1Path + '/' + filename
-    return render_template('photostream.html', photos=photos)
+    photoset = query_db('SELECT id,title,description \
+        FROM photosets \
+        WHERE id = ?',[photoset_id],one=True)
+    return render_template('photoset.html', photos=photos, photoset=photoset)
 
 @app.route('/add', methods=['POST'])
 def add_photo():
