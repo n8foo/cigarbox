@@ -11,7 +11,7 @@
     :license: Apache, see LICENSE for more details.
 """
 
-from sqlite3 import dbapi2 as sqlite3
+import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 import cigarbox.util
@@ -43,27 +43,39 @@ def init_db():
             db.cursor().executescript(f.read())
         db.commit()
 
+def query_db(query, args=(), one=False):
+    cur = get_db().execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
 
 def get_db():
-    """Opens a new database connection if there is none yet for the
-    current application context."""
-    if not hasattr(g, 'sqlite_db'):
-        g.sqlite_db = connect_db()
-    return g.sqlite_db
+    """Opens DB connection if it none exists"""
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = connect_db()
+    return db
+
+def find(lst, key, value):
+    for i, dic in enumerate(lst):
+        if dic[key] == value:
+            return i
+    return -1
 
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
-    if hasattr(g, 'sqlite_db'):
-        g.sqlite_db.close()
-
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
 
 @app.route('/')
 def photostream():
     """the list of the most recently added pictures"""
-    db = get_db()
-    cur = db.execute('SELECT id,sha1,fileType FROM photos ORDER BY id DESC LIMIT 200')
-    # photos = cur.fetchall()
+    cur = query_db('SELECT id,sha1,fileType \
+        FROM photos \
+        ORDER BY id DESC \
+        LIMIT 200')
     photos = [dict(row) for row in cur]
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
@@ -72,16 +84,15 @@ def photostream():
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
-    """a single photo with metadata and tags"""
-    db = get_db()
-    cur = db.execute('SELECT id,sha1,fileType \
+    """a single photo"""
+    cur = query_db('SELECT id,sha1,fileType \
         FROM photos \
         WHERE id = ' + str(photo_id))
     # photos = cur.fetchall()
     photo = [dict(row) for row in cur][0]
     (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
     photo['uri'] = sha1Path + '/' + filename
-    tags = db.execute('SELECT tags.tag \
+    tags = query_db('SELECT tags.tag \
         FROM tags,tags_photos \
         WHERE tags.id=tag_id \
         AND photo_id = ?',[photo_id])
@@ -89,18 +100,15 @@ def show_photo(photo_id):
 
 @app.route('/tags')
 def show_tags():
-    db = get_db()
-    cur = db.execute('SELECT tags.id,tags.tag,count(tags_photos.id) AS count \
+    tags = query_db('SELECT tags.id,tags.tag,count(tags_photos.id) AS count \
         FROM tags,tags_photos \
         WHERE tags.id = tags_photos.tag_id \
         GROUP BY tag')
-    tags = cur.fetchall()
     return render_template('tag_cloud.html', tags=tags)
 
 @app.route('/tags/<string:tag>')
 def show_taged_photos(tag):
-    db = get_db()
-    cur = db.execute('SELECT photos.id,photos.sha1,fileType \
+    cur = query_db('SELECT photos.id,photos.sha1,fileType \
         FROM photos,tags_photos,tags \
         WHERE photos.id = tags_photos.photo_id \
         AND tags_photos.tag_id = tags.id \
@@ -116,24 +124,20 @@ def show_taged_photos(tag):
 
 @app.route('/photosets')
 def show_photosets():
-    db = get_db()
-    cur = db.execute('SELECT id,title \
+    photosets = query_db('SELECT id,title \
         FROM photosets \
         ORDER BY ts DESC \
         LIMIT 50')
-    photosets = cur.fetchall()
     return render_template('photosets.html', photosets=photosets)
 
 @app.route('/photosets/<int:photoset_id>')
 def show_photoset(photoset_id):
-    db = get_db()
-    cur = db.execute('SELECT photos.id,photos.sha1,fileType \
+    cur = query_db('SELECT photos.id,photos.sha1,fileType \
         FROM photos,photosets_photos \
         WHERE photos.id = photosets_photos.photo_id \
         AND photosets_photos.photoset_id = ? \
         ORDER BY photos.dateTaken DESC \
         LIMIT 500',[photoset_id])
-    # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
