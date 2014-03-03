@@ -31,6 +31,10 @@ PASSWORD='changeme2014'
 SECRET_KEY=''
 
 PRIVACYFLAGS = {'public':0, 'friends':1, 'family':2, 'private':8, 'disabled':9}
+
+PER_PAGE=100
+
+SITEURL = 'http://127.0.0.1:5000'
 # Application threads. A common general assumption is
 # using 2 per available processor cores - to handle
 # incoming requests using one and performing background

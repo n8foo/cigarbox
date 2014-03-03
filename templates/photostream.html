@@ -11,5 +11,11 @@
   {% else %}
     You should really take more photos.
   {% endfor %}
+{% if page %}
+  {% if page > 1%}
+ <a href='{{ baseurl }}/page/{{ page -1 }}'>page {{ page -1 }}</a> | 
+  {% endif %}
+ page {{ page }} | <a href='{{ baseurl }}/page/{{page +1 }}'>page {{ page +1 }}</a>
+{% endif %}
 </div>
 {% endblock %}

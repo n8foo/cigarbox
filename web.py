@@ -28,6 +28,8 @@ app.config.from_object('config')
 
 remoteArchivePath=app.config['REMOTEARCHIVEPATH']
 
+# Utility Functions
+
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -62,6 +64,17 @@ def find(lst, key, value):
             return i
     return -1
 
+def paginate(page,perPage=app.config['PER_PAGE']):
+    offset = (perPage * page) - perPage
+    limit = (perPage * page)
+    return(limit,offset)
+
+# URL Routing 
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('404.html'), 404
+
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
@@ -69,18 +82,20 @@ def close_db(error):
     if db is not None:
         db.close()
 
-@app.route('/')
-def photostream():
+@app.route('/', defaults={'page': 1})
+@app.route('/photostream/page/<int:page>')
+def photostream(page):
     """the list of the most recently added pictures"""
+    baseurl = '%s/photostream' % (app.config['SITEURL'])
     cur = query_db('SELECT id,sha1,fileType \
         FROM photos \
         ORDER BY id DESC \
-        LIMIT 200')
+        LIMIT ? OFFSET ?',paginate(page))
     photos = [dict(row) for row in cur]
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
         photo['uri'] = sha1Path + '/' + filename
-    return render_template('photostream.html', photos=photos)
+    return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
@@ -106,38 +121,45 @@ def show_tags():
         GROUP BY tag')
     return render_template('tag_cloud.html', tags=tags)
 
-@app.route('/tags/<string:tag>')
-def show_taged_photos(tag):
+@app.route('/tags/<string:tag>', defaults={'page': 1})
+@app.route('/tags/<string:tag>/page/<int:page>')
+def show_taged_photos(tag,page):
+    baseurl = '%s/tags/%s' % (app.config['SITEURL'],tag)
+    (limit,offset) = paginate(page)
     cur = query_db('SELECT photos.id,photos.sha1,fileType \
         FROM photos,tags_photos,tags \
         WHERE photos.id = tags_photos.photo_id \
         AND tags_photos.tag_id = tags.id \
         AND tags.tag =  ? \
         ORDER BY photos.id DESC \
-        LIMIT 500',[tag])
+        LIMIT ? OFFSET ?',(tag,limit,offset))
     # photos = cur.fetchall()
     photos = [dict(row) for row in cur]
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
         photo['uri'] = sha1Path + '/' + filename
-    return render_template('photostream.html', photos=photos)
+    return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
 
-@app.route('/photosets')
-def show_photosets():
+@app.route('/photosets', defaults={'page': 1})
+@app.route('/photosets/page/<int:page>')
+def show_photosets(page):
+    (limit,offset) = paginate(page,perPage=500)
     photosets = query_db('SELECT id,title \
         FROM photosets \
         ORDER BY ts DESC \
-        LIMIT 50')
-    return render_template('photosets.html', photosets=photosets)
+        LIMIT ? OFFSET ?',(limit,offset))
+    return render_template('photosets.html', photosets=photosets, page=page, baseurl=baseurl)
 
-@app.route('/photosets/<int:photoset_id>')
-def show_photoset(photoset_id):
+@app.route('/photosets/<int:photoset_id>', defaults={'page': 1})
+@app.route('/photosets/<int:photoset_id>/page/<int:page>')
+def show_photoset(photoset_id,page):
+    (limit,offset) = paginate(page)
     cur = query_db('SELECT photos.id,photos.sha1,fileType \
         FROM photos,photosets_photos \
         WHERE photos.id = photosets_photos.photo_id \
         AND photosets_photos.photoset_id = ? \
         ORDER BY photos.dateTaken DESC \
-        LIMIT 500',[photoset_id])
+        LIMIT ? OFFSET ?',(photoset_id,limit,offset))
     photos = [dict(row) for row in cur]
     for photo in photos:
         (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
@@ -145,7 +167,7 @@ def show_photoset(photoset_id):
     photoset = query_db('SELECT id,title,description \
         FROM photosets \
         WHERE id = ?',[photoset_id],one=True)
-    return render_template('photoset.html', photos=photos, photoset=photoset)
+    return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
 
 @app.route('/add', methods=['POST'])
 def add_photo():
@@ -170,7 +192,7 @@ def login():
         else:
             session['logged_in'] = True
             flash('You were logged in')
-            return redirect(url_for('show_photos'))
+            return redirect(url_for('photostream'))
     return render_template('login.html', error=error)
 
 
@@ -178,7 +200,7 @@ def login():
 def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
-    return redirect(url_for('show_photos'))
+    return redirect(url_for('photostream'))
 
 
 if __name__ == '__main__':

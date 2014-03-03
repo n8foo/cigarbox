@@ -13,4 +13,11 @@
     You should really take more photos.
   {% endfor %}
 </div>
+{% if page %}
+  {% if page > 1%}
+ <a href='/photosets/{{ photoset.id }}/page/{{ page -1 }}'>page {{ page -1 }}</a> | 
+  {% endif %}
+ <a style='bold' href='/photosets/{{ photoset.id }}/page/{{ page }}'>page {{ page }}</a> | <a href='/photosets/{{ photoset.id }}/page/{{page +1 }}'>page {{ page +1 }}</a>
+{% endif %}
+
 {% endblock %}
