@@ -2,7 +2,7 @@
 
 """utility methods"""
 
-import re, exifread, os.path, hashlib, logging
+import re, os.path, hashlib, logging
 from PIL import Image,ExifTags
 from PIL.ExifTags import TAGS,GPSTAGS
 # our own libs
@@ -42,10 +42,10 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
   else:
     try:
       logger.info('Generating thumbnail: %s' %(config['LOCALARCHIVEPATH']+'/'+thumbFilename))
-      im = Image.open(config['LOCALARCHIVEPATH']+'/'+filename)
-      icc_profile = im.info.get('icc_profile')
-      im.thumbnail(size,Image.ANTIALIAS)
-      im.save(config['LOCALARCHIVEPATH']+'/'+thumbFilename, 'JPEG', icc_profile=icc_profile, quality=95)
+      img = Image.open(config['LOCALARCHIVEPATH']+'/'+filename)
+      icc_profile = img.info.get('icc_profile')
+      img.thumbnail(size,Image.ANTIALIAS)
+      img.save(config['LOCALARCHIVEPATH']+'/'+thumbFilename, 'JPEG', icc_profile=icc_profile, quality=95)
       return(thumbFilename)
     except IOError as e:
       raise e

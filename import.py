@@ -23,11 +23,11 @@ parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true', default=False)
 parser.add_argument('--S3', help='upload to S3', action='store_true', default=False)
+parser.add_argument('--privacy', help='set privacy on a photo, default is public', choices=['public','family','friends','private','disabled'], default='public')
 parser.add_argument('--importsource', help='override import source')
 args = parser.parse_args()
 
-
-import os, sqlite3, shutil, time
+import os, sqlite3, shutil, time, datetime
 import cigarbox.util, cigarbox.aws
 
 logger = cigarbox.util.setup_custom_logger('cigarbox')
@@ -96,9 +96,10 @@ def photosetsCreate(title,description=None):
 
 def saveImportMeta(photo_id,filename,importSource=args.importsource,S3=False):
   importPath = os.path.abspath(filename)
+  fileDate = time.ctime(os.path.getmtime(filename))
   try:
     insert_db('INSERT INTO import_meta \
-      VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP)',(photo_id,importPath,importSource,S3,))
+      VALUES(NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',(photo_id,fileDate,importPath,importSource,S3,))
     logger.info('recording import meta for photo id: %s',photo_id)
   except Exception, e:
     return e
@@ -132,17 +133,19 @@ def getOriginalPhotoName (photo_id):
   return(originalPhotoName)
 
 
-def addPhotoToDB(sha1,fileType,origFilename,dateTaken):
+def addPhotoToDB(sha1,fileType,dateTaken,privacy):
   """adds photo to photos table, returns photo_id"""
+  # set privacy
+  privacyNum = app.config['PRIVACYFLAGS'][privacy]
   result = query_db('SELECT id \
     FROM photos \
     WHERE sha1 = ?',(sha1,),one=True)
   if result != None:
     return result['id']
   else:
-    logger.info('Adding to DB: %s %s %s %s', sha1,fileType,origFilename,dateTaken)
+    logger.info('Adding to DB: %s %s %s %s', sha1,fileType,dateTaken,privacy)
     id = insert_db('INSERT INTO photos \
-      VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', (sha1, fileType, origFilename, dateTaken,))
+      VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP)', (privacyNum,sha1,fileType,dateTaken))
     return id
 
 def photosAddTag(photo_id,tag):
@@ -167,8 +170,8 @@ def photosAddTag(photo_id,tag):
   except Exception, e:
     return e
 
-def getfileType(origFilename):
-  fileType = origFilename.split('.')[-1].lower()
+def getfileType(filename):
+  fileType = filename.split('.')[-1].lower()
   return fileType
 
 def archivePhoto(file,sha1,fileType,localArchivePath,args,photo_id):
@@ -219,17 +222,17 @@ def main():
     logger.info('Scanning file %s', filename)
     # get a date, from exif or file
     try:
-      dateTaken = cigarbox.util.getExifTags(filename)['DateTimeOriginal']
+      exifDateTaken = cigarbox.util.getExifTags(filename)['DateTimeOriginal']
+      dateTaken = datetime.datetime.strptime(exifDateTaken, "%Y:%m:%d %H:%M:%S" )
     except Exception, e:
       dateTaken = None
 
     # set some variables
-    origFilename = os.path.basename(filename)
-    fileType = getfileType(origFilename)
+    fileType = getfileType(os.path.basename(filename))
     sha1=cigarbox.util.hashfile(filename)
 
     # insert pic into db
-    photo_id = addPhotoToDB(sha1,fileType,origFilename,dateTaken)
+    photo_id = addPhotoToDB(sha1,fileType,dateTaken,args.privacy)
 
     # archive the photo
     archivedPhoto=archivePhoto(filename,sha1,fileType,localArchivePath,args,photo_id)
