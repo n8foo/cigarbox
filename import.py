@@ -217,16 +217,11 @@ def main():
   for filename in args.files:
     # log what we're doing
     logger.info('Scanning file %s', filename)
-    
     # get a date, from exif or file
-    exifTags = cigarbox.util.getExifTags(filename)
-    if exifTags:
-      if 'Image DateTime' in exifTags:
-        dateTaken = str(exifTags['Image DateTime'])
-      else:
-        dateTaken = time.ctime(os.path.getmtime(filename))
-    else:
-      dateTaken = time.ctime(os.path.getmtime(filename))
+    try:
+      dateTaken = cigarbox.util.getExifTags(filename)['DateTimeOriginal']
+    except Exception, e:
+      dateTaken = None
 
     # set some variables
     origFilename = os.path.basename(filename)

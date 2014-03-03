@@ -3,7 +3,8 @@
 """utility methods"""
 
 import re, exifread, os.path, hashlib, logging
-from PIL import Image
+from PIL import Image,ExifTags
+from PIL.ExifTags import TAGS,GPSTAGS
 # our own libs
 import aws
 
@@ -106,9 +107,40 @@ def getArchiveURI(sha1,archivePath,fileType='jpg'):
   (sha1Path,filename)=getSha1Path(sha1)
   return(archivePath+'/'+sha1Path+'/'+filename+'.'+fileType)
 
-def getExifTags(filename,tag=None):
-  f = open(filename, 'rb')
-  exifTags = exifread.process_file(f,details=False)
-  f.close()
-  return exifTags
+def getExifTags(filename):
+  img = Image.open(filename)
+  try:
+    raw_exif = img._getexif()
+    exif = {ExifTags.TAGS.get(tag, tag): value
+      for (tag, value) in raw_exif.iteritems()}
+  except Exception, e:
+    return None
+  # Process GPS Info, if it's there
+  if 'GPSInfo' in exif.iteritems():
+    # Calculate Lat/Lon from GPS raw
+    Nsec = exif['GPSInfo'][2][2][0] / float(exif['GPSInfo'][2][2][1])
+    Nmin = exif['GPSInfo'][2][1][0] / float(exif['GPSInfo'][2][1][1])
+    Ndeg = exif['GPSInfo'][2][0][0] / float(exif['GPSInfo'][2][0][1])
+    Wsec = exif['GPSInfo'][4][2][0] / float(exif['GPSInfo'][4][2][1])
+    Wmin = exif['GPSInfo'][4][1][0] / float(exif['GPSInfo'][4][1][1])
+    Wdeg = exif['GPSInfo'][4][0][0] / float(exif['GPSInfo'][4][0][1])
+    if exif['GPSInfo'][3] == 'N':
+      Nmult = 1
+    else:
+      Nmult = -1
+    if exif['GPSInfo'][3] == 'E':
+      Wmult = 1
+    else:
+      Wmult = -1
+    Latitude = Nmult * (Ndeg + (Nmin + Nsec/60.0)/60.0)
+    Longitude = Wmult * (Wdeg + (Wmin + Wsec/60.0)/60.0)
+    # Add 2 new decimal Lat/Lon entries to the dict for easy access
+    exif['GPSLat'] = Latitude
+    exif['GPSLon'] = Longitude
+    # Reverse the GPSInfo key/values for easy access by Human Name
+    decoded_gps_exif = {ExifTags.GPSTAGS.get(tag,tag): value
+      for (tag, value) in exif['GPSInfo'].iteritems()}
+    exif['GPSInfo'] = decoded_gps_exif
+  return exif
+
 

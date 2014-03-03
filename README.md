@@ -16,8 +16,8 @@ A smokin' fast personal photostream
 ### OSX
 1. Install homebrew
 2. brew install libtiff libjpeg webp littlecms
-3. pip install Pillow ExifRead Flask
+3. pip install Pillow Flask
 
 ### Ubuntu 12.04LTS
 1. sudo apt-get install libtiff4-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.5-dev tk8.5-dev
-2. pip install Pillow ExifRead Flask
+2. pip install Pillow Flask
