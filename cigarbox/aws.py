@@ -17,7 +17,7 @@ def createS3Bucket(config):
   bucket = conn.create_bucket(bucket_name,location=boto.s3.connection.Location.DEFAULT)
 
 
-def uploadToS3(localfile,S3Key,config,regen=False,policy='public-read'):
+def uploadToS3(localfile,S3Key,config,regen=False,policy='private'):
   bucket_name = config['S3_BUCKET_NAME']
   conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
   bucket = conn.get_bucket(bucket_name)

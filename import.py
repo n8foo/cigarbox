@@ -243,7 +243,7 @@ def main():
     S3success = False
     if args.S3 == True and checkImportStatusS3(photo_id) == False:
       for thumbFilename in thumbFilenames:
-        S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen)
+        S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
 
     # save import meta
     saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)
