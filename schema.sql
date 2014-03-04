@@ -42,6 +42,7 @@ ts NOT NULL DEFAULT CURRENT_TIMESTAMP
 CREATE TABLE import_meta (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 photo_id INTEGER REFERENCES photos (id),
+fileDate INTEGER NOT NULL,
 importPath TEXT,
 importSource TEXT,
 S3 integer,

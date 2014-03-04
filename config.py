@@ -19,6 +19,8 @@ IGNORETAGS = ['Users','Pictures']
 AWS_ACCESS_KEY_ID = ''
 AWS_SECRET_ACCESS_KEY = ''
 S3_BUCKET_NAME=''
+# Should we store your originals publicly? Probably not
+AWSPOLICY = 'private'
 
 # Define the database - we are working with
 # SQLite for this example

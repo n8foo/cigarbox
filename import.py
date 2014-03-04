@@ -107,12 +107,12 @@ def saveImportMeta(photo_id,filename,importSource=args.importsource,S3=False):
 def checkImportStatusS3(photo_id):
   result = query_db('SELECT S3 \
     FROM import_meta \
-    WHERE photo_id = ?',(photo_id,),one=True)
+    WHERE photo_id = ?',(photo_id,))
   if result:
-    if result['S3'] == 1:
-      return True
+    if result[0]['S3'] == 0:
+      return False
   else:
-    return False
+    return True
 
 def photosetsAddPhoto(photoset_id,photo_id):
   try:
@@ -187,7 +187,7 @@ def archivePhoto(file,sha1,fileType,localArchivePath,args,photo_id):
       raise e
   if args.S3 == True and checkImportStatusS3(photo_id) == False:
       S3Key='%s/%s.%s' % (sha1Path,sha1Filename,fileType)
-      cigarbox.aws.uploadToS3(file,S3Key,app.config)
+      cigarbox.aws.uploadToS3(file,S3Key,app.config,policy=app.config['AWSPOLICY'])
   return(archivedPhoto)
 
 def dirTags(photo_id,file,ignoreTags):
@@ -239,13 +239,13 @@ def main():
 
     # generate thumbnails
     thumbFilenames = cigarbox.util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
-
     # send thumbnails to S3
     S3success = False
     if args.S3 == True and checkImportStatusS3(photo_id) == False:
       for thumbFilename in thumbFilenames:
         S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen)
 
+    # save import meta
     saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)
 
     # add tags

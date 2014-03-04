@@ -83,6 +83,7 @@ def close_db(error):
         db.close()
 
 @app.route('/', defaults={'page': 1})
+@app.route('/photostream', defaults={'page': 1})
 @app.route('/photostream/page/<int:page>')
 def photostream(page):
     """the list of the most recently added pictures"""
@@ -112,6 +113,23 @@ def show_photo(photo_id):
         WHERE tags.id=tag_id \
         AND photo_id = ?',[photo_id])
     return render_template('photos.html', photo=photo, tags=tags)
+
+@app.route('/photos/<int:photo_id>/original')
+def show_original_photo(photo_id):
+    """a single authenticated original photo"""
+    cur = query_db('SELECT id,sha1,fileType \
+        FROM photos \
+        WHERE id = ' + str(photo_id))
+    photo = [dict(row) for row in cur][0]
+    (sha1Path,filename) = cigarbox.util.getSha1Path(photo['sha1'])
+    S3Key = '/'+sha1Path+'/'+filename+'.'+photo['fileType']
+    if session:
+        if session['logged_in'] == True:
+            originalURL = cigarbox.aws.getPrivateURL(app.config,S3Key)
+            return redirect(originalURL)
+    else:
+        return redirect('/login',code=302)
+
 
 @app.route('/tags')
 def show_tags():
@@ -143,7 +161,8 @@ def show_taged_photos(tag,page):
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
 def show_photosets(page):
-    (limit,offset) = paginate(page,perPage=500)
+    baseurl = '%s/photosets' % (app.config['SITEURL'])
+    (limit,offset) = paginate(page,perPage=200)
     photosets = query_db('SELECT id,title \
         FROM photosets \
         ORDER BY ts DESC \
