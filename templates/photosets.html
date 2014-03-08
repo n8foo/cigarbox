@@ -1,7 +1,25 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% for photoset in photosets %}
-    <a href="/photosets/{{ photoset.id }}">{{ photoset.title }}</a><br>
+<div>
+  {% for row in photosets|batch(4) %}
+  <div class="row">
+    {%- for photoset in row %}
+    <div class="col-xs-6 col-md-3">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title"><a href="/photosets/{{ photoset.id }}">{{ photoset.title }}</a><h3>
+        </div>
+        <div class="panel-body">
+          <a href="/photosets/{{ photoset.id }}">
+          {% for thumb in photoset.photosetThumbs %}
+          <img class="img-thumbnail" alt="Responsive image" src='http://s3.amazonaws.com/cigarbox/{{ thumb.uri }}'>
+          {% endfor %}
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
   {% else %}
     No photosets!
   {% endfor %}
@@ -11,4 +29,5 @@
   {% endif %}
  <a style='bold' href='/photosets/page/{{ page }}'>page {{ page }}</a> | <a href='/photosets/page/{{page +1 }}'>page {{ page +1 }}</a>
 {% endif %}
+</div>
 {% endblock %}

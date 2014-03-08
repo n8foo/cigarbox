@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
+<div>
 <h1><a href="/photosets/{{ photoset.id }}">{{ photoset.title }}</a></h1>
   {% for row in photos|batch(4) %}
   <div class="row">
@@ -13,11 +14,14 @@
     You should really take more photos.
   {% endfor %}
 </div>
+<div class=footer>
 {% if page %}
   {% if page > 1%}
  <a href='/photosets/{{ photoset.id }}/page/{{ page -1 }}'>page {{ page -1 }}</a> | 
   {% endif %}
  <a style='bold' href='/photosets/{{ photoset.id }}/page/{{ page }}'>page {{ page }}</a> | <a href='/photosets/{{ photoset.id }}/page/{{page +1 }}'>page {{ page +1 }}</a>
 {% endif %}
-
+</div>
+<br><br>
+<div>
 {% endblock %}

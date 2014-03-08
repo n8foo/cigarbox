@@ -161,12 +161,26 @@ def show_taged_photos(tag,page):
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
 def show_photosets(page):
+    thumbCount = 2
     baseurl = '%s/photosets' % (app.config['SITEURL'])
-    (limit,offset) = paginate(page,perPage=200)
-    photosets = query_db('SELECT id,title \
+    (limit,offset) = paginate(page,perPage=52)
+    cur = query_db('SELECT id,title \
         FROM photosets \
         ORDER BY ts DESC \
         LIMIT ? OFFSET ?',(limit,offset))
+    photosets = [dict(row) for row in cur]
+    for photoset in photosets:
+        photoset_id = photoset['id']
+        cur = query_db('SELECT photos.id,photos.sha1,fileType \
+        FROM photos,photosets_photos \
+        WHERE photos.id = photosets_photos.photo_id \
+        AND photosets_photos.photoset_id = ? \
+        ORDER BY photos.dateTaken DESC \
+        LIMIT ?',(photoset_id,thumbCount,))
+        photosetThumbs = [dict(row) for row in cur]
+        for thumb in photosetThumbs:
+            thumb['uri'] = '%s/%s_t.jpg' % (cigarbox.util.getSha1Path(thumb['sha1']))
+        photoset['photosetThumbs'] = photosetThumbs
     return render_template('photosets.html', photosets=photosets, page=page, baseurl=baseurl)
 
 @app.route('/photosets/<int:photoset_id>', defaults={'page': 1})

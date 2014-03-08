@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
+<div>
   {% for row in photos|batch(4) %}
   <div class="row">
     {%- for photo in row %}
