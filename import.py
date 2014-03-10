@@ -22,7 +22,7 @@ parser.add_argument('--dirtags', help='tag photos based on directory structure',
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--regen', help='regenerate thumbnails', action='store_true', default=False)
-parser.add_argument('--S3', help='upload to S3', action='store_true', default=False)
+parser.add_argument('--S3', help='upload to S3', action='store_true')
 parser.add_argument('--privacy', help='set privacy on a photo, default is public', choices=['public','family','friends','private','disabled'], default='public')
 parser.add_argument('--importsource', help='override import source')
 args = parser.parse_args()
@@ -109,10 +109,10 @@ def checkImportStatusS3(photo_id):
     FROM import_meta \
     WHERE photo_id = ?',(photo_id,))
   if result:
-    if result[0]['S3'] == 0:
-      return False
+    if result[0]['S3'] == 1:
+      return True
   else:
-    return True
+    return False
 
 def photosetsAddPhoto(photoset_id,photo_id):
   try:
@@ -185,7 +185,8 @@ def archivePhoto(file,sha1,fileType,localArchivePath,args,photo_id):
       shutil.copy2(file,archivedPhoto)
     except Exception, e:
       raise e
-  if args.S3 == True and checkImportStatusS3(photo_id) == False:
+  if args.S3 == True:
+    if checkImportStatusS3(photo_id) == False:
       S3Key='%s/%s.%s' % (sha1Path,sha1Filename,fileType)
       cigarbox.aws.uploadToS3(file,S3Key,app.config,policy=app.config['AWSPOLICY'])
   return(archivedPhoto)
@@ -241,9 +242,10 @@ def main():
     thumbFilenames = cigarbox.util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
     # send thumbnails to S3
     S3success = False
-    if args.S3 == True and checkImportStatusS3(photo_id) == False:
-      for thumbFilename in thumbFilenames:
-        S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
+    if args.S3 == True:
+      if checkImportStatusS3(photo_id) == False:
+        for thumbFilename in thumbFilenames:
+          S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
 
     # save import meta
     saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)

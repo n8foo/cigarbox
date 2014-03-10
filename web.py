@@ -16,10 +16,6 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 import cigarbox.util
 
-import argparse
-parser = argparse.ArgumentParser(description='cigarbox webapp.')
-args = parser.parse_args()
-
 # create the app
 app = Flask(__name__)
 
@@ -213,6 +209,9 @@ def add_photo():
     flash('New photo was successfully posted')
     return redirect(url_for('show_photos'))
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
