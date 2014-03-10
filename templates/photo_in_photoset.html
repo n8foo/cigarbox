@@ -1,14 +1,14 @@
 {% extends "layout.html" %}
 {% block body %}
   <div class="container">
-  <a href="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ photo.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg"></a>
+  <a href="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg"></a>
   <br>
   {% for tag in tags %}
   <a href="tags/{{ tag.tag }}">{{  tag.tag  }}</a>
   {% endfor %}
-  <a href="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ before.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ before.uri }}_t.jpg"></a>
-  <a href="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ photo.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ photo.uri }}_t.jpg"></a>
-  <a href="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ after.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ after.uri }}_t.jpg"></a>
+  <a href="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ before.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ before.uri }}_t.jpg"></a>
+  <a href="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_t.jpg"></a>
+  <a href="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ after.uri }}.jpg"><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ after.uri }}_t.jpg"></a>
 
   </div>
 {% endblock %}

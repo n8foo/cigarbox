@@ -5,7 +5,7 @@
   <div class="row">
     {%- for photo in row %}
     <div class="col-xs-6 col-md-3">
-      <a href="photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config.['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
+      <a href="photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
     </div>
     {% endfor %}
   </div>
