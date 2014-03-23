@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
+{% set twitter_card_image = photo.uri %}
 {% block body %}
   <div class="container">
   {% if session.logged_in %}
   <a href="photos/{{ photo.id }}/original"><img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg"></a>
   {% elif not session.logged_in %}
-  <img class='img-responsive' src="http://s3.amazonaws.com/cigarbox/{{ photo.uri }}_b.jpg">
+  <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
   {% endif %}
   <br>
   {% for tag in tags %}
