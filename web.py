@@ -122,7 +122,6 @@ def show_photosets(page):
 @app.route('/photosets/<int:photoset_id>', defaults={'page': 1})
 @app.route('/photosets/<int:photoset_id>/page/<int:page>')
 def show_photoset(photoset_id,page):
-    (limit,offset) = paginate(page)
     photos = Photo.select().join(PhotoPhotoset).join(Photoset)
     photos = photos.where(Photoset.id == photoset_id)
     photos = photos.order_by(Photo.datetaken.asc())
