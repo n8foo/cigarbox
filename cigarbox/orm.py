@@ -24,8 +24,8 @@ class Photo(BaseModel):
         db_table = 'photos'
 
 class Comment(BaseModel):
-    comment      = TextField(null=True)
-    photo        = IntegerField(db_column='photo_id', null=True)
+    comment      = TextField(null=False)
+    photo        = IntegerField(db_column='photo_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
@@ -55,24 +55,24 @@ class Tag(BaseModel):
         db_table = 'tags'
 
 class PhotoPhotoset(BaseModel):
-    photo        = ForeignKeyField(Photo,db_column='photo_id')
-    photoset     = ForeignKeyField(Photoset,db_column='photoset_id')
+    photo        = ForeignKeyField(Photo,db_column='photo_id', null=False)
+    photoset     = ForeignKeyField(Photoset,db_column='photoset_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         db_table = 'photosets_photos'
 
 class PhotosetGallery(BaseModel):
-    gallery      = ForeignKeyField(Gallery,db_column='galleries_id', null=True)
-    photoset     = ForeignKeyField(Photoset,db_column='photoset_id', null=True)
+    gallery      = ForeignKeyField(Gallery,db_column='galleries_id', null=False)
+    photoset     = ForeignKeyField(Photoset,db_column='photoset_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         db_table = 'galleries_photosets'
 
 class PhotoTag(BaseModel):
-    photo        = ForeignKeyField(Photo,db_column='photo_id', null=True)
-    tag          = ForeignKeyField(Tag,db_column='tag_id', null=True)
+    photo        = ForeignKeyField(Photo,db_column='photo_id', null=False)
+    tag          = ForeignKeyField(Tag,db_column='tag_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
 
     class Meta:

@@ -11,7 +11,7 @@
         </div>
         <div class="panel-body">
           <a href="photosets/{{ photoset.id }}">
-          {% for thumb in photoset.photosetThumbs %}
+          {% for thumb in photoset.thumbs %}
           <img class="img-thumbnail" alt="Responsive image" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ thumb.uri }}">
           {% endfor %}
           </a>

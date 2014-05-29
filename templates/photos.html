@@ -9,9 +9,10 @@
   {% endif %}
   <br>
   {% for tag in tags %}
-  <a href="tags/{{ tag.tag }}">{{  tag.tag  }}</a>
+  <a href="tags/{{ tag.name }}">{{  tag.name  }}</a>
   {% else %}
   No Tags!
   {% endfor %}
   </div>
+  <br><br>
 {% endblock %}
