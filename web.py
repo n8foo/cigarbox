@@ -77,7 +77,7 @@ def show_original_photo(photo_id):
     S3Key = '/'+sha1Path+'/'+filename+'.'+photo.filetype
     if session:
         if session['logged_in'] == True:
-            originalURL = cigarbox.aws.getPrivateURL(app.config,S3Key)
+            originalURL = aws.getPrivateURL(app.config,S3Key)
             return redirect(originalURL)
     else:
         return redirect('/login',code=302)
