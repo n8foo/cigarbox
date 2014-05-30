@@ -29,6 +29,7 @@ args = parser.parse_args()
 
 import os, sqlite3, shutil, time, datetime
 import cigarbox.util, cigarbox.aws
+from cigarbox.orm import *
 
 logger = cigarbox.util.setup_custom_logger('cigarbox')
 logger.info('starting import....')
@@ -41,39 +42,6 @@ app.config.from_object('config')
 
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
-def connect_db():
-  """Connects to the specific database."""
-  rv = sqlite3.connect(app.config['DATABASE'])
-  rv.row_factory = sqlite3.Row
-  return rv
-
-def init_db():
-  """Creates the database tables."""
-  cur = get_db()
-  with app.open_resource('schema.sql', mode='r') as f:
-      cur.cursor().executescript(f.read())
-  cur.commit()
-
-def query_db(query, args=(), one=False):
-  cur = get_db().execute(query, args)
-  rv = cur.fetchall()
-  cur.close()
-  return (rv[0] if rv else None) if one else rv
-
-def insert_db(query, args=()):
-  cur = get_db().execute(query, args)
-  g._database.commit()
-  id = cur.lastrowid
-  cur.close()
-  return id
-
-def get_db():
-  """Opens DB connection if it none exists"""
-  db = getattr(g, '_database', None)
-  if db is None:
-      db = g._database = connect_db()
-  return db
-
 @app.teardown_appcontext
 def teardown_db(exception):
   """Closes the database again at the end of the request."""
@@ -83,48 +51,43 @@ def teardown_db(exception):
 
 def photosetsCreate(title,description=None):
   """create a photoset - takes title and optional description. returns id"""
-  result = query_db('SELECT id \
-    FROM photosets \
-    WHERE title=?',(title,),one=True)
-  if result != None:
-    return result['id']
-  else:
-    logger.info('creating photoset: %s', title)
-    id = insert_db('INSERT INTO photosets \
-      VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(title,description,))
-    return id
+  try:
+    photoset = Photoset.get(Photoset.title == title)
+  except Photoset.DoesNotExist:
+    logger.info('creating photoset: %s',title)
+    photoset = Photoset.create(title=title,description=description)
+  return photoset.id
 
 def saveImportMeta(photo_id,filename,importSource=args.importsource,S3=False):
   importPath = os.path.abspath(filename)
   fileDate = time.ctime(os.path.getmtime(filename))
   try:
-    insert_db('INSERT INTO import_meta \
-      VALUES(NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',(photo_id,fileDate,importPath,importSource,S3,))
+    meta = ImportMeta.get(ImportMeta.photo == photo_id)
+  except ImportMeta.DoesNotExist:
+    meta = ImportMeta.create(photo=photo_id,filedate=fileDate,importpath=importPath,importsource=importSource,s3=S3)
     logger.info('recording import meta for photo id: %s',photo_id)
-  except Exception, e:
-    return e
+  return meta.id
 
 def checkImportStatusS3(photo_id):
-  result = query_db('SELECT S3 \
-    FROM import_meta \
-    WHERE photo_id = ?',(photo_id,))
-  if result:
-    if result[0]['S3'] == 1:
-      return True
-  else:
+  try:
+    importStatusS3 = ImportMeta.get(ImportMeta.photo == photo_id,ImportMeta.s3 == True)
+    return True
+  except ImportMeta.DoesNotExist:
     return False
 
 def photosetsAddPhoto(photoset_id,photo_id):
   try:
-    insert_db('INSERT INTO photosets_photos \
-      VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(photoset_id,photo_id,))
+    PhotoPhotoset.get(PhotoPhotoset.photoset == photoset_id,PhotoPhotoset.photo == photo_id)
+    return True
+  except PhotoPhotoset.DoesNotExist:
+    PhotoPhotoset.create(photoset=photoset_id,photo=photo_id)
     logger.info('adding photo id: %s to photoset id: %s',photo_id,photoset_id,)
   except Exception, e:
     return e
 
 def getSha1FromPhotoID (photo_id):
-  sha1 = query_db('SELECT sha1 FROM photos where id = ?',(photo_id,), one=True)
-  return(sha1)
+  photo = Photo.get(Photo.id == photo_id)
+  return(photo.sha1)
 
 def getOriginalPhotoName (photo_id):
   sha1 = getSha1FromPhotoID(photo_id)
@@ -137,36 +100,33 @@ def addPhotoToDB(sha1,fileType,dateTaken,privacy):
   """adds photo to photos table, returns photo_id"""
   # set privacy
   privacyNum = app.config['PRIVACYFLAGS'][privacy]
-  result = query_db('SELECT id \
-    FROM photos \
-    WHERE sha1 = ?',(sha1,),one=True)
-  if result != None:
-    return result['id']
-  else:
+  try:
+    photo = Photo.get(Photo.sha1 == sha1)
+    return photo.id
+  except Photo.DoesNotExist:
     logger.info('Adding to DB: %s %s %s %s', sha1,fileType,dateTaken,privacy)
-    id = insert_db('INSERT INTO photos \
-      VALUES(NULL, ?, ?, ?, ?, CURRENT_TIMESTAMP)', (privacyNum,sha1,fileType,dateTaken))
-    return id
+    photo = Photo.create(sha1=sha1,filetype=fileType,datetaken=dateTaken,privacy=privacy)
+    return photo.id
+  except Exception, e:
+    return e
 
 def photosAddTag(photo_id,tag):
   """add tags to a photo: takes photo id and tag. normalizes tag. returns tag id"""
-  tag = cigarbox.util.normalizeString(tag)
-  result = query_db('SELECT id \
-    FROM tags \
-    WHERE tag=?',(tag,),one=True)
-  if result == None:
-    try: 
-      tag_id = insert_db('INSERT INTO tags \
-        VALUES(NULL, ?, CURRENT_TIMESTAMP)',(tag,))
-    except Exception as e:
-      raise e
-  else:
-    tag_id = result['id']
+  normalizedtag = cigarbox.util.normalizeString(tag)
+  # create the tag first
+  try:
+    tagobject = Tag.get(Tag.name == normalizedtag)
+  except Tag.DoesNotExist:
+    tagobject = Tag.create(name = normalizedtag)
+  except Exception as e:
+    raise e
   # ok now we have the tag_id and photo_id, let's do this
   try:
-    id = insert_db('INSERT INTO tags_photos VALUES(NULL, ?, ?, CURRENT_TIMESTAMP)',(tag_id, photo_id))
-    logger.info('tagging photo id %s tag: %s', photo_id, tag)
+    phototag = PhotoTag.get(PhotoTag.photo == photo_id,PhotoTag.tag == tagobject.id)
     return id
+  except PhotoTag.DoesNotExist:
+    logger.info('tagging photo id %s tag: %s', photo_id, tag)
+    phototag = PhotoTag.create(photo=photo_id,tag=tagobject.id)
   except Exception, e:
     return e
 
