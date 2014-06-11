@@ -101,6 +101,23 @@ def show_taged_photos(tag,page):
         photo.uri = sha1Path + '/' + filename
     return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
 
+@app.route('/tags/<string:tag>/delete')
+def delete_tag(tag):
+    if not session.get('logged_in'):
+        abort(401)
+    # get tag id since delete() doesn't support joins
+    deleteTag = Tag.select().where(Tag.name == tag)
+    deleteTag = deleteTag.get()
+    # delete relationship to photos
+    deleteTags = PhotoTag.delete().where(PhotoTag.tag == deleteTag.id)
+    deleteTags.execute()
+    # delete tag from db
+    deletedTag = Tag.delete().where(Tag.name == tag)
+    deletedTag.execute()
+    flash('Tag deleted')
+    return redirect(url_for('show_tags'))
+
+
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
 def show_photosets(page):
