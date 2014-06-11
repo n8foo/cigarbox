@@ -14,8 +14,6 @@
 
     <!-- Optional theme -->
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
-
-    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
     <div class=page>
@@ -50,10 +48,9 @@
           </ul>
         </li>
       </ul>
+
       <ul class="nav navbar-nav navbar-right">
         <li><a href='about'>About</a>
-        {% for message in get_flashed_messages() %}
-        <li class=flash>{{ message }}</li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown">Dropdown <b class="caret"></b></a>
           <ul class="dropdown-menu">
@@ -64,12 +61,17 @@
             <li><a href="#">Separated link</a></li>
           </ul>
         </li>
-        {% endfor %}
-        <li>{% if not session.logged_in %}<a href="{{ url_for('login') }}">Log In</a>{% else %}<a href="{{ url_for('logout') }}">Log Out</a>{% endif %}</li>
+        <li>{% if not session.logged_in %}<a href="{{ config['SITEURL'] }}/login">Log In</a>{% else %}<a href="{{ config['SITEURL'] }}/logout">Log Out</a>{% endif %}</li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->
 </nav>
+        {% for message in get_flashed_messages() %}
+        <div class="alert alert-success">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          {{ message }}
+        </div>
+        {% endfor %}
 
   {% block body %}
   {% endblock %}
