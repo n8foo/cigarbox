@@ -14,9 +14,15 @@
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 
+from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+
 from app import app
 from util import *
 from db import *
+
+user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
+security = Security(app, user_datastore)
+
 
 
 # Utility Functions
@@ -64,18 +70,14 @@ def show_photo(photo_id):
     return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/photos/<int:photo_id>/original')
+@login_required
 def show_original_photo(photo_id):
     """a single authenticated original photo"""
     photo = Photo.select().where(Photo.id == photo_id).get()
     (sha1Path,filename) = getSha1Path(photo.sha1)
     S3Key = '/'+sha1Path+'/'+filename+'.'+photo.filetype
-    if session:
-        if session['logged_in'] == True:
-            originalURL = aws.getPrivateURL(app.config,S3Key)
-            return redirect(originalURL)
-    else:
-        return redirect('/login',code=302)
-
+    originalURL = aws.getPrivateURL(app.config,S3Key)
+    return redirect(originalURL)
 
 @app.route('/tags')
 def show_tags():
@@ -96,9 +98,8 @@ def show_taged_photos(tag,page):
     return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
 
 @app.route('/tags/<string:tag>/delete')
+@login_required
 def delete_tag(tag):
-    if not session.get('logged_in'):
-        abort(401)
     # get tag id since delete() doesn't support joins
     deleteTag = Tag.select().where(Tag.name == tag)
     deleteTag = deleteTag.get()
@@ -145,41 +146,14 @@ def show_photoset(photoset_id,page):
     return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
 
 @app.route('/add', methods=['POST'])
+@login_required
 def add_photo():
-    if not session.get('logged_in'):
-        abort(401)
-    #db = get_db()
-    #db.execute('insert into photos (title, text) values (?, ?)',
-    #             [request.form['title'], request.form['text']])
-    #db.commit()
     flash('New photo was successfully posted')
     return redirect(url_for('show_photos'))
 
 @app.route('/about')
 def about():
     return render_template('about.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        if request.form['username'] != app.config['USERNAME']:
-            error = 'Invalid username'
-        elif request.form['password'] != app.config['PASSWORD']:
-            error = 'Invalid password'
-        else:
-            session['logged_in'] = True
-            flash('You were logged in')
-            return redirect(url_for('photostream'))
-    return render_template('login.html', error=error)
-
-
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    flash('You were logged out')
-    return redirect(url_for('photostream'))
-
 
 if __name__ == '__main__':
     #init_db()

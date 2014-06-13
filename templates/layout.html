@@ -61,7 +61,7 @@
             <li><a href="#">Separated link</a></li>
           </ul>
         </li>
-        <li>{% if not session.logged_in %}<a href="{{ config['SITEURL'] }}/login">Log In</a>{% else %}<a href="{{ config['SITEURL'] }}/logout">Log Out</a>{% endif %}</li>
+        <li>{% if not request.cookies.get('remember_token') %}<a href="{{ config['SITEURL'] }}/login">Log In</a>{% else %}<a href="{{ config['SITEURL'] }}/logout">Log Out</a>{% endif %}</li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->

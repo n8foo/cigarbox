@@ -4,6 +4,9 @@ import datetime
 from peewee import *
 
 from flask_peewee.db import Database
+from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+
+
 from app import app
 
 db = Database(app)
@@ -86,3 +89,24 @@ class ImportMeta(db.Model):
 
     class Meta:
         db_table = 'import_meta'
+
+class Role(db.Model, RoleMixin):
+    name         = CharField(unique=True)
+    description  = TextField(null=True)
+
+class User(db.Model, UserMixin):
+    email        = TextField(unique=True)
+    password     = TextField(null=False)
+    active       = BooleanField(default=True)
+    confirmed_at = DateTimeField(null=True)
+    ts           = DateTimeField(default=datetime.datetime.now)
+
+
+class UserRoles(db.Model):
+    user         = ForeignKeyField(User, related_name='roles')
+    role         = ForeignKeyField(Role, related_name='users')
+    name         = property(lambda self: self.role.name)
+    description  = property(lambda self: self.role.description)
+
+
+

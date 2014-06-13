@@ -2,9 +2,9 @@
 {% set twitter_card_image = photo.uri %}
 {% block body %}
   <div class="container">
-  {% if session.logged_in %}
+  {% if request.cookies.get('remember_token') %}
   <a href="photos/{{ photo.id }}/original"><img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg"></a>
-  {% elif not session.logged_in %}
+  {% elif not request.cookies.get('remember_token') %}
   <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
   {% endif %}
   <br>
