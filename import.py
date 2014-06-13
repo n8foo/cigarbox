@@ -105,7 +105,7 @@ def addPhotoToDB(sha1,fileType,dateTaken,privacy):
     return photo.id
   except Photo.DoesNotExist:
     logger.info('Adding to DB: %s %s %s %s', sha1,fileType,dateTaken,privacy)
-    photo = Photo.create(sha1=sha1,filetype=fileType,datetaken=dateTaken,privacy=privacy)
+    photo = Photo.create(sha1=sha1,filetype=fileType,datetaken=dateTaken,privacy=privacyNum)
     return photo.id
   except Exception, e:
     return e
