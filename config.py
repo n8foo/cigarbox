@@ -25,7 +25,8 @@ AWSPOLICY = 'private'
 # Define the database - we are working with
 # SQLite for this example
 
-DATABASE='photos.db'
+DATABASE={'name'  :'photos.db',
+          'engine':'peewee.SqliteDatabase'}
 USERNAME='admin'
 PASSWORD='changeme2014'
 

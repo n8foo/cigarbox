@@ -3,17 +3,15 @@
 import datetime
 from peewee import *
 
+from flask_peewee.db import Database
+from app import app
 
-database = SqliteDatabase('photos.db', **{})
+db = Database(app)
 
 class UnknownField(object):
     pass
 
-class BaseModel(Model):
-    class Meta:
-        database = database
-
-class Photo(BaseModel):
+class Photo(db.Model):
     datetaken    = DateTimeField(db_column='dateTaken', null=True)
     filetype     = TextField(db_column='fileType')
     privacy      = IntegerField(null=True)
@@ -23,7 +21,7 @@ class Photo(BaseModel):
     class Meta:
         db_table = 'photos'
 
-class Comment(BaseModel):
+class Comment(db.Model):
     comment      = TextField(null=False)
     photo        = IntegerField(db_column='photo_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -31,7 +29,7 @@ class Comment(BaseModel):
     class Meta:
         db_table = 'comments'
 
-class Gallery(BaseModel):
+class Gallery(db.Model):
     description  = TextField(null=True)
     title        = TextField(null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -39,7 +37,7 @@ class Gallery(BaseModel):
     class Meta:
         db_table = 'galleries'
 
-class Photoset(BaseModel):
+class Photoset(db.Model):
     description  = TextField(null=True)
     title        = TextField(null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -47,14 +45,14 @@ class Photoset(BaseModel):
     class Meta:
         db_table = 'photosets'
 
-class Tag(BaseModel):
+class Tag(db.Model):
     name         = TextField(null=False,db_column='tag')
     ts           = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
         db_table = 'tags'
 
-class PhotoPhotoset(BaseModel):
+class PhotoPhotoset(db.Model):
     photo        = ForeignKeyField(Photo,db_column='photo_id', null=False)
     photoset     = ForeignKeyField(Photoset,db_column='photoset_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -62,7 +60,7 @@ class PhotoPhotoset(BaseModel):
     class Meta:
         db_table = 'photosets_photos'
 
-class PhotosetGallery(BaseModel):
+class PhotosetGallery(db.Model):
     gallery      = ForeignKeyField(Gallery,db_column='galleries_id', null=False)
     photoset     = ForeignKeyField(Photoset,db_column='photoset_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -70,7 +68,7 @@ class PhotosetGallery(BaseModel):
     class Meta:
         db_table = 'galleries_photosets'
 
-class PhotoTag(BaseModel):
+class PhotoTag(db.Model):
     photo        = ForeignKeyField(Photo,db_column='photo_id', null=False)
     tag          = ForeignKeyField(Tag,db_column='tag_id', null=False)
     ts           = DateTimeField(default=datetime.datetime.now)
@@ -78,7 +76,7 @@ class PhotoTag(BaseModel):
     class Meta:
         db_table = 'tags_photos'
 
-class ImportMeta(BaseModel):
+class ImportMeta(db.Model):
     s3           = IntegerField(db_column='S3', null=True)
     filedate     = DateTimeField(db_column='fileDate', null=True)
     importpath   = TextField(db_column='importPath', null=True)

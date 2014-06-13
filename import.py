@@ -28,10 +28,10 @@ parser.add_argument('--importsource', help='override import source')
 args = parser.parse_args()
 
 import os, sqlite3, shutil, time, datetime
-import cigarbox.util, cigarbox.aws
-from cigarbox.orm import *
+import util, aws
+from db import *
 
-logger = cigarbox.util.setup_custom_logger('cigarbox')
+logger = util.setup_custom_logger('cigarbox')
 logger.info('starting import....')
 
 from flask import Flask, g
@@ -112,7 +112,7 @@ def addPhotoToDB(sha1,fileType,dateTaken,privacy):
 
 def photosAddTag(photo_id,tag):
   """add tags to a photo: takes photo id and tag. normalizes tag. returns tag id"""
-  normalizedtag = cigarbox.util.normalizeString(tag)
+  normalizedtag = util.normalizeString(tag)
   # create the tag first
   try:
     tagobject = Tag.get(Tag.name == normalizedtag)
@@ -135,7 +135,7 @@ def getfileType(filename):
   return fileType
 
 def archivePhoto(file,sha1,fileType,localArchivePath,args,photo_id):
-  (sha1Path,sha1Filename)=cigarbox.util.getSha1Path(sha1)
+  (sha1Path,sha1Filename)=util.getSha1Path(sha1)
   archivedPhoto='%s/%s/%s.%s' % (localArchivePath,sha1Path,sha1Filename,fileType)
   if not os.path.isdir(localArchivePath+'/'+sha1Path):
     os.makedirs(localArchivePath+'/'+sha1Path)
@@ -148,7 +148,7 @@ def archivePhoto(file,sha1,fileType,localArchivePath,args,photo_id):
   if args.S3 == True:
     if checkImportStatusS3(photo_id) == False:
       S3Key='%s/%s.%s' % (sha1Path,sha1Filename,fileType)
-      cigarbox.aws.uploadToS3(file,S3Key,app.config,policy=app.config['AWSPOLICY'])
+      aws.uploadToS3(file,S3Key,app.config,policy=app.config['AWSPOLICY'])
   return(archivedPhoto)
 
 def dirTags(photo_id,file,ignoreTags):
@@ -183,14 +183,14 @@ def main():
     logger.info('Scanning file %s', filename)
     # get a date, from exif or file
     try:
-      exifDateTaken = cigarbox.util.getExifTags(filename)['DateTimeOriginal']
+      exifDateTaken = util.getExifTags(filename)['DateTimeOriginal']
       dateTaken = datetime.datetime.strptime(exifDateTaken, "%Y:%m:%d %H:%M:%S" )
     except Exception, e:
       dateTaken = None
 
     # set some variables
     fileType = getfileType(os.path.basename(filename))
-    sha1=cigarbox.util.hashfile(filename)
+    sha1=util.hashfile(filename)
 
     # insert pic into db
     photo_id = addPhotoToDB(sha1,fileType,dateTaken,args.privacy)
@@ -199,13 +199,13 @@ def main():
     archivedPhoto=archivePhoto(filename,sha1,fileType,localArchivePath,args,photo_id)
 
     # generate thumbnails
-    thumbFilenames = cigarbox.util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
+    thumbFilenames = util.genThumbnails(sha1,fileType,app.config,regen=args.regen)
     # send thumbnails to S3
     S3success = False
     if args.S3 == True:
       if checkImportStatusS3(photo_id) == False:
         for thumbFilename in thumbFilenames:
-          S3success = cigarbox.aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
+          S3success = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
 
     # save import meta
     saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)

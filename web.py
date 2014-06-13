@@ -13,17 +13,11 @@
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
-from cigarbox.util import *
-from cigarbox.orm import *
 
+from app import app
+from util import *
+from db import *
 
-# create the app
-app = Flask(__name__)
-
-# Load default config and override config from config file
-app.config.from_object('config')
-
-remoteArchivePath=app.config['REMOTEARCHIVEPATH']
 
 # Utility Functions
 
