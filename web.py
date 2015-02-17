@@ -7,7 +7,7 @@
 
   A smokin' fast personal photostream
 
-  :copyright: (c) 2014 by Nathan Hubbard @n8foo.
+  :copyright: (c) 2015 by Nathan Hubbard @n8foo.
   :license: Apache, see LICENSE for more details.
 """
 

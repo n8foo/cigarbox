@@ -7,7 +7,7 @@
 
     A smokin' fast personal photostream
 
-    :copyright: (c) 2014 by Nathan Hubbard @n8foo.
+    :copyright: (c) 2015 by Nathan Hubbard @n8foo.
     :license: Apache, see LICENSE for more details.
 """
 
@@ -16,7 +16,6 @@ import argparse
 parser = argparse.ArgumentParser(description='import photos into photos system.')
 parser.add_argument('--files', metavar='N', type=str, nargs='+',
                    help='files to import', required=True)
-#parser.add_argument('--gallery', help='assign a gallery to an import')
 parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')

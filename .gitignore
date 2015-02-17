@@ -38,3 +38,4 @@ photos.db
 import.log
 static/cigarbox/*
 config.py
+backups/
