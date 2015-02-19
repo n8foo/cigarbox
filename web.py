@@ -165,6 +165,33 @@ def show_photoset(photoset_id,page):
   photoset = photoset.get()
   return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
 
+@app.route('/photosets/<int:photoset_id>/delete')
+@login_required
+def delete_photoset(photoset_id):
+  # clean up relationships to soon-to-be deleted photoset
+  #PhotoPhotoset.delete().where(PhotoPhotoset.photoset == photoset_id).execute
+  # delete photoset
+  photoset = Photoset.get(Photoset.id == photoset_id)
+  photoset.delete_instance(recursive=True)
+  flash('Photoset deleted')
+  return redirect(url_for('photostream'))
+
+@app.route('/photosets/<int:photoset_id>/deletephotos')
+@login_required
+def delete_photoset_photos(photoset_id):
+  # delete all photos and the photoset
+  photos = Photo.select().join(PhotoPhotoset).join(Photoset)
+  photos = photos.where(Photoset.id == photoset_id)
+  for photo in photos:
+    deletedPhoto = Photo.delete().where(Photo.id == photo.id)
+    deletedPhoto.execute()
+  # delete photoset
+  photoset = Photoset.get(Photoset.id == photoset_id)
+  photoset.delete_instance(recursive=True)
+  flash('Photoset and all photos deleted')
+  return redirect(url_for('photostream'))
+
+
 @app.route('/add', methods=['POST'])
 @login_required
 def add_photo():
