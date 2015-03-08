@@ -31,6 +31,20 @@ def uploadToS3(localfile,S3Key,config,regen=False,policy='private'):
   except Exception, e:
      return False 
 
+def deleteFromS3(S3Key,config):
+  bucket_name = config['S3_BUCKET_NAME']
+  conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
+  bucket = conn.get_bucket(bucket_name)
+  logger.info('Deleting from S3: %s' % (S3Key))
+  from boto.s3.key import Key
+  k = Key(bucket)
+  k.key = '/' + S3Key
+  try:
+     k.key.delete(S3key)
+     return True
+  except Exception, e:
+     return False 
+
 def getPrivateURL(config,S3Key):
   bucket_name = config['S3_BUCKET_NAME']
   conn = boto.connect_s3(config['AWS_ACCESS_KEY_ID'],config['AWS_SECRET_ACCESS_KEY'])
