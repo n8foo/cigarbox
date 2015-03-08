@@ -116,8 +116,7 @@ def delete_tag(tag):
   flash('Tag deleted')
   return redirect(url_for('show_tags'))
 
-
-@app.route('/photos/<string:photo_id>/delete')
+@app.route('/photos/<int:photo_id>/delete')
 @login_required
 def delete_photo(photo_id):
   # delete from any photoset
@@ -126,12 +125,16 @@ def delete_photo(photo_id):
   # remove associated tags
   #deletePhotoPhotoset = PhotoPhotoset.delete().where(PhotoPhotoset.photo == Photo.id)
   #deletePhotoPhotoset.execute()
+  # delete photo from S3 (not working)
+  #photo = Photo.select().where(Photo.id == photo_id).get()
+  #(sha1Path,filename) = getSha1Path(photo.sha1)
+  #S3key='/%s/%s.%s' % (sha1Path,filename,photo.filetype)
+  #aws.deleteFromS3(S3key,app.config)
   # delete photo from db
   deletedPhoto = Photo.delete().where(Photo.id == photo_id)
   deletedPhoto.execute()
   flash('Photo deleted')
   return redirect(url_for('photostream'))
-
 
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
