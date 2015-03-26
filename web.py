@@ -12,9 +12,11 @@
 """
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
-  render_template, flash
+  render_template, flash, send_from_directory
 
 from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+
+from werkzeug import secure_filename
 
 from app import app
 from util import *
@@ -205,6 +207,46 @@ def add_photo():
 @app.route('/about')
 def about():
   return render_template('about.html')
+
+# upload
+
+# For a given file, return whether it's an allowed type or not
+def allowed_file(filename):
+  return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+
+@app.route('/upload', methods=['POST'])
+def upload():
+  # Get the name of the uploaded files
+  uploaded_files = request.files.getlist("file[]")
+  filenames = []
+  for file in uploaded_files:
+    # Check if the file is one of the allowed types/extensions
+    if file and allowed_file(file.filename):
+      # Make the filename safe, remove unsupported chars
+      filename = secure_filename(file.filename)
+      # Move the file form the temporal folder to the upload
+      # folder we setup
+      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      # Save the filename into a list, we'll use it later
+      filenames.append(filename)
+      # Redirect the user to the uploaded_file route, which
+      # will basicaly show on the browser the uploaded file
+  # Load an html page with a link to each uploaded file
+  return render_template('uploaded.html', filenames=filenames)
+
+@app.route('/upload',methods=['GET'])
+def upload_form(): 
+  return render_template('upload.html')
+
+# This route is expecting a parameter containing the name
+# of a file. Then it will locate that file on the upload
+# directory and show it on the browser, so if the user uploads
+# an image, that image is going to be show after the upload
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+  return send_from_directory(app.config['UPLOAD_FOLDER'],filename)
+
 
 if __name__ == '__main__':
   #init_db()
