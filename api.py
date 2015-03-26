@@ -13,15 +13,18 @@
 
 
 from flask import Flask, request, jsonify
-from resources.upload import Upload
+#from resources.upload import Upload
 from werkzeug import secure_filename
 
 # cigarbox
 from app import *
 import util, aws
-import os
 from web import allowed_file
 from process import *
+
+#standard libs
+
+import os
 
 app = Flask(__name__)
 
@@ -63,9 +66,10 @@ def processPhoto(filename):
   return(photo_id)
 
 @app.route('/api/upload', methods=['POST'])
-def upload():
+def apiupload():
   # Get the name of the uploaded files
-  uploaded_files = request.files.getlist('file[]')
+  uploaded_files = request.files.getlist('files')
+  tags = request.form['tags'].split(',')
   photo_ids=set()
   for file in uploaded_files:
     # Check if the file is one of the allowed types/extensions
@@ -78,9 +82,12 @@ def upload():
       # process each file
       photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename))
       photo_ids.add(photo_id)
+      # add tags for each photo
+      for tag in tags:
+        photosAddTag(photo_id,tag)
   # turn back into a list since set is not jsonifyable 
   photo_ids=list(photo_ids)
-  return jsonify({'photo_ids': photo_ids})
+  return jsonify({'photo_ids': photo_ids, 'tags': tags})
 
 app.config['DEBUG'] = True
 

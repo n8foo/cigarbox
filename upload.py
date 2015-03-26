@@ -28,7 +28,7 @@ parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
-parser.add_argument('--privacy', help='set privacy on a photo, default is none/public', choices=['public','family','friends','private','disabled'])
+parser.add_argument('--privacy', help='set privacy on a photo, default is none/public', choices=['public','family','friends','private','disabled'], default='public')
 parser.add_argument('--importsource', default=os.uname()[1], help='override import source')
 parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint', default='http://127.0.0.1:5001/api/upload')
 args = parser.parse_args()
@@ -55,13 +55,20 @@ def uploadFiles(filenames):
   photo_ids=set()
   for filename in filenames:
     tempname=ts+'_'+os.path.basename(filename)
-    m = MultipartEncoder(fields={ 'file[]': (tempname, open(filename, 'rb') ) })
+    fields={'files': (tempname, open(filename, 'rb') ) }
+    if args.tags:
+      fields['tags'] = args.tags
+    if args.privacy:
+      fields['privacy'] = args.privacy
+    m = MultipartEncoder(fields=fields)
     r = requests.post(args.apiurl, data=m,
       headers={'Content-Type': m.content_type})
     logger.info(filename+' -> '+tempname+' finished! ({0} {1})'.format(r.status_code, r.reason))
+
     photo_ids.add(r.json()['photo_ids'][0])
   photo_ids=list(photo_ids)
   return photo_ids
+
 
 def main():
   """Main program"""

@@ -4,19 +4,14 @@
       
 <form action="http://127.0.0.1:5001/api/upload" method="post" enctype="multipart/form-data">
   <div class="form-group">
-    <label for="InputTags">Image Tags</label>
-    <input type="text" class="form-control" id="InputTags" placeholder="tag1,tag2,etc">
-    <p class="help-block">comma separated list of tags to apply to all images</p>
-  </div>
-  <div class="form-group">
     <label for="InputFile">Upload Images</label>
     <input type="file" multiple="" name="files" id="InputFile">
     <p class="help-block">Select multiple files to upload.</p>
   </div>
-  <div class="checkbox">
-    <label>
-      <input type="checkbox"> Check me out
-    </label>
+  <div class="form-group">
+    <label for="InputTags">Image Tags</label>
+    <input type="text" class="form-control" name='tags' id="InputTags" placeholder="tag1,tag2,etc">
+    <p class="help-block">comma separated list of tags to apply to all images</p>
   </div>
   <button type="submit" class="btn btn-default">Upload</button>
 </form>
