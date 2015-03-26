@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block body %}
+      <div>
+      
+      <form action="http://127.0.0.1:5001/api/upload" method="post" enctype="multipart/form-data">
+        <input type="file" multiple="" name="file[]" class="span3" /><br />
+        <input type="submit" value="Upload"  class="span2">
+      </form>
+      </div>
+{% endblock %}
