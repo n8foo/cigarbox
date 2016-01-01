@@ -30,7 +30,7 @@ parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--privacy', help='set privacy on a photo, default is none/public', choices=['public','family','friends','private','disabled'], default='public')
 parser.add_argument('--importsource', default=os.uname()[1], help='override import source')
-parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint', default='http://127.0.0.1:5001/api/upload')
+parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint', default='http://127.0.0.1:9001/api/upload')
 args = parser.parse_args()
 
 logger = util.setup_custom_logger('cigarbox')
