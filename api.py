@@ -36,15 +36,24 @@ logger = util.setup_custom_logger('cigarbox')
 # define a few variables for the API
 uploadToS3=True
 
-def processPhoto(filename):
+def processPhoto(filename,localSha1='0'):
   # log what we're doing
   logger.info('Processing file %s', filename)
-
 
   # set some variables
   dateTaken=getDateTaken(filename)
   fileType = getfileType(os.path.basename(filename))
   sha1=util.hashfile(filename)
+
+  # check sha1 local against sha1 server
+  if localSha1 == '0':
+    logger.info('no SHA1 sent. oh well.')
+  elif localSha1 != sha1:
+    logger.error('SHA1 signatures DO NOT MATCH!')
+  elif localSha1 == sha1:
+    logger.info('SHA1 verified.')
+  else:
+    logger.info('SHA1 unknown state')
 
   # insert pic into db
   photo_id = addPhotoToDB(sha1=sha1,fileType=fileType,dateTaken=dateTaken)
@@ -69,8 +78,29 @@ def processPhoto(filename):
 def apiupload():
   # Get the name of the uploaded files
   uploaded_files = request.files.getlist('files')
-  tags = request.form['tags'].split(',')
+  if 'sha1' in request.form:
+    localSha1 = request.form['sha1']
+  else:
+    localSha1 = '0'
+  print request.form
+  response=dict()
   photo_ids=set()
+
+  # check for tags and populate array and response
+  if 'tags' in request.form:
+    tags = request.form['tags'].split(',')
+    response['tags'] = tags
+  else:
+    tags = None
+
+  # check for photoset and populate array and response
+  if 'photoset' in request.form:
+    photoset = request.form['photoset']
+    response['photoset'] = photoset
+    photoset_id = photosetsCreate(photoset)
+  else:
+    photoset = None
+
   for file in uploaded_files:
     # Check if the file is one of the allowed types/extensions
     if file and allowed_file(file.filename):
@@ -80,14 +110,25 @@ def apiupload():
       # folder we setup
       file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
       # process each file
-      photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename),localSha1)
       photo_ids.add(photo_id)
+
       # add tags for each photo
-      for tag in tags:
-        photosAddTag(photo_id,tag)
+      if tags:
+        for tag in tags:
+          photosAddTag(photo_id,tag)
+
+      # add to photoset
+      if photoset:
+        photosetsAddPhoto(photoset_id,photo_id)
+
+
+
   # turn back into a list since set is not jsonifyable 
   photo_ids=list(photo_ids)
-  return jsonify({'photo_ids': photo_ids, 'tags': tags})
+  response['photo_ids'] = photo_ids
+  print response
+  return jsonify(response)
 
 app.config['DEBUG'] = True
 

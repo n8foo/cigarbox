@@ -26,6 +26,7 @@ parser.add_argument('--files', metavar='N', type=str, nargs='+',
                    help='files to import', required=True)
 parser.add_argument('--tags', help='assign comma separated tag(s) to an import')
 parser.add_argument('--dirtags', help='tag photos based on directory structure', action='store_true')
+parser.add_argument('--showdirtags', help='show tags based on directory structure', action='store_true')
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--parentdirphotoset', help='assign a photoset name based on parent directory', action='store_true', default=False)
 parser.add_argument('--privacy', help='set privacy on a photo, default is none/public', choices=['public','family','friends','private','disabled'], default='public')
@@ -55,7 +56,14 @@ def uploadFiles(filenames):
   photo_ids=set()
   for filename in filenames:
     tempname=ts+'_'+os.path.basename(filename)
+    # get sha1 to also send for verification
+    sha1=util.hashfile(filename)
     fields={'files': (tempname, open(filename, 'rb') ) }
+    fields['sha1'] = sha1
+    if args.tags:
+      fields['tags'] = args.tags
+    if args.photoset:
+      fields['photoset'] = args.photoset
     if args.tags:
       fields['tags'] = args.tags
     if args.privacy:
