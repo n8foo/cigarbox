@@ -71,7 +71,7 @@ def processPhoto(filename,localSha1='0'):
     S3success = False
 
   # save import meta
-  saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success)
+  saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success,sha1=sha1)
   return(photo_id)
 
 @app.route('/api/upload', methods=['POST'])
