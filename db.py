@@ -3,59 +3,74 @@
 import datetime
 from peewee import *
 
-from flask_peewee.db import Database
 from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
 
 
 from app import app
 
-db = Database(app)
+db = SqliteDatabase(app.config['DATABASE']['name'])
 
 class UnknownField(object):
   pass
 
-class Photo(db.Model):
+class Photo(Model):
   datetaken    = DateTimeField(null=True)
   filetype     = TextField(null=False)
   privacy      = IntegerField(null=True)
   sha1         = TextField(null=False,unique=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class Comment(db.Model):
+class Comment(Model):
   comment      = TextField(null=False)
   photo        = IntegerField(null=False)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class Gallery(db.Model):
+class Gallery(Model):
   description  = TextField(null=True)
   title        = TextField(null=False,unique=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class Photoset(db.Model):
+class Photoset(Model):
   description  = TextField(null=True)
   title        = TextField(null=False,unique=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class Tag(db.Model):
+class Tag(Model):
   name         = TextField(null=False,unique=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class PhotoPhotoset(db.Model):
+class PhotoPhotoset(Model):
   photo        = ForeignKeyField(Photo,null=False)
   photoset     = ForeignKeyField(Photoset,null=False)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class PhotosetGallery(db.Model):
+class PhotosetGallery(Model):
   gallery      = ForeignKeyField(Gallery,null=False)
   photoset     = ForeignKeyField(Photoset,null=False)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class PhotoTag(db.Model):
+class PhotoTag(Model):
   photo        = ForeignKeyField(Photo,null=False)
   tag          = ForeignKeyField(Tag,null=False)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class ImportMeta(db.Model):
+class ImportMeta(Model):
   sha1         = TextField(null=False,unique=True)
   photo        = IntegerField(null=False)
   importpath   = TextField(null=True)
@@ -63,24 +78,30 @@ class ImportMeta(db.Model):
   filedate     = DateTimeField(null=True)
   s3           = IntegerField(null=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
-class Role(db.Model, RoleMixin):
+class Role(Model, RoleMixin):
   name         = CharField(unique=True)
   description  = TextField(null=True)
 
-class User(db.Model, UserMixin):
+class User(Model, UserMixin):
   email        = TextField(unique=True)
   password     = TextField(null=False)
   active       = BooleanField(default=True)
   confirmed_at = DateTimeField(null=True)
   ts           = DateTimeField(default=datetime.datetime.now)
+  class Meta:
+    database = db
 
 
-class UserRoles(db.Model):
+class UserRoles(Model):
   user         = ForeignKeyField(User, related_name='role')
   role         = ForeignKeyField(Role, related_name='user')
   name         = property(lambda self: self.role.name)
   description  = property(lambda self: self.role.description)
+  class Meta:
+    database = db
 
 
 
