@@ -82,7 +82,6 @@ def apiupload():
     localSha1 = request.form['sha1']
   else:
     localSha1 = '0'
-  print request.form
   response=dict()
   photo_ids=set()
 
@@ -108,7 +107,13 @@ def apiupload():
       filename = secure_filename(file.filename)
       # Move the file form the temporal folder to the upload
       # folder we setup
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      try:
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      except Exception, e:
+        logger.info('could not save file %s' % os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        raise e
+      else:
+        logger.info('uploaded file saved: %s' % os.path.join(app.config['UPLOAD_FOLDER'], filename))
       # process each file
       photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename),localSha1)
       photo_ids.add(photo_id)
@@ -122,6 +127,11 @@ def apiupload():
       if photoset:
         photosetsAddPhoto(photoset_id,photo_id)
 
+  # turn back into a list since set is not jsonifyable 
+  photo_ids=list(photo_ids)
+  response['photo_ids'] = photo_ids
+  print response
+  return jsonify(response)
 
 
   # turn back into a list since set is not jsonifyable 

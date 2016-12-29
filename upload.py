@@ -56,6 +56,7 @@ def uploadFiles(filenames):
   photo_ids=set()
   for filename in filenames:
     tempname=ts+'_'+os.path.basename(filename)
+    logger.info(tempname)
     # get sha1 to also send for verification
     sha1=util.hashfile(filename)
     fields={'files': (tempname, open(filename, 'rb') ) }
@@ -69,12 +70,15 @@ def uploadFiles(filenames):
     if args.privacy:
       fields['privacy'] = args.privacy
     m = MultipartEncoder(fields=fields)
-    r = requests.post(args.apiurl, data=m,
-      headers={'Content-Type': m.content_type})
-    logger.info(filename+' -> '+tempname+' finished! ({0} {1})'.format(r.status_code, r.reason))
-
+    try:
+      r = requests.post(args.apiurl, data=m,headers={'Content-Type': m.content_type})
+    except Exception, e:
+      raise e
+    else:
+      logger.info(filename+' -> '+tempname+' finished! ({0} {1})'.format(r.status_code, r.reason))
     photo_ids.add(r.json()['photo_ids'][0])
   photo_ids=list(photo_ids)
+  logger.info(photo_ids)
   return photo_ids
 
 
