@@ -2,17 +2,27 @@
 {% set twitter_card_image = photo.uri %}
 {% block body %}
   <div class="container">
-  {% if request.cookies.get('remember_token') %}
-  <a href="photos/{{ photo.id }}/original"><img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg"></a>
-  {% elif not request.cookies.get('remember_token') %}
-  <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
-  {% endif %}
-  <br>
-  {% for tag in tags %}
-  <a href="tags/{{ tag.name }}">{{  tag.name  }}</a>
-  {% else %}
-  No Tags!
-  {% endfor %}
+    <div class="row">
+      <div class="col-md-12">
+        {% if request.cookies.get('remember_token') %}
+        <a href="photos/{{ photo.id }}/original">
+          <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
+        </a>
+        {% elif not request.cookies.get('remember_token') %}
+        <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
+        {% endif %}
+      </div>
+      <div class="col-md-12" align=left>
+        {% for tag in tags %}
+        <a href="tags/{{ tag.name }}">{{  tag.name  }}</a>
+        {% else %}
+        No Tags!
+        {% endfor %}
+      </div>
+      <div class="col-md-12" align="left">
+        <a href="date/{{ photo.datetaken.strftime('%Y-%m-%d') }}">{{ photo.datetaken.strftime('%Y-%m-%d') }}</a>{{ photo.datetaken.strftime(' %H:%M') }}
+      </div>
+    </div>
   </div>
   <br><br>
 {% endblock %}

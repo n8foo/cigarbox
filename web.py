@@ -103,6 +103,20 @@ def show_taged_photos(tag,page):
     photo.uri = sha1Path + '/' + filename
   return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
 
+@app.route('/date/<string:date>', defaults={'page': 1})
+@app.route('/date/<string:date>/page/<int:page>')
+def show_date_photos(date,page):
+  baseurl = '%s/date/%s' % (app.config['SITEURL'],date)
+
+  photos = Photo.select()
+  photos = photos.where(Photo.datetaken.startswith(date))
+  photos = photos.order_by(Photo.datetaken.desc())
+  photos = photos.paginate(page,app.config['PER_PAGE'])
+  for photo in photos:
+    (sha1Path,filename) = getSha1Path(photo.sha1)
+    photo.uri = sha1Path + '/' + filename
+  return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
+
 @app.route('/tags/<string:tag>/delete')
 @login_required
 def delete_tag(tag):
