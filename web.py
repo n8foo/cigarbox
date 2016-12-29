@@ -210,6 +210,18 @@ def delete_photoset_photos(photoset_id):
   flash('Photoset and all photos deleted')
   return redirect(url_for('photostream'))
 
+@app.route('/sha1/<string:sha1>')
+def show_photo_from_md5(sha1):
+  """a single photo"""
+  try:
+    photo = Photo.select().where(Photo.sha1 == sha1).get()
+  except Exception, e:
+    page_not_found('no sha1 found')
+  else:
+    (sha1Path,filename) = getSha1Path(photo.sha1)
+    photo.uri = sha1Path + '/' + filename
+    tags = Tag.select().join(PhotoTag).where(PhotoTag.photo == photo.id)
+    return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/add', methods=['POST'])
 @login_required
