@@ -20,7 +20,9 @@
         {% endfor %}
       </div>
       <div class="col-md-12" align="left">
+      {% if photo.datetaken %}
         <a href="date/{{ photo.datetaken.strftime('%Y-%m-%d') }}">{{ photo.datetaken.strftime('%Y-%m-%d') }}</a>{{ photo.datetaken.strftime(' %H:%M') }}
+      {% endif %}
       </div>
     </div>
   </div>
