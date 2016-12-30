@@ -61,6 +61,7 @@ def uploadFiles(filenames):
     sha1=util.hashfile(filename)
     fields={'files': (tempname, open(filename, 'rb') ) }
     fields['sha1'] = sha1
+    fields['clientfilename'] = filename
     if args.tags:
       fields['tags'] = args.tags
     if args.photoset:

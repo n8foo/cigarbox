@@ -36,7 +36,7 @@ logger = util.setup_custom_logger('cigarbox')
 # define a few variables for the API
 uploadToS3=True
 
-def processPhoto(filename,localSha1='0'):
+def processPhoto(filename,localSha1='0',clientfilename=None):
   # log what we're doing
   logger.info('Processing file %s', filename)
 
@@ -71,7 +71,7 @@ def processPhoto(filename,localSha1='0'):
     S3success = False
 
   # save import meta
-  saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success,sha1=sha1)
+  saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success,sha1=sha1,clientfilename=clientfilename)
   return(photo_id)
 
 @app.route('/api/upload', methods=['POST'])
@@ -91,6 +91,8 @@ def apiupload():
     response['tags'] = tags
   else:
     tags = None
+
+  clientfilename = request.form['clientfilename']
 
   # check for photoset and populate array and response
   if 'photoset' in request.form:
@@ -115,7 +117,7 @@ def apiupload():
       else:
         logger.info('uploaded file saved: %s' % os.path.join(app.config['UPLOAD_FOLDER'], filename))
       # process each file
-      photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename),localSha1)
+      photo_id=processPhoto(os.path.join(app.config['UPLOAD_FOLDER'], filename),localSha1,clientfilename=clientfilename)
       photo_ids.add(photo_id)
 
       # add tags for each photo

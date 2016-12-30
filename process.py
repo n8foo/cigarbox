@@ -22,13 +22,13 @@ def photosetsCreate(title,description=None):
     photoset = Photoset.create(title=title,description=description)
   return photoset.id
 
-def saveImportMeta(photo_id,filename,importSource,sha1,S3=False):
+def saveImportMeta(photo_id,filename,importSource,sha1,S3=False,clientfilename=None):
   importPath = os.path.abspath(filename)
   fileDate = time.ctime(os.path.getmtime(filename))
   try:
     meta = ImportMeta.get(ImportMeta.photo == photo_id)
   except ImportMeta.DoesNotExist:
-    meta = ImportMeta.create(photo=photo_id,filedate=fileDate,importpath=importPath,importsource=importSource,s3=S3,sha1=sha1)
+    meta = ImportMeta.create(photo=photo_id,filedate=fileDate,importpath=clientfilename,importsource=importSource,s3=S3,sha1=sha1)
     logger.info('recording import meta for photo id: %s sha1: %s' % (photo_id,sha1))
   return meta.id
 
