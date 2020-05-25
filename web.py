@@ -129,12 +129,6 @@ def delete_tag(tag):
 
 @app.route('/photos/<int:photo_id>/delete')
 def delete_photo(photo_id):
-  # delete from any photoset
-  #deletePhotoPhotoset = PhotoPhotoset.delete().where(PhotoPhotoset.photo == Photo.id)
-  #deletePhotoPhotoset.execute()
-  # remove associated tags
-  #deletePhotoPhotoset = PhotoPhotoset.delete().where(PhotoPhotoset.photo == Photo.id)
-  #deletePhotoPhotoset.execute()
   # delete photo from S3 (not working)
   #photo = Photo.select().where(Photo.id == photo_id).get()
   #(sha1Path,filename) = getSha1Path(photo.sha1)
@@ -190,7 +184,7 @@ def delete_photoset(photoset_id):
   return redirect(url_for('photostream'))
 
 @app.route('/photosets/<int:photoset_id>/deletephotos')
-#@login_required
+@login_required
 def delete_photoset_photos(photoset_id):
   # delete all photos and the photoset
   photos = Photo.select().join(PhotoPhotoset).join(Photoset)
@@ -205,7 +199,7 @@ def delete_photoset_photos(photoset_id):
   return redirect(url_for('photostream'))
 
 @app.route('/sha1/<string:sha1>')
-def show_photo_from_md5(sha1):
+def show_photo_from_sha1(sha1):
   """a single photo"""
   try:
     photo = Photo.select().where(Photo.sha1 == sha1).get()

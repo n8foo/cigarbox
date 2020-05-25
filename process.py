@@ -53,6 +53,10 @@ def getSha1FromPhotoID (photo_id):
   photo = Photo.get(Photo.id == photo_id)
   return(photo.sha1)
 
+def getPhotoIDFromSha1 (sha1):
+  photo = Photo.get(Photo.sha1 == sha1)
+  return(photo.id)
+
 def getOriginalPhotoName (photo_id):
   sha1 = getSha1FromPhotoID(photo_id)
   secret_key = app.config['SECRET_KEY']
