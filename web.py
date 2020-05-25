@@ -22,10 +22,6 @@ from app import app
 from util import *
 from db import *
 
-user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
-security = Security(app, user_datastore)
-
-
 
 # Utility Functions
 
@@ -35,12 +31,12 @@ def find(lst, key, value):
       return i
   return -1
 
-# URL Routing 
+# URL Routing
 
 @app.errorhandler(404)
 def page_not_found(error):
   return render_template('404.html'), 404
-  
+
 @app.errorhandler(500)
 def page_not_found(error):
   return render_template('404.html'), 404
@@ -76,7 +72,6 @@ def show_photo(photo_id):
   return render_template('photos.html', photo=photo, tags=tags)
 
 @app.route('/photos/<int:photo_id>/original')
-@login_required
 def show_original_photo(photo_id):
   """a single authenticated original photo"""
   photo = Photo.select().where(Photo.id == photo_id).get()
@@ -133,11 +128,10 @@ def delete_tag(tag):
   return redirect(url_for('show_tags'))
 
 @app.route('/photos/<int:photo_id>/delete')
-@login_required
 def delete_photo(photo_id):
   # delete from any photoset
   #deletePhotoPhotoset = PhotoPhotoset.delete().where(PhotoPhotoset.photo == Photo.id)
-  #deletePhotoPhotoset.execute()    
+  #deletePhotoPhotoset.execute()
   # remove associated tags
   #deletePhotoPhotoset = PhotoPhotoset.delete().where(PhotoPhotoset.photo == Photo.id)
   #deletePhotoPhotoset.execute()
@@ -185,7 +179,7 @@ def show_photoset(photoset_id,page):
   return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
 
 @app.route('/photosets/<int:photoset_id>/delete')
-@login_required
+#@login_required
 def delete_photoset(photoset_id):
   # clean up relationships to soon-to-be deleted photoset
   #PhotoPhotoset.delete().where(PhotoPhotoset.photoset == photoset_id).execute
@@ -196,7 +190,7 @@ def delete_photoset(photoset_id):
   return redirect(url_for('photostream'))
 
 @app.route('/photosets/<int:photoset_id>/deletephotos')
-@login_required
+#@login_required
 def delete_photoset_photos(photoset_id):
   # delete all photos and the photoset
   photos = Photo.select().join(PhotoPhotoset).join(Photoset)
@@ -262,7 +256,7 @@ def upload():
   return render_template('uploaded.html', filenames=filenames)
 
 @app.route('/upload',methods=['GET'])
-def upload_form(): 
+def upload_form():
   return render_template('upload.html')
 
 # This route is expecting a parameter containing the name
@@ -276,4 +270,4 @@ def uploaded_file(filename):
 
 if __name__ == '__main__':
   #init_db()
-  app.run(port=9000)
+  app.run(port=app.config['PORT'])

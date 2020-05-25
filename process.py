@@ -83,6 +83,16 @@ def addPhotoToDB(sha1,fileType,dateTaken):
   except Exception, e:
     return e
 
+def replacePhoto(photo_id,sha1,fileType,dateTaken):
+  """replaces a photo based on photo_id, returns new sha1"""
+  try:
+    logger.info('Replacing photo_id %s with %s %s', (photo_id,sha1,dateTaken))
+    q = Photo.update(sha1=sha1,filetype=fileType,datetaken=dateTaken).where(id == photo_id)
+    q.execute()
+    return sha1
+  except Exception, e:
+    return e
+
 def photosAddTag(photo_id,tag):
   """add tags to a photo: takes photo id and tag. normalizes tag. returns tag id"""
   normalizedtag = util.normalizeString(tag)
@@ -139,10 +149,15 @@ def dirTags(photo_id,file,ignoreTags):
 
 def parentDirPhotoSet(photo_id,file):
   """add tags based on parent directory"""
-  parentDir = osPathDirnames = os.path.dirname(file).split('/')[-1]
+  parentDir = os.path.dirname(file).split('/')[-1]
   photoset_id = photosetsCreate(parentDir)
   photosetsAddPhoto(photoset_id,photo_id)
   return True
+
+def parentDirTags(file):
+  """add tag based on parent directory"""
+  parentDir = os.path.dirname(file).split('/')[-1]
+  return parentDir
 
 def getDateTaken(filename):
   """get a date from exif or file date"""
