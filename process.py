@@ -105,6 +105,7 @@ def photosAddTag(photo_id,tag):
     tagobject = Tag.get(Tag.name == normalizedtag)
   except Tag.DoesNotExist:
     tagobject = Tag.create(name = normalizedtag)
+    logger.info('created tag: {} id: '.format(tag,tagobject.id))
   except Exception as e:
     raise e
   # ok now we have the tag_id and photo_id, let's do this
@@ -112,10 +113,33 @@ def photosAddTag(photo_id,tag):
     phototag = PhotoTag.get(PhotoTag.photo == photo_id,PhotoTag.tag == tagobject.id)
     return id
   except PhotoTag.DoesNotExist:
-    logger.info('tagging photo id %s tag: %s', photo_id, tag)
+    logger.info('tagging photo id: {} tag: {}'.format(photo_id, tag))
     phototag = PhotoTag.create(photo=photo_id,tag=tagobject.id)
   except Exception, e:
     return e
+
+def photosRemoveTag(photo_id,tag):
+  """add tags to a photo: takes photo id and tag. normalizes tag. returns tag id"""
+  normalizedtag = util.normalizeString(tag)
+  # create the tag first
+  try:
+    deleteTag = Tag.get(Tag.name == normalizedtag)
+  except Tag.DoesNotExist:
+    response['text'] = 'Tag Does not Exist: {}'.format(normalizedtag)
+  except Exception as e:
+    raise e
+  # ok now we have the tag_id (in deleteTag.id) and photo_id
+  try:
+    deletePhotoTag = PhotoTag.get(PhotoTag.photo == photo_id,PhotoTag.tag == deleteTag.id)
+    deletePhotoTag = PhotoTag.delete().where(PhotoTag.id == deletePhotoTag.id)
+    deletePhotoTag.execute()
+  except PhotoTag.DoesNotExist:
+    logger.info('Tag not associated with photo: {}'.format(normalizedtag))
+    response['text'] = 'Tag not associated with photo: {}'.format(normalizedtag)
+  except Exception, e:
+    raise e
+  return(photo_id,tag)
+
 
 def getfileType(filename):
   fileType = filename.split('.')[-1].lower()

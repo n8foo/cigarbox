@@ -58,14 +58,19 @@ def uploadFiles(filenames):
 
     # get sha1 to also send for verification
     sha1=util.hashfile(filename)
+
     # check if it exists already via api, if so, skip it
-    if check_exists(args.apiurl,sha1):
+    if check_exists(sha1):
       logger.info('{0} already uploaded!'.format(filename))
+      if args.tags:
+        resp = get_photo_id_from_sha1(sha1)
+        logger.info('{}'.format(resp))
+        add_tags(resp['photo_id'], args.tags)
       continue
 
     # set up tempfilename
     tempname=ts+'_'+os.path.basename(filename)
-    logger.info("tempname:{0}".format(tempname)
+    logger.info("tempname:{0}".format(tempname))
 
 
     # start setting up the data to send
@@ -104,15 +109,36 @@ def uploadFiles(filenames):
   return photo_ids
 
 
-def check_exists(apiurl,sha1):
-  url = '{0}/sha1/{1}'.format(apiurl,sha1)
+def check_exists(sha1):
+  url = '{0}/sha1/{1}'.format(args.apiurl,sha1)
 
-  response = requests.get(url)
-  jsonResponse = response.json()
-  if jsonResponse['exists'] == True:
+  resp = requests.get(url)
+  data = resp.json()
+  if data['exists'] == True:
     return True
   else:
     return False
+
+def get_photo_id_from_sha1(sha1):
+  url = '{0}/sha1/{1}'.format(args.apiurl,sha1)
+
+  resp = requests.get(url)
+  data = resp.json()
+  return data
+
+
+def add_tags(photo_id,tags):
+  url = '{0}/photos/addtags'.format(args.apiurl)
+  payload = dict(
+    photo_id = photo_id,
+    tags = tags
+    )
+
+  resp = requests.post(url=url, json=payload)
+  logger.info('{} {}'.format(url,payload))
+  data = resp.json()
+
+
 
 def main():
   """Main program"""

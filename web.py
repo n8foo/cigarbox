@@ -128,6 +128,7 @@ def delete_tag(tag):
   return redirect(url_for('show_tags'))
 
 @app.route('/photos/<int:photo_id>/delete')
+#@login_required
 def delete_photo(photo_id):
   # delete photo from S3 (not working)
   #photo = Photo.select().where(Photo.id == photo_id).get()
@@ -204,7 +205,7 @@ def show_photo_from_sha1(sha1):
   try:
     photo = Photo.select().where(Photo.sha1 == sha1).get()
   except Exception, e:
-    page_not_found('no sha1 found')
+    page_not_found('no matching sha1 found')
   else:
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename

@@ -25,9 +25,10 @@
   {% endfor %}
 {% if page %}
   {% if page > 1%}
- <a href='photosets/page/{{ page -1 }}'>page {{ page -1 }}</a> | 
+ <a href='photosets/page/{{ page -1 }}'>page {{ page -1 }}</a> |
   {% endif %}
  <a style='bold' href='photosets/page/{{ page }}'>page {{ page }}</a> | <a href='photosets/page/{{page +1 }}'>page {{ page +1 }}</a>
 {% endif %}
 </div>
+<br><br>
 {% endblock %}

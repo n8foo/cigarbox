@@ -135,14 +135,72 @@ def apiupload():
   return jsonify(response)
 
 
+@app.route('/api/photos/addtags', methods=['POST'])
+def photosAddTags():
+  data = request.get_json()
+  photo_id = data['photo_id']
+  logger.info('tags: {}'.format(data['tags']))
+  tags=list
+  response=dict()
+
+  # if tags is somehow not a list, split on a comma and make it one
+  if isinstance(data['tags'],list):
+    tags = data['tags']
+    logger.info('list tags: {}'.format(tags))
+  else:
+    tags = data['tags'].split(',')
+    logger.info('split tags: {}'.format(tags))
+
+  for tag in tags:
+    try:
+      photosAddTag(photo_id,tag)
+    except Exception as e:
+      logger.info('photo_id {} error on tag {}'.format(photo_id,tag))
+      raise
+    else:
+      logger.info('photo_id {} gets tag {}'.format(photo_id,tag))
+  response['photo_id'] = photo_id
+  response['tags'] =  tags
+  return jsonify(response)
 
 
-@app.route('/api/delete', methods=['POST'])
-def apidelete():
-  if 'photo_id' in request.form:
-    photo = Photo.get(Photo.id == photo_id)
-    photo.delete_instance(recursive=True)
-  return  jsonify(response)
+@app.route('/api/photos/removetags', methods=['POST'])
+def photosRemoveTags():
+  data = request.get_json()
+  photo_id = data['photo_id']
+  logger.info('tags: {}'.format(data['tags']))
+  tags=list
+  response=dict()
+
+  # if tags is somehow not a list, split on a comma and make it one
+  if isinstance(data['tags'],list):
+    tags = data['tags']
+    logger.info('list tags: {}'.format(tags))
+  else:
+    tags = data['tags'].split(',')
+    logger.info('split tags: {}'.format(tags))
+
+  for tag in tags:
+    try:
+      photosRemoveTag(photo_id,tag)
+    except Exception as e:
+      logger.info('photo_id {} error on tag {}'.format(photo_id,tag))
+      raise
+    else:
+      logger.info('photo_id {} disassociated from tag {}'.format(photo_id,tag))
+  response['photo_id'] = photo_id
+  response['tags'] =  tags
+  return jsonify(response)
+
+
+
+@app.route('/postjson', methods = ['POST'])
+def postJsonHandler():
+    content = request.get_json()
+    print (content)
+    return 'JSON posted'
+
+
 
 @app.route('/api/sha1/<string:sha1>')
 def show_photo_from_sha1(sha1):
@@ -154,7 +212,6 @@ def show_photo_from_sha1(sha1):
   except Exception, e:
     response['exists'] = False
     response['status'] = "Not Found"
-    return jsonify(response)
   else:
     (sha1Path,filename) = util.getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
@@ -163,7 +220,9 @@ def show_photo_from_sha1(sha1):
     response['exists'] = True
     response['path'] = photo.uri
     response['status'] = "Found"
+  finally:
     return jsonify(response)
+    logger.info(response)
 
 app.config['DEBUG'] = True
 
