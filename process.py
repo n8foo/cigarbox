@@ -46,7 +46,7 @@ def photosetsAddPhoto(photoset_id,photo_id):
   except PhotoPhotoset.DoesNotExist:
     PhotoPhotoset.create(photoset=photoset_id,photo=photo_id)
     logger.info('adding photo id: %s to photoset id: %s',photo_id,photoset_id,)
-  except Exception, e:
+  except Exception as e:
     return e
 
 def getSha1FromPhotoID (photo_id):
@@ -71,7 +71,7 @@ def setPhotoPrivacy(photo_id,privacy):
     q = Photo.update(privacy=privacyNum).where(id == photo_id)
     q.execute()
     return True
-  except Exception, e:
+  except Exception as e:
     return e
 
 
@@ -84,7 +84,7 @@ def addPhotoToDB(sha1,fileType,dateTaken):
     logger.info('Adding to DB: %s %s %s', sha1,fileType,dateTaken)
     photo = Photo.create(sha1=sha1,filetype=fileType,datetaken=dateTaken)
     return photo.id
-  except Exception, e:
+  except Exception as e:
     return e
 
 def replacePhoto(photo_id,sha1,fileType,dateTaken):
@@ -94,7 +94,7 @@ def replacePhoto(photo_id,sha1,fileType,dateTaken):
     q = Photo.update(sha1=sha1,filetype=fileType,datetaken=dateTaken).where(id == photo_id)
     q.execute()
     return sha1
-  except Exception, e:
+  except Exception as e:
     return e
 
 def photosAddTag(photo_id,tag):
@@ -115,7 +115,7 @@ def photosAddTag(photo_id,tag):
   except PhotoTag.DoesNotExist:
     logger.info('tagging photo id: {} tag: {}'.format(photo_id, tag))
     phototag = PhotoTag.create(photo=photo_id,tag=tagobject.id)
-  except Exception, e:
+  except Exception as e:
     return e
 
 def photosRemoveTag(photo_id,tag):
@@ -136,7 +136,7 @@ def photosRemoveTag(photo_id,tag):
   except PhotoTag.DoesNotExist:
     logger.info('Tag not associated with photo: {}'.format(normalizedtag))
     response['text'] = 'Tag not associated with photo: {}'.format(normalizedtag)
-  except Exception, e:
+  except Exception as e:
     raise e
   return(photo_id,tag)
 
@@ -155,7 +155,7 @@ def archivePhoto(file,sha1,fileType,localArchivePath,uploadToS3,photo_id):
     try:
       logger.info('Copying %s -> %s',file,archivedPhoto)
       shutil.copy2(file,archivedPhoto)
-    except Exception, e:
+    except Exception as e:
       raise e
   if uploadToS3 == True:
     if checkImportStatusS3(photo_id) == False:
@@ -192,6 +192,6 @@ def getDateTaken(filename):
   try:
     exifDateTaken = util.getExifTags(filename)['DateTimeOriginal']
     dateTaken = datetime.datetime.strptime(exifDateTaken, "%Y:%m:%d %H:%M:%S" )
-  except Exception, e:
+  except Exception as e:
     dateTaken = None
   return(dateTaken)

@@ -28,7 +28,7 @@ def uploadToS3(localfile,S3Key,config,regen=False,policy='private'):
   try:
      k.set_contents_from_filename(localfile, replace=regen, policy=policy)
      return True
-  except Exception, e:
+  except Exception as e:
      return False 
 
 def deleteFromS3(S3Key,config):
@@ -42,7 +42,7 @@ def deleteFromS3(S3Key,config):
   try:
      k.key.delete(S3key)
      return True
-  except Exception, e:
+  except Exception as e:
      return False 
 
 def getPrivateURL(config,S3Key):
@@ -56,5 +56,5 @@ def getPrivateURL(config,S3Key):
   try:
     url = k.generate_url(10)
     return url
-  except Exception, e:
+  except Exception as e:
     return None

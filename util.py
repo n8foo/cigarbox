@@ -113,7 +113,7 @@ def getExifTags(filename):
     raw_exif = img._getexif()
     exif = {ExifTags.TAGS.get(tag, tag): value
       for (tag, value) in raw_exif.iteritems()}
-  except Exception, e:
+  except Exception as e:
     return None
   # Process GPS Info, if it's there
   if 'GPSInfo' in exif.iteritems():

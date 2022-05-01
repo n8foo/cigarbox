@@ -3,7 +3,7 @@
 import datetime
 from peewee import *
 
-from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
 
 
 from app import app
