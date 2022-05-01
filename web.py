@@ -14,9 +14,9 @@
 from flask import Flask, request, session, g, redirect, url_for, abort, \
   render_template, flash, send_from_directory
 
-from flask.ext.security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
 
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 from app import app
 from util import *
@@ -82,7 +82,11 @@ def show_original_photo(photo_id):
 
 @app.route('/tags')
 def show_tags():
-  tags = Tag.select().annotate(PhotoTag)
+  tags = (Tag
+         .select(Tag, fn.Count(Photo.id).alias('count'))
+         .join(PhotoTag)
+         .join(Photo)
+         .group_by(Tag))
   return render_template('tag_cloud.html', tags=tags)
 
 @app.route('/tags/<string:tag>', defaults={'page': 1})
@@ -204,7 +208,7 @@ def show_photo_from_sha1(sha1):
   """a single photo"""
   try:
     photo = Photo.select().where(Photo.sha1 == sha1).get()
-  except Exception, e:
+  except Exception as e:
     page_not_found('no matching sha1 found')
   else:
     (sha1Path,filename) = getSha1Path(photo.sha1)

@@ -14,7 +14,7 @@
 
 from flask import Flask, request, jsonify
 #from resources.upload import Upload
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 # cigarbox
 from app import *
@@ -111,7 +111,7 @@ def apiupload():
       # folder we setup
       try:
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-      except Exception, e:
+      except Exception as e:
         logger.info('could not save file %s' % os.path.join(app.config['UPLOAD_FOLDER'], filename))
         raise e
       else:
@@ -209,7 +209,7 @@ def show_photo_from_sha1(sha1):
 
   try:
     photo = Photo.select().where(Photo.sha1 == sha1).get()
-  except Exception, e:
+  except Exception as e:
     response['exists'] = False
     response['status'] = "Not Found"
   else:

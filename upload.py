@@ -61,10 +61,10 @@ def uploadFiles(filenames):
 
     # check if it exists already via api, if so, skip it
     if check_exists(sha1):
-      logger.info('{0} already uploaded!'.format(filename))
+      logger.info('File already uploaded!')
+      # but because we want to update tags anyway, update them
       if args.tags:
         resp = get_photo_id_from_sha1(sha1)
-        logger.info('{}'.format(resp))
         add_tags(resp['photo_id'], args.tags)
       continue
 
@@ -100,7 +100,7 @@ def uploadFiles(filenames):
     m = MultipartEncoder(fields=fields)
     try:
       r = requests.post('{0}/upload'.format(args.apiurl), data=m,headers={'Content-Type': m.content_type})
-    except Exception, e:
+    except Exception as e:
       raise e
     else:
       logger.info('{0} finished! ({1} {2})'.format(filename, r.status_code, r.reason))
@@ -135,7 +135,7 @@ def add_tags(photo_id,tags):
     )
 
   resp = requests.post(url=url, json=payload)
-  logger.info('{} {}'.format(url,payload))
+  logger.debug('{} {}'.format(url,payload))
   data = resp.json()
 
 
