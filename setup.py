@@ -26,7 +26,7 @@ def create_tables(models):
   for model in models:
     try:
       model.drop_table(fail_silently=True)
-    except Exception, e:
+    except Exception as e:
       raise e
     else:
       logger.info('Creating table for model %s' % model)

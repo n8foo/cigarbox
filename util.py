@@ -112,11 +112,11 @@ def getExifTags(filename):
   try:
     raw_exif = img._getexif()
     exif = {ExifTags.TAGS.get(tag, tag): value
-      for (tag, value) in raw_exif.iteritems()}
+      for (tag, value) in raw_exif.items()}
   except Exception as e:
     return None
   # Process GPS Info, if it's there
-  if 'GPSInfo' in exif.iteritems():
+  if 'GPSInfo' in iter(exif.items()):
     # Calculate Lat/Lon from GPS raw
     Nsec = exif['GPSInfo'][2][2][0] / float(exif['GPSInfo'][2][2][1])
     Nmin = exif['GPSInfo'][2][1][0] / float(exif['GPSInfo'][2][1][1])
@@ -139,7 +139,7 @@ def getExifTags(filename):
     exif['GPSLon'] = Longitude
     # Reverse the GPSInfo key/values for easy access by Human Name
     decoded_gps_exif = {ExifTags.GPSTAGS.get(tag,tag): value
-      for (tag, value) in exif['GPSInfo'].iteritems()}
+      for (tag, value) in exif['GPSInfo'].items()}
     exif['GPSInfo'] = decoded_gps_exif
   return exif
 
