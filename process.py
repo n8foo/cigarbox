@@ -182,11 +182,6 @@ def parentDirPhotoSet(photo_id,file):
   photosetsAddPhoto(photoset_id,photo_id)
   return True
 
-def parentDirTags(file):
-  """add tag based on parent directory"""
-  parentDir = os.path.dirname(file).split('/')[-1]
-  return parentDir
-
 def getDateTaken(filename):
   """get a date from exif or file date"""
   try:

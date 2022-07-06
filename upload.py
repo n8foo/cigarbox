@@ -13,9 +13,7 @@
 
 import argparse
 import os, sqlite3, shutil, time, datetime
-import util, aws
-from db import *
-from process import *
+import util
 from requests_toolbelt import MultipartEncoder
 import requests
 
@@ -43,60 +41,63 @@ app.config.from_object('config')
 
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
-@app.teardown_appcontext
-def teardown_db(exception):
-  """Closes the database again at the end of the request."""
-  db = getattr(g, '_database', None)
-  if db is not None:
-      db.close()
-
-
 def uploadFiles(filenames):
+  # set up data to return
+  response={}
+
   photo_ids=set()
   for filename in filenames:
     logger.info('filename:{0}'.format(filename))
 
+    # fields for the POST later
+    fields={}
+
     # get sha1 to also send for verification
     sha1=util.hashfile(filename)
 
-    # check if it exists already via api, if so, skip it
-    if check_exists(sha1):
-      logger.info('File already uploaded!')
-      # but because we want to update tags anyway, update them
-      if args.tags:
-        resp = get_photo_id_from_sha1(sha1)
-        add_tags(resp['photo_id'], args.tags)
-      continue
-
-    # set up tempfilename
-    tempname=ts+'_'+os.path.basename(filename)
-    logger.info("tempname:{0}".format(tempname))
-
+    # check if it exists already via api, if so, skip the file upload
+    # and only send the photo_id and other fields
+    exists=check_exists(sha1)
+    if exists:
+      # ok it exists, what's the photo id
+      resp = get_photo_id_from_sha1(sha1)
+      photo_id=resp['photo_id']
+      logger.info('Already uploaded as photo_id: {}'.format(photo_id))
+      photo_ids.add(photo_id)
+      fields['photo_id'] = photo_id
+      # exit the loop for this file
+   
+    else:
+      # set up tempfilename
+      tempname=ts+'_'+os.path.basename(filename)
+      logger.info("tempname:{0}".format(tempname))
+      fields={'files': (tempname, open(filename, 'rb') ) }
 
     # start setting up the data to send
-    fields={'files': (tempname, open(filename, 'rb') ) }
     fields['sha1'] = sha1
     fields['clientfilename'] = filename
+    # move to using tags API call
     if args.tags:
-      fields['tags'] = args.tags
+       fields['tags'] = args.tags
     if args.photoset:
       fields['photoset'] = args.photoset
-    if args.tags:
-      fields['tags'] = args.tags
     if args.privacy:
       fields['privacy'] = args.privacy
-    # add dirtag
+    #add dirtag
     if args.dirtag:
+      # grab parent dir
       dirtag = parentDirTags(filename)
       fields['tags'] = dirtag
-      logger.info('image tagged from parent directory:{0}'.format(dirtag))
+      logger.info('tagged from parent directory:{0}'.format(dirtag))
+
+    #print(fields)
 
     # dry run exits loop here
     if args.dryrun:
       logger.info('{0} finished! ({1} {2})'.format(filename, '200', 'dryrun'))
       continue
 
-
+    # set up the POST with fields
     m = MultipartEncoder(fields=fields)
     try:
       r = requests.post('{0}/upload'.format(args.apiurl), data=m,headers={'Content-Type': m.content_type})
@@ -104,9 +105,20 @@ def uploadFiles(filenames):
       raise e
     else:
       logger.info('{0} finished! ({1} {2})'.format(filename, r.status_code, r.reason))
-    photo_ids.add(r.json()['photo_ids'][0])
+    if r.json()['photo_ids']:
+      photo_ids.add(r.json()['photo_ids'][0])
+
+
+    # if args.photoset:
+    #   fields['photoset'] = args.photoset
+
   photo_ids=list(photo_ids)
   return photo_ids
+
+def parentDirTags(file):
+  """add tag based on parent directory"""
+  parentDir = os.path.dirname(file).split('/')[-1]
+  return parentDir
 
 
 def check_exists(sha1):
@@ -127,7 +139,7 @@ def get_photo_id_from_sha1(sha1):
   return data
 
 
-def add_tags(photo_id,tags):
+def api_add_tags(photo_id,tags):
   url = '{0}/photos/addtags'.format(args.apiurl)
   payload = dict(
     photo_id = photo_id,
@@ -137,14 +149,41 @@ def add_tags(photo_id,tags):
   resp = requests.post(url=url, json=payload)
   logger.debug('{} {}'.format(url,payload))
   data = resp.json()
+  return data
 
+def api_add_photoset(photo_id,photoset):
+  url = '{0}/photoset/addphoto'.format(args.apiurl)
+  payload = dict(
+    photo_id = photo_id,
+    photoset = photoset
+    )
 
+  resp = requests.post(url=url, json=payload)
+  logger.debug('{} {}'.format(url,payload))
+  data = resp.json()
+  return data
 
 def main():
   """Main program"""
   logger.info('Starting Upload')
 
   photo_ids=uploadFiles(args.files)
+
+  # for photo_id in photo_ids:
+  # # run thru the various args and hit the API's directly
+  #   if args.tags:
+  #     api_add_tags(photo_id, args.tags)
+  #     logger.info('photo_id: {} tagged: {}'.format(photo_id,args.tags))
+  #   # if args.dirtag:
+  #   #   # grab parent dir
+  #   #   dirtag = parentDirTags(filename)
+  #   #   api_add_tags(photo_id, dirtag)
+  #   #   logger.info('tagged from parent directory:{0}'.format(dirtag))
+  #   # api call for photoset
+  #   if args.photoset:
+  #     api_add_photoset(photo_id, args.photoset)
+  #     logger.info('photo_id: {} gets photoset: "{}"'.format(photo_id,args.photoset))
+
 
   # main
   logger.info('Imported: '+', '.join(map(str, photo_ids)))
