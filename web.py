@@ -38,8 +38,8 @@ def page_not_found(error):
   return render_template('404.html'), 404
 
 @app.errorhandler(500)
-def page_not_found(error):
-  return render_template('404.html'), 404
+def internal_server_error(error):
+  return render_template('500.html'), 500
 
 @app.teardown_appcontext
 def close_db(error):
@@ -132,7 +132,7 @@ def delete_tag(tag):
   return redirect(url_for('show_tags'))
 
 @app.route('/photos/<int:photo_id>/delete')
-#@login_required
+@login_required
 def delete_photo(photo_id):
   # delete photo from S3 (not working)
   #photo = Photo.select().where(Photo.id == photo_id).get()
@@ -159,7 +159,8 @@ def show_photosets(page):
     thumbs = thumbs.limit(thumbCount)
     thumbs = thumbs.order_by(Photo.datetaken.asc())
     for thumb in thumbs:
-      thumb.uri = '%s/%s_t.jpg' % (getSha1Path(thumb.sha1))
+      (sha1Path, filename) = getSha1Path(thumb.sha1)
+      thumb.uri = '%s/%s_t.jpg' % (sha1Path, filename)
     photoset.thumbs = thumbs
   return render_template('photosets.html', photosets=photosets, page=page, baseurl=baseurl)
 
@@ -178,7 +179,7 @@ def show_photoset(photoset_id,page):
   return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
 
 @app.route('/photosets/<int:photoset_id>/delete')
-#@login_required
+@login_required
 def delete_photoset(photoset_id):
   # clean up relationships to soon-to-be deleted photoset
   #PhotoPhotoset.delete().where(PhotoPhotoset.photoset == photoset_id).execute

@@ -117,30 +117,39 @@ def getExifTags(filename):
     return None
   # Process GPS Info, if it's there
   if 'GPSInfo' in iter(exif.items()):
-    # Calculate Lat/Lon from GPS raw
-    Nsec = exif['GPSInfo'][2][2][0] / float(exif['GPSInfo'][2][2][1])
-    Nmin = exif['GPSInfo'][2][1][0] / float(exif['GPSInfo'][2][1][1])
-    Ndeg = exif['GPSInfo'][2][0][0] / float(exif['GPSInfo'][2][0][1])
-    Wsec = exif['GPSInfo'][4][2][0] / float(exif['GPSInfo'][4][2][1])
-    Wmin = exif['GPSInfo'][4][1][0] / float(exif['GPSInfo'][4][1][1])
-    Wdeg = exif['GPSInfo'][4][0][0] / float(exif['GPSInfo'][4][0][1])
-    if exif['GPSInfo'][3] == 'N':
-      Nmult = 1
-    else:
-      Nmult = -1
-    if exif['GPSInfo'][3] == 'E':
-      Wmult = 1
-    else:
-      Wmult = -1
-    Latitude = Nmult * (Ndeg + (Nmin + Nsec/60.0)/60.0)
-    Longitude = Wmult * (Wdeg + (Wmin + Wsec/60.0)/60.0)
-    # Add 2 new decimal Lat/Lon entries to the dict for easy access
-    exif['GPSLat'] = Latitude
-    exif['GPSLon'] = Longitude
-    # Reverse the GPSInfo key/values for easy access by Human Name
-    decoded_gps_exif = {ExifTags.GPSTAGS.get(tag,tag): value
-      for (tag, value) in exif['GPSInfo'].items()}
-    exif['GPSInfo'] = decoded_gps_exif
+    try:
+      # Calculate Lat/Lon from GPS raw
+      gps_info = exif['GPSInfo']
+      # Check if all required GPS fields are present
+      if (2 in gps_info and 3 in gps_info and 4 in gps_info and
+          len(gps_info[2]) >= 3 and len(gps_info[4]) >= 3):
+        Nsec = gps_info[2][2][0] / float(gps_info[2][2][1])
+        Nmin = gps_info[2][1][0] / float(gps_info[2][1][1])
+        Ndeg = gps_info[2][0][0] / float(gps_info[2][0][1])
+        Wsec = gps_info[4][2][0] / float(gps_info[4][2][1])
+        Wmin = gps_info[4][1][0] / float(gps_info[4][1][1])
+        Wdeg = gps_info[4][0][0] / float(gps_info[4][0][1])
+        if gps_info[3] == 'N':
+          Nmult = 1
+        else:
+          Nmult = -1
+        if gps_info[1] == 'E':
+          Wmult = 1
+        else:
+          Wmult = -1
+        Latitude = Nmult * (Ndeg + (Nmin + Nsec/60.0)/60.0)
+        Longitude = Wmult * (Wdeg + (Wmin + Wsec/60.0)/60.0)
+        # Add 2 new decimal Lat/Lon entries to the dict for easy access
+        exif['GPSLat'] = Latitude
+        exif['GPSLon'] = Longitude
+      # Reverse the GPSInfo key/values for easy access by Human Name
+      decoded_gps_exif = {ExifTags.GPSTAGS.get(tag,tag): value
+        for (tag, value) in gps_info.items()}
+      exif['GPSInfo'] = decoded_gps_exif
+    except (KeyError, IndexError, ZeroDivisionError, TypeError) as e:
+      logger.warning('Error processing GPS info: {}'.format(e))
+      # Keep the raw GPS info even if we can't process it
+      pass
   return exif
 
 

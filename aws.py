@@ -40,7 +40,7 @@ def deleteFromS3(S3Key,config):
   k = Key(bucket)
   k.key = '/' + S3Key
   try:
-     k.key.delete(S3key)
+     k.delete()
      return True
   except Exception as e:
      return False 

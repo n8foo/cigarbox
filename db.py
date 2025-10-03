@@ -20,41 +20,41 @@ class Photo(BaseModel):
   filetype     = TextField(null=False)
   privacy      = IntegerField(null=True)
   sha1         = TextField(null=False,unique=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class Comment(BaseModel):
   comment      = TextField(null=False)
   photo        = IntegerField(null=False)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class Gallery(BaseModel):
   description  = TextField(null=True)
   title        = TextField(null=False,unique=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class Photoset(BaseModel):
   description  = TextField(null=True)
   title        = TextField(null=False,unique=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class Tag(BaseModel):
   name         = TextField(null=False,unique=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotoPhotoset(BaseModel):
   photo        = ForeignKeyField(Photo,null=False)
   photoset     = ForeignKeyField(Photoset,null=False)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotosetGallery(BaseModel):
   gallery      = ForeignKeyField(Gallery,null=False)
   photoset     = ForeignKeyField(Photoset,null=False)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotoTag(BaseModel):
   photo        = ForeignKeyField(Photo,null=False)
   tag          = ForeignKeyField(Tag,null=False)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class ImportMeta(BaseModel):
   sha1         = TextField(null=False,unique=True)
@@ -63,7 +63,7 @@ class ImportMeta(BaseModel):
   importsource = TextField(null=True)
   filedate     = DateTimeField(null=True)
   s3           = IntegerField(null=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class Role(BaseModel, RoleMixin):
   name         = CharField(unique=True)
@@ -75,7 +75,7 @@ class User(BaseModel, UserMixin):
   password     = TextField(null=False)
   active       = BooleanField(default=True)
   confirmed_at = DateTimeField(null=True)
-  ts           = DateTimeField(default=datetime.datetime.now)
+  ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class UserRoles(BaseModel):
   user         = ForeignKeyField(User, related_name='role')
