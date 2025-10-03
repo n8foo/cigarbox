@@ -68,7 +68,7 @@ def setPhotoPrivacy(photo_id,privacy):
   privacyNum = app.config['PRIVACYFLAGS'][privacy]
   logger.info('privacy: %s for photo id: %s', privacy,photo_id)
   try:
-    q = Photo.update(privacy=privacyNum).where(id == photo_id)
+    q = Photo.update(privacy=privacyNum).where(Photo.id == photo_id)
     q.execute()
     return True
   except Exception as e:
@@ -90,8 +90,8 @@ def addPhotoToDB(sha1,fileType,dateTaken):
 def replacePhoto(photo_id,sha1,fileType,dateTaken):
   """replaces a photo based on photo_id, returns new sha1"""
   try:
-    logger.info('Replacing photo_id %s with %s %s', (photo_id,sha1,dateTaken))
-    q = Photo.update(sha1=sha1,filetype=fileType,datetaken=dateTaken).where(id == photo_id)
+    logger.info('Replacing photo_id %s with %s %s', photo_id, sha1, dateTaken)
+    q = Photo.update(sha1=sha1,filetype=fileType,datetaken=dateTaken).where(Photo.id == photo_id)
     q.execute()
     return sha1
   except Exception as e:
@@ -105,27 +105,29 @@ def photosAddTag(photo_id,tag):
     tagobject = Tag.get(Tag.name == normalizedtag)
   except Tag.DoesNotExist:
     tagobject = Tag.create(name = normalizedtag)
-    logger.info('created tag: {} id: '.format(tag,tagobject.id))
+    logger.info('created tag: {} id: {}'.format(tag, tagobject.id))
   except Exception as e:
     raise e
   # ok now we have the tag_id and photo_id, let's do this
   try:
     phototag = PhotoTag.get(PhotoTag.photo == photo_id,PhotoTag.tag == tagobject.id)
-    return id
+    return phototag.id
   except PhotoTag.DoesNotExist:
     logger.info('tagging photo id: {} tag: {}'.format(photo_id, tag))
     phototag = PhotoTag.create(photo=photo_id,tag=tagobject.id)
+    return phototag.id
   except Exception as e:
-    return e
+    raise e
 
 def photosRemoveTag(photo_id,tag):
-  """add tags to a photo: takes photo id and tag. normalizes tag. returns tag id"""
+  """remove tags from a photo: takes photo id and tag. normalizes tag. returns tuple of (photo_id, tag)"""
   normalizedtag = util.normalizeString(tag)
-  # create the tag first
+  # get the tag first
   try:
     deleteTag = Tag.get(Tag.name == normalizedtag)
   except Tag.DoesNotExist:
-    response['text'] = 'Tag Does not Exist: {}'.format(normalizedtag)
+    logger.info('Tag Does not Exist: {}'.format(normalizedtag))
+    return (photo_id, tag)
   except Exception as e:
     raise e
   # ok now we have the tag_id (in deleteTag.id) and photo_id
@@ -135,10 +137,9 @@ def photosRemoveTag(photo_id,tag):
     deletePhotoTag.execute()
   except PhotoTag.DoesNotExist:
     logger.info('Tag not associated with photo: {}'.format(normalizedtag))
-    response['text'] = 'Tag not associated with photo: {}'.format(normalizedtag)
   except Exception as e:
     raise e
-  return(photo_id,tag)
+  return (photo_id, tag)
 
 
 def getfileType(filename):

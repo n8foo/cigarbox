@@ -91,7 +91,7 @@ def apiupload():
     photo_id = request.form['photo_id']
     photo_ids.add(photo_id)
 
-  clientfilename = request.form['clientfilename']
+  clientfilename = request.form.get('clientfilename', None)
 
   for file in uploaded_files:
     # Check if the file is one of the allowed types/extensions
@@ -145,8 +145,8 @@ def apiphotosAddTags():
   data = request.get_json()
   photo_id = data['photo_id']
   logger.info('tags: {}'.format(data['tags']))
-  tags=list
-  response=dict()
+  tags = []
+  response = dict()
 
   # if tags is somehow not a list, split on a comma and make it one
   if isinstance(data['tags'],list):
@@ -174,8 +174,8 @@ def apiphotosRemoveTags():
   data = request.get_json()
   photo_id = data['photo_id']
   logger.info('tags: {}'.format(data['tags']))
-  tags=list
-  response=dict()
+  tags = []
+  response = dict()
 
   # if tags is somehow not a list, split on a comma and make it one
   if isinstance(data['tags'],list):
@@ -246,11 +246,11 @@ def show_photo_from_sha1(sha1):
     response['exists'] = True
     response['path'] = photo.uri
     response['status'] = "Found"
+    logger.info(response)
   finally:
     return jsonify(response)
-    logger.info(response)
 
-app.config['DEBUG'] = True
+app.config['DEBUG'] = False
 
 if __name__ == '__main__':
   app.run(port=9601)
