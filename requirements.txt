@@ -17,7 +17,7 @@ Flask-Mail==0.9.1
 Flask-Principal==0.4.0
 Flask-Security==3.0.0
 Flask-WTF==1.0.1
-idna==3.3
+idna==3.7
 importlib-metadata==4.11.3
 itsdangerous==2.1.2
 Jinja2==3.1.6
