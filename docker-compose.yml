@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: cigarbox-web
+    restart: unless-stopped
+    volumes:
+      - ./photos.db:/app/photos.db
+      - ./static:/app/static
+      - ./logs:/app/logs
+      - ./config.py:/app/config.py
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+    networks:
+      - cigarbox
+    expose:
+      - "9600"
+    command: gunicorn --config gunicorn_config.py web:app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9600/about', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  api:
+    build: .
+    container_name: cigarbox-api
+    restart: unless-stopped
+    volumes:
+      - ./photos.db:/app/photos.db
+      - ./static:/app/static
+      - ./logs:/app/logs
+      - ./config.py:/app/config.py
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+    networks:
+      - cigarbox
+    expose:
+      - "9601"
+    command: gunicorn --config gunicorn_config.py --bind 0.0.0.0:9601 api:app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9601/api/sha1/test', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: cigarbox-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/cigarbox.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/app/static:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    environment:
+      - EXTERNAL_PORT=${HTTP_PORT:-80}
+    networks:
+      - cigarbox
+    depends_on:
+      - web
+      - api
+
+networks:
+  cigarbox:
+    driver: bridge

@@ -26,6 +26,8 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
+htmlcov/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -34,8 +36,36 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# CigarBox specific
 photos.db
+photos.db-journal
 import.log
 static/cigarbox/*
 config.py
 backups/
+
+# Logs
+logs/*.log
+logs/nginx/*
+*.log
+
+# Docker
+.env
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+ENV/
