@@ -1,0 +1,18 @@
+# Fabric2 configuration for CigarBox deployment
+# Copy this file to fabric.yaml and customize for your environment
+# SSH connection settings should be configured in ~/.ssh/config
+
+# Host definitions
+hosts:
+  ec2:
+    host: your-ec2-hostname
+    description: "EC2 production server (monit deployment)"
+
+  docker_test:
+    host: your-test-server
+    user: your-username
+    description: "Docker test server"
+
+  docker_prod:
+    host: your-prod-server
+    description: "Docker production server"

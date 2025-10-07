@@ -2,7 +2,24 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] - 2025-10-06
+## [2025-10-07]
+
+### Changed
+- **Migrated to Fabric2** from Fabric3 for modern Python 3 support with paramiko 3.5.0
+- **Rewrote deployment system** to use tgz-based packages with automatic backups and rollback capability
+  - Timestamped packages in `deploys/`, automatic remote backups to `~/docker/backups/`
+  - Database and `.env` preserved across deployments (MD5 validation for changed files only)
+  - New commands: `fab build-package`, `fab list-deploys`, `fab list-backups`, `fab rollback`, `fab test-integration`
+  - Simplified core commands: `fab deploy`, `fab restart`, `fab logs`, `fab status`
+  - Removed deprecated docker_*_remote tasks
+
+### Fixed
+- Upgraded Flask-WTF (1.0.1→1.2.1), Werkzeug (2.x→3.0.6), Flask-Login (0.6.0→0.6.3), requests-toolbelt (0.9.1→1.0.0)
+- Updated Pillow API to use `Image.Resampling.LANCZOS` instead of deprecated `ANTIALIAS` (util.py:47)
+- All 65 unit and integration tests now passing
+
+
+## [2025-10-06]
 
 ### Added
 - Docker deployment with 3-container architecture (web, api, nginx)

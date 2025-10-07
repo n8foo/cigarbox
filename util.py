@@ -44,7 +44,7 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
       logger.info('Generating thumbnail: %s' %(config['LOCALARCHIVEPATH']+'/'+thumbFilename))
       img = Image.open(config['LOCALARCHIVEPATH']+'/'+filename)
       icc_profile = img.info.get('icc_profile')
-      img.thumbnail(size,Image.ANTIALIAS)
+      img.thumbnail(size,Image.Resampling.LANCZOS)
       img.save(config['LOCALARCHIVEPATH']+'/'+thumbFilename, 'JPEG', icc_profile=icc_profile, quality=95)
       return(thumbFilename)
     except IOError as e:
