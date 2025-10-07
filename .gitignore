@@ -44,6 +44,7 @@ import.log
 static/cigarbox/*
 config.py
 backups/
+deploys/
 
 # Logs
 logs/*.log
@@ -53,6 +54,9 @@ logs/nginx/*
 # Docker
 .env
 docker-compose.override.yml
+
+# Fabric
+fabric.yaml
 
 # IDE
 .vscode/
