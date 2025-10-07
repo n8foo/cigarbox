@@ -10,7 +10,7 @@
     <title>CigarBox</title>
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
-    <base href="{{config['SITEURL']}}">
+    <base href="{{SITEURL}}">
 
     <!-- Optional theme -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">  </head>
@@ -44,7 +44,7 @@
 
             <ul class="nav navbar-nav navbar-right">
               <li><a href='about'>About</a></li>
-              <li>{% if not request.cookies.get('remember_token') %}<a href="{{ config['SITEURL'] }}/login">Log In</a>{% else %}<a href="{{ config['SITEURL'] }}/logout">Log Out</a>{% endif %}</li>
+              <li>{% if not request.cookies.get('remember_token') %}<a href="{{ SITEURL }}/login">Log In</a>{% else %}<a href="{{ SITEURL }}/logout">Log Out</a>{% endif %}</li>
             </ul>
           </div><!-- /.navbar-collapse -->
         </div><!-- /.container-fluid -->

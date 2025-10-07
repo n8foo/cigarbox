@@ -17,13 +17,26 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
 from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
 
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import app
 from util import *
 from db import *
 
+# Configure Flask to work behind nginx proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
 
 # Utility Functions
+
+def get_base_url():
+  """Get the base URL dynamically from request"""
+  return request.host_url.rstrip('/')
+
+@app.context_processor
+def inject_siteurl():
+  """Inject SITEURL into all templates"""
+  return dict(SITEURL=get_base_url())
 
 def find(lst, key, value):
   for i, dic in enumerate(lst):
@@ -53,7 +66,7 @@ def close_db(error):
 @app.route('/photostream/page/<int:page>')
 def photostream(page):
   """the list of the most recently added pictures"""
-  baseurl = '%s/photostream' % (app.config['SITEURL'])
+  baseurl = '%s/photostream' % (get_base_url())
   photos = Photo.select()
   photos = photos.order_by(Photo.id.desc())
   photos = photos.paginate(page,app.config['PER_PAGE'])
@@ -92,7 +105,7 @@ def show_tags():
 @app.route('/tags/<string:tag>', defaults={'page': 1})
 @app.route('/tags/<string:tag>/page/<int:page>')
 def show_taged_photos(tag,page):
-  baseurl = '%s/tags/%s' % (app.config['SITEURL'],tag)
+  baseurl = '%s/tags/%s' % (get_base_url(),tag)
   photos = Photo.select().join(PhotoTag).join(Tag)
   photos = photos.where(Tag.name == tag)
   photos = photos.order_by(Photo.id.desc())
@@ -105,7 +118,7 @@ def show_taged_photos(tag,page):
 @app.route('/date/<string:date>', defaults={'page': 1})
 @app.route('/date/<string:date>/page/<int:page>')
 def show_date_photos(date,page):
-  baseurl = '%s/date/%s' % (app.config['SITEURL'],date)
+  baseurl = '%s/date/%s' % (get_base_url(),date)
 
   photos = Photo.select()
   photos = photos.where(Photo.datetaken.startswith(date))
@@ -149,7 +162,7 @@ def delete_photo(photo_id):
 @app.route('/photosets/page/<int:page>')
 def show_photosets(page):
   thumbCount = 2
-  baseurl = '%s/photosets' % (app.config['SITEURL'])
+  baseurl = '%s/photosets' % (get_base_url())
   photosets = Photoset.select()
   photosets = photosets.order_by(Photoset.ts.desc())
   photosets = photosets.paginate(page,app.config['PER_PAGE'])

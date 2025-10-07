@@ -15,6 +15,7 @@
 from flask import Flask, request, jsonify
 #from resources.upload import Upload
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # cigarbox
 from app import *
@@ -30,6 +31,9 @@ import os
 app = Flask(__name__)
 
 app.config.from_object('config')
+
+# Configure Flask to work behind nginx proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
 logger = util.setup_custom_logger('cigarbox')

@@ -29,7 +29,9 @@ parser.add_argument('--privacy', help='set privacy on a photo, default is none/p
 parser.add_argument('--importsource', default=os.uname()[1], help='override import source')
 parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint', default='http://127.0.0.1:9601/api')
 parser.add_argument('--dryrun', action='store_true', help='show what would have been done')
-args = parser.parse_args()
+
+# Only parse args when running as main, not when importing for tests
+args = None
 
 logger = util.setup_custom_logger('cigarbox')
 
@@ -190,6 +192,9 @@ def main():
   logger.info('Upload Finished')
 
 if __name__ == "__main__":
+  # Parse command line arguments
+  args = parser.parse_args()
+
   # set an app context so Flask g works #hack
   ctx = app.test_request_context()
   ctx.push()
