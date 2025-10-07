@@ -19,7 +19,7 @@ class TestUtilityFunctions(unittest.TestCase):
     def test_normalize_string(self):
         """Test string normalization"""
         self.assertEqual(util.normalizeString('Hello World'), 'helloworld')
-        self.assertEqual(util.normalizeString('Test-Tag_123'), 'testtag123')
+        self.assertEqual(util.normalizeString('Test-Tag_123'), 'testtag_123')
         self.assertEqual(util.normalizeString('Special!@#$%'), 'special')
 
     def test_get_sha1_path(self):

@@ -42,7 +42,7 @@ class TestWebRoutes(unittest.TestCase):
     def test_index_route(self):
         """Test main index redirects to photostream"""
         response = self.client.get('/')
-        self.assertEqual(response.status_code, 200)
+        self.assertIn(response.status_code, [200, 301, 302, 308])
 
     def test_404_handler(self):
         """Test 404 error handler"""

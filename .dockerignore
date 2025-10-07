@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CigarBox specific
+photos.db
+photos.db-journal
+backups/
+logs/*.log
+static/cigarbox/*
+
+# Docker
+docker-compose.override.yml
+.env
+
+# Testing
+.pytest_cache/
+test_*.py
+htmlcov/
+.coverage
+
+# Documentation
+*.md
+!README.md
+
+# Fabric
+fabfile.py
+
+# Old files
+*.bak
+*.pyc
+util.py.bak
+setup.py.bak
+requirements.txt.new

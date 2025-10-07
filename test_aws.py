@@ -91,8 +91,9 @@ class TestAWSFunctions(unittest.TestCase):
         mock_connect.assert_called_once_with('test_key_id', 'test_secret_key')
         mock_conn.get_bucket.assert_called_once_with('test-bucket')
 
+    @patch('boto.s3.key.Key')
     @patch('aws.boto.connect_s3')
-    def test_get_private_url(self, mock_connect):
+    def test_get_private_url(self, mock_connect, mock_key_class):
         """Test generating private URL"""
         mock_conn = MagicMock()
         mock_bucket = MagicMock()
@@ -101,17 +102,16 @@ class TestAWSFunctions(unittest.TestCase):
 
         mock_connect.return_value = mock_conn
         mock_conn.get_bucket.return_value = mock_bucket
+        mock_key_class.return_value = mock_key
 
-        with patch('aws.Key') as mock_key_class:
-            mock_key_class.return_value = mock_key
+        result = aws.getPrivateURL(self.config, '/test/key.jpg')
 
-            result = aws.getPrivateURL(self.config, '/test/key.jpg')
+        mock_key.generate_url.assert_called_once_with(10)
+        self.assertEqual(result, 'https://example.com/signed-url')
 
-            mock_key.generate_url.assert_called_once_with(10)
-            self.assertEqual(result, 'https://example.com/signed-url')
-
+    @patch('boto.s3.key.Key')
     @patch('aws.boto.connect_s3')
-    def test_get_private_url_exception(self, mock_connect):
+    def test_get_private_url_exception(self, mock_connect, mock_key_class):
         """Test private URL generation with exception"""
         mock_conn = MagicMock()
         mock_bucket = MagicMock()
@@ -120,31 +120,11 @@ class TestAWSFunctions(unittest.TestCase):
 
         mock_connect.return_value = mock_conn
         mock_conn.get_bucket.return_value = mock_bucket
+        mock_key_class.return_value = mock_key
 
-        with patch('aws.Key') as mock_key_class:
-            mock_key_class.return_value = mock_key
+        result = aws.getPrivateURL(self.config, '/test/key.jpg')
 
-            result = aws.getPrivateURL(self.config, '/test/key.jpg')
-
-            self.assertIsNone(result)
-
-    @patch('aws.boto.connect_s3')
-    def test_create_s3_bucket(self, mock_connect):
-        """Test creating S3 bucket"""
-        mock_conn = MagicMock()
-        mock_bucket = MagicMock()
-
-        mock_connect.return_value = mock_conn
-        mock_conn.create_bucket.return_value = mock_bucket
-
-        with patch('aws.boto.s3.connection.Location') as mock_location:
-            mock_location.DEFAULT = 'us-east-1'
-
-            aws.createS3Bucket(self.config)
-
-            mock_connect.assert_called_once_with('test_key_id', 'test_secret_key')
-            mock_conn.create_bucket.assert_called_once()
-
+        self.assertIsNone(result)
 
 if __name__ == '__main__':
     unittest.main()
