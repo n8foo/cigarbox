@@ -10,7 +10,7 @@ cryptography==44.0.1
 dnspython==2.2.1
 email-validator==1.2.0
 Fabric3==1.14.post1
-Flask==2.1.2
+Flask==2.2.5
 Flask-BabelEx==0.9.4
 Flask-Login==0.6.0
 Flask-Mail==0.9.1
