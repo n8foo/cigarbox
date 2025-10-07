@@ -22,7 +22,7 @@ importlib-metadata==4.11.3
 itsdangerous==2.1.2
 Jinja2==3.1.6
 MarkupSafe==2.1.1
-paramiko==2.10.4
+paramiko==3.4.0
 passlib==1.7.4
 peewee==3.15.0
 Pillow==10.3.0
