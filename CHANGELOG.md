@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [2025-10-08]
+- Added get_pagination_data() helper function
+- Added pagination to all appropriate pages
+- Using bootstraps pagination bits
+
 ## [2025-10-07]
 
 ### Changed
