@@ -19,6 +19,8 @@ from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, 
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import math
+
 from app import app
 from util import *
 from db import *
@@ -44,6 +46,33 @@ def find(lst, key, value):
       return i
   return -1
 
+def get_pagination_data(query, page, per_page):
+  """Calculate pagination metadata for a query
+
+  Args:
+    query: Peewee SelectQuery object
+    page: Current page number (1-indexed)
+    per_page: Items per page
+
+  Returns:
+    Dictionary with pagination metadata
+  """
+  total_items = query.count()
+  total_pages = math.ceil(total_items / per_page)
+  has_prev = page > 1
+  has_next = page < total_pages
+
+  return {
+    'page': page,
+    'per_page': per_page,
+    'total_items': total_items,
+    'total_pages': total_pages,
+    'has_prev': has_prev,
+    'has_next': has_next,
+    'prev_page': page - 1 if has_prev else None,
+    'next_page': page + 1 if has_next else None
+  }
+
 # URL Routing
 
 @app.errorhandler(404)
@@ -67,13 +96,18 @@ def close_db(error):
 def photostream(page):
   """the list of the most recently added pictures"""
   baseurl = '%s/photostream' % (get_base_url())
-  photos = Photo.select()
-  photos = photos.order_by(Photo.id.desc())
-  photos = photos.paginate(page,app.config['PER_PAGE'])
+  photos_query = Photo.select().order_by(Photo.id.desc())
+
+  # Get pagination metadata
+  pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photos = photos_query.paginate(page, app.config['PER_PAGE'])
   for photo in photos:
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
-  return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
+
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl)
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
@@ -106,28 +140,41 @@ def show_tags():
 @app.route('/tags/<string:tag>/page/<int:page>')
 def show_taged_photos(tag,page):
   baseurl = '%s/tags/%s' % (get_base_url(),tag)
-  photos = Photo.select().join(PhotoTag).join(Tag)
-  photos = photos.where(Tag.name == tag)
-  photos = photos.order_by(Photo.id.desc())
-  photos = photos.paginate(page,app.config['PER_PAGE'])
+  photos_query = (Photo.select()
+                  .join(PhotoTag)
+                  .join(Tag)
+                  .where(Tag.name == tag)
+                  .order_by(Photo.id.desc()))
+
+  # Get pagination metadata
+  pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photos = photos_query.paginate(page, app.config['PER_PAGE'])
   for photo in photos:
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
-  return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
+
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl)
 
 @app.route('/date/<string:date>', defaults={'page': 1})
 @app.route('/date/<string:date>/page/<int:page>')
 def show_date_photos(date,page):
   baseurl = '%s/date/%s' % (get_base_url(),date)
+  photos_query = (Photo.select()
+                  .where(Photo.datetaken.startswith(date))
+                  .order_by(Photo.datetaken.desc()))
 
-  photos = Photo.select()
-  photos = photos.where(Photo.datetaken.startswith(date))
-  photos = photos.order_by(Photo.datetaken.desc())
-  photos = photos.paginate(page,app.config['PER_PAGE'])
+  # Get pagination metadata
+  pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photos = photos_query.paginate(page, app.config['PER_PAGE'])
   for photo in photos:
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
-  return render_template('photostream.html', photos=photos, page=page, baseurl=baseurl)
+
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl)
 
 @app.route('/tags/<string:tag>/delete')
 @login_required
@@ -163,9 +210,13 @@ def delete_photo(photo_id):
 def show_photosets(page):
   thumbCount = 2
   baseurl = '%s/photosets' % (get_base_url())
-  photosets = Photoset.select()
-  photosets = photosets.order_by(Photoset.ts.desc())
-  photosets = photosets.paginate(page,app.config['PER_PAGE'])
+  photosets_query = Photoset.select().order_by(Photoset.ts.desc())
+
+  # Get pagination metadata
+  pagination = get_pagination_data(photosets_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photosets = photosets_query.paginate(page, app.config['PER_PAGE'])
   for photoset in photosets:
     thumbs = Photo.select().join(PhotoPhotoset).join(Photoset)
     thumbs = thumbs.where(Photoset.id == photoset.id)
@@ -175,21 +226,31 @@ def show_photosets(page):
       (sha1Path, filename) = getSha1Path(thumb.sha1)
       thumb.uri = '%s/%s_t.jpg' % (sha1Path, filename)
     photoset.thumbs = thumbs
-  return render_template('photosets.html', photosets=photosets, page=page, baseurl=baseurl)
+
+  return render_template('photosets.html', photosets=photosets, pagination=pagination, baseurl=baseurl)
 
 @app.route('/photosets/<int:photoset_id>', defaults={'page': 1})
 @app.route('/photosets/<int:photoset_id>/page/<int:page>')
 def show_photoset(photoset_id,page):
-  photos = Photo.select().join(PhotoPhotoset).join(Photoset)
-  photos = photos.where(Photoset.id == photoset_id)
-  photos = photos.order_by(Photo.datetaken.asc())
-  photos = photos.paginate(page,100)
+  baseurl = '%s/photosets/%s' % (get_base_url(), photoset_id)
+  photos_query = (Photo.select()
+                  .join(PhotoPhotoset)
+                  .join(Photoset)
+                  .where(Photoset.id == photoset_id)
+                  .order_by(Photo.datetaken.asc()))
+
+  # Get pagination metadata
+  pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photos = photos_query.paginate(page, app.config['PER_PAGE'])
   for photo in photos:
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
-  photoset = Photoset.select().where(Photoset.id == photoset_id)
-  photoset = photoset.get()
-  return render_template('photoset.html', photos=photos, photoset=photoset, page=page)
+
+  photoset = Photoset.select().where(Photoset.id == photoset_id).get()
+
+  return render_template('photoset.html', photos=photos, photoset=photoset, pagination=pagination, baseurl=baseurl)
 
 @app.route('/photosets/<int:photoset_id>/delete')
 @login_required

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "_pagination.html" import render_pagination %}
 {% block body %}
 <div>
   {% for row in photos|batch(4) %}
@@ -12,12 +13,9 @@
   {% else %}
     No photo?
   {% endfor %}
-{% if page %}
-  {% if page > 1%}
- <a href='{{ baseurl }}/page/{{ page -1 }}'>page {{ page -1 }}</a> |
-  {% endif %}
- page {{ page }} | <a href='{{ baseurl }}/page/{{page +1 }}'>page {{ page +1 }}</a>
-{% endif %}
+
+  <!-- Pagination -->
+  {{ render_pagination(pagination, baseurl) }}
 </div>
 <br><br>
 {% endblock %}
