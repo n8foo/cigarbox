@@ -89,6 +89,7 @@ class TestWebRoutes(unittest.TestCase):
         mock_query = MagicMock()
         mock_photo.select.return_value = mock_query
         mock_query.order_by.return_value = mock_query
+        mock_query.count.return_value = 0  # For pagination metadata
         mock_query.paginate.return_value = []
 
         response = self.client.get('/photostream')
