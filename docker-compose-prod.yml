@@ -1,0 +1,82 @@
+version: '3.8'
+
+# Production docker-compose 
+# This version removes nginx container since most server have their own webserver
+# that handles SSL termination and proxying
+
+services:
+  web:
+    build: .
+    container_name: cigarbox-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-9600}:9600"
+    volumes:
+      # Data files
+      - ./photos.db:/app/photos.db
+      - ./static:/app/static
+      # Configuration
+      - ./config.py:/app/config.py
+      - ./gunicorn_config.py:/app/gunicorn_config.py
+      # Application code (mounted for fast deploys without rebuild)
+      - ./api.py:/app/api.py
+      - ./app.py:/app/app.py
+      - ./aws.py:/app/aws.py
+      - ./db.py:/app/db.py
+      - ./process.py:/app/process.py
+      - ./util.py:/app/util.py
+      - ./web.py:/app/web.py
+      - ./templates:/app/templates
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+    networks:
+      - cigarbox
+    command: gunicorn --config gunicorn_config.py web:app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9600/about', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  api:
+    build: .
+    container_name: cigarbox-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-9601}:9601"
+    volumes:
+      # Data files
+      - ./photos.db:/app/photos.db
+      - ./static:/app/static
+      # Configuration
+      - ./config.py:/app/config.py
+      - ./gunicorn_config.py:/app/gunicorn_config.py
+      # Application code (mounted for fast deploys without rebuild)
+      - ./api.py:/app/api.py
+      - ./app.py:/app/app.py
+      - ./aws.py:/app/aws.py
+      - ./db.py:/app/db.py
+      - ./process.py:/app/process.py
+      - ./util.py:/app/util.py
+      - ./web.py:/app/web.py
+      - ./templates:/app/templates
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+    networks:
+      - cigarbox
+    command: gunicorn --config gunicorn_config.py --bind 0.0.0.0:9601 api:app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9601/api/sha1/test', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+networks:
+  cigarbox:
+    driver: bridge
