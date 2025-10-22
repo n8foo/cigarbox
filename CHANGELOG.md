@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [2025-10-22]
 
+### Fixed
+- Fixed subpath URL generation in templates for proper relative path resolution
+- Updated URL generation in layout.html, photos.html, photoset.html, photosets.html, photostream.html, tag_cloud.html, and photo_in_photoset.html
+- Corrected get_base_url() usage in web.py for consistent URL handling
+
 ### Added
 - Added config.py.example with comprehensive configuration template
 - Added docker-compose-prod.yml for production deployment (2-container architecture without nginx)

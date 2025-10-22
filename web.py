@@ -33,7 +33,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_
 
 def get_base_url():
   """Get the base URL dynamically from request"""
-  return request.host_url.rstrip('/')
+  return request.url_root.rstrip('/')
 
 @app.context_processor
 def inject_siteurl():

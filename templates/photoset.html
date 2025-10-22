@@ -3,7 +3,7 @@
 {% block body %}
 <div class="row">
   <div class="col-md-10">
-    <h1><a href="photosets/{{ photoset.id }}">{{ photoset.title }}</a> </h1>
+    <h1><a href="{{SITEURL}}/photosets/{{ photoset.id }}">{{ photoset.title }}</a> </h1>
     {% if photoset.description %}
     <h1><small> {{photoset.description}}</small></h1>{% endif %}
   </div>
@@ -16,7 +16,7 @@
   <div class="row">
     {%- for photo in row %}
     <div class="col-xs-6 col-md-3">
-      <a href="photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
+      <a href="{{SITEURL}}/photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
     </div>
     {% endfor %}
   </div>

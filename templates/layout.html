@@ -37,13 +37,13 @@
           <!-- Collect the nav links, forms, and other content for toggling -->
           <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
-              <li><a href="tags">Tags</a></li>
-              <li><a href="photosets">Photosets</a></li>
-              <li><a href="photostream">Photostream</a></li>
+              <li><a href="{{SITEURL}}/tags">Tags</a></li>
+              <li><a href="{{SITEURL}}/photosets">Photosets</a></li>
+              <li><a href="{{SITEURL}}/photostream">Photostream</a></li>
             </ul>
 
             <ul class="nav navbar-nav navbar-right">
-              <li><a href='about'>About</a></li>
+              <li><a href='{{SITEURL}}/about'>About</a></li>
               <li>{% if not request.cookies.get('remember_token') %}<a href="{{ SITEURL }}/login">Log In</a>{% else %}<a href="{{ SITEURL }}/logout">Log Out</a>{% endif %}</li>
             </ul>
           </div><!-- /.navbar-collapse -->
