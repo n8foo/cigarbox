@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## [2025-10-22]
+
+### Added
+- Added config.py.example with comprehensive configuration template
+- Added docker-compose-prod.yml for production deployment (2-container architecture without nginx)
+
 ## [2025-10-21]
 
 ### Changed
