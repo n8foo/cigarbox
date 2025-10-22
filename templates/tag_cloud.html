@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
   {% for tag in tags %}
-    <a href="tags/{{ tag.name }}" style="font-size: {{  ( tag.count / 50 ) + 10 }}px;">{{ tag.name }}</a>
+    <a href="{{SITEURL}}/tags/{{ tag.name }}" style="font-size: {{  ( tag.count / 50 ) + 10 }}px;">{{ tag.name }}</a>
   {% else %}
     Unbelievable.  No tags here so far!
   {% endfor %}
