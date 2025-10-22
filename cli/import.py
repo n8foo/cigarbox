@@ -11,8 +11,14 @@
     :license: Apache, see LICENSE for more details.
 """
 
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import argparse
-import os, sqlite3, shutil, time, datetime
+import sqlite3, shutil, time, datetime
 import util, aws
 from db import *
 from process import *

@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [2025-10-21]
+
+### Changed
+- **Reorganized codebase structure** for better modularity
+  - Moved CLI tools to `cli/` directory (import.py, upload.py, photo_checker.py)
+  - Renamed setup.py to init_db.py (avoids Python package naming conflicts)
+  - Moved all tests to `tests/` directory
+- **Updated Fabric deployment to role-based system**
+  - Role-based deployment commands with `--role=test|prod` flags
+  - Removed hardcoded server hostnames, now using fabric.yaml configuration
+  - Added `fab rebuild` task for container updates when dependencies change
+  - Updated test runner to discover tests from tests/ directory
+- fabric.yaml is now single source of truth for server configuration
+
 ## [2025-10-08]
 - Added get_pagination_data() helper function
 - Added pagination to all appropriate pages
