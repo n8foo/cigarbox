@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Test runner for CigarBox
-Runs all unit tests and displays results
+Discovers and runs all tests from tests/ directory
 """
 
 import unittest
@@ -18,9 +18,10 @@ def run_all_tests():
     # Create test loader
     loader = unittest.TestLoader()
 
-    # Discover all test files
-    start_dir = os.path.dirname(os.path.abspath(__file__))
-    suite = loader.discover(start_dir, pattern='test_*.py')
+    # Discover all test files in tests/ directory
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    tests_dir = os.path.join(project_root, 'tests')
+    suite = loader.discover(tests_dir, pattern='test_*.py', top_level_dir=project_root)
 
     # Run tests with verbose output
     runner = unittest.TextTestRunner(verbosity=2)

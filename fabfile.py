@@ -9,9 +9,9 @@ Fabric2 deployment automation for CigarBox photo management system.
 Usage:
     fab --list                          # List all available tasks
     fab test                            # Run local unit tests
-    fab docker-deploy                   # Deploy to Docker test server (testserver)
-    fab backup                          # Backup EC2 production database
-    fab deploy --host=crank            # Deploy to Docker production (future)
+    fab deploy                          # Deploy to Docker test server
+    fab deploy --role=prod              # Deploy to Docker production
+    fab backup --role=prod              # Backup production database
 
 :copyright: (c) 2015-2025 by Nathan Hubbard @n8foo.
 :license: Apache, see LICENSE for more details.
@@ -22,6 +22,7 @@ from invoke import run as local
 import time
 import os
 import hashlib
+import yaml
 
 # Configuration
 DEPLOY_FILES = ["api", "app", "aws", "db", "process", "setup", "util", "web"]
@@ -31,52 +32,143 @@ DEPLOY_INCLUDES = [
     "*.py",
     "templates/",
     "static/",
+    "tests/",
+    "cli/",
     "nginx/*.conf",
     "requirements.txt",
     "docker-compose.yml",
+    "docker-compose-prod.yml",
     "Dockerfile",
     "gunicorn_config.py",
     ".env.example",
     "run_tests.py",
-    "test_*.py",
 ]
 
-# Host shortcuts
-DOCKER_TEST_HOST = "testserver"  # Test deployment
-DOCKER_PROD_HOST = "crank"   # Future production
-EC2_HOST = "cigarbox"        # Current EC2 production
+# Load role-to-host mapping from fabric.yaml
+def get_host_from_role(role):
+    """Get hostname from role defined in fabric.yaml"""
+    with open('fabric.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+        return config['roles'][role]['host']
+
+
+def get_compose_file(role):
+    """Get the appropriate docker-compose file based on role
+
+    Returns:
+        str: docker-compose filename to use
+
+    Production uses docker-compose-prod.yml (no nginx container)
+    Test/dev uses docker-compose.yml (with nginx container)
+    """
+    if role == 'prod':
+        return 'docker-compose-prod.yml'
+    return 'docker-compose.yml'
+
+
+def get_test_api_url():
+    """Get test API URL from fabric.yaml or environment variable
+
+    Returns:
+        str: Test API URL (e.g., http://hostname:8088/api)
+    """
+    # Check environment variable first
+    if 'CIGARBOX_TEST_API' in os.environ:
+        return os.environ['CIGARBOX_TEST_API']
+
+    # Try to read from fabric.yaml
+    if os.path.exists('fabric.yaml'):
+        try:
+            with open('fabric.yaml', 'r') as f:
+                config = yaml.safe_load(f)
+                if 'roles' in config and 'test' in config['roles']:
+                    test_host = config['roles']['test']['host']
+                    return f'http://{test_host}:8088/api'
+        except Exception as e:
+            print(f'Warning: Could not read fabric.yaml: {e}')
+
+    # Fall back to localhost
+    return 'http://localhost:8088/api'
 
 
 # =============================================================================
-# EC2 Production Tasks (legacy monit deployment)
+# Database Backup & Restore Tasks
 # =============================================================================
 
 @task
-def backup(c):
-    """Backup production database to timestamped SQL file"""
-    local(f'echo .dump | sqlite3 photos.db | gzip -c > backups/{TIMESTAMP}.sql.gz')
-    with Connection(EC2_HOST) as conn:
-        conn.run('mkdir -p ~/cigarbox/backups')
-        conn.put(f'backups/{TIMESTAMP}.sql.gz', f'~/cigarbox/backups/{TIMESTAMP}.sql.gz')
-    print(f'✓ Backup created: {TIMESTAMP}.sql.gz')
+def backup(c, role='test'):
+    """Backup remote database to local backups/ directory
+
+    Args:
+        role: Target role (test, prod)
+
+    Usage:
+        fab backup              # Backup test database
+        fab backup --role=prod  # Backup prod database
+    """
+    timestamp = str(int(time.time()))
+    host = get_host_from_role(role)
+
+    local('mkdir -p backups')
+
+    with Connection(host) as conn:
+        remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
+        remote_db = f'{remote_home}/docker/cigarbox/photos.db'
+        local_backup = f'backups/{role}-{timestamp}.db'
+
+        conn.get(remote_db, local_backup)
+        print(f'✓ Backup created: {local_backup}')
 
 
 @task
-def pushdb(c):
-    """Push local database to EC2 production (with backup)"""
-    backup(c)
-    with Connection(EC2_HOST) as conn:
-        conn.put('photos.db', '~/cigarbox/photos.db')
-        conn.run('sudo /etc/init.d/cigarbox restart')
-    print('✓ Database pushed and service restarted')
+def pushdb(c, role='test'):
+    """Push local database to remote server
+
+    Args:
+        role: Target role (test, prod)
+
+    Usage:
+        fab pushdb              # Push to test
+        fab pushdb --role=prod  # Push to prod (use with caution!)
+    """
+    host = get_host_from_role(role)
+
+    if not os.path.exists('photos.db'):
+        print('✗ Local photos.db not found')
+        return
+
+    # Backup first
+    print('Creating backup before push...')
+    backup(c, role=role)
+
+    with Connection(host) as conn:
+        remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
+        remote_db = f'{remote_home}/docker/cigarbox/photos.db'
+
+        conn.put('photos.db', remote_db)
+        print(f'✓ Database pushed to {role} ({host})')
+        print('  Remember to restart containers: fab restart --role={role}')
 
 
 @task
-def pulldb(c):
-    """Pull database from EC2 production to local"""
-    with Connection(EC2_HOST) as conn:
-        conn.get('~/cigarbox/photos.db', 'photos.db')
-    print('✓ Database pulled from production')
+def pulldb(c, role='test'):
+    """Pull database from remote server to local
+
+    Args:
+        role: Target role (test, prod)
+
+    Usage:
+        fab pulldb              # Pull from test
+        fab pulldb --role=prod  # Pull from prod
+    """
+    host = get_host_from_role(role)
+
+    with Connection(host) as conn:
+        remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
+        remote_db = f'{remote_home}/docker/cigarbox/photos.db'
+
+        conn.get(remote_db, 'photos.db')
+        print(f'✓ Database pulled from {role} ({host})')
 
 
 @task
@@ -98,13 +190,26 @@ def restore(c, filename):
 
 
 # =============================================================================
-# Local Development Tasks
+# Local Development & Testing Tasks
 # =============================================================================
 
 @task
 def test(c):
-    """Run unit tests locally"""
-    local('python run_tests.py')
+    """Run tests locally against remote test server
+
+    Reads test server hostname from fabric.yaml (test role) or CIGARBOX_TEST_API env var.
+    Runs tests on your local machine, but integration tests connect to remote server.
+
+    Usage:
+        fab test                                    # Run all tests against test role
+        CIGARBOX_TEST_API=http://host:8088/api fab test  # Override test server
+    """
+    test_api_url = get_test_api_url()
+    print(f'🧪 Running tests locally against: {test_api_url}')
+
+    # Set environment variable for integration tests
+    env_with_api = f'CIGARBOX_TEST_API={test_api_url} python run_tests.py'
+    local(env_with_api)
 
 
 @task
@@ -227,16 +332,18 @@ def build_package(c):
 
 
 @task
-def deploy(c, host=DOCKER_TEST_HOST, package=None):
+def deploy(c, role='test', package=None, rebuild=False):
     """Deploy to Docker server using tgz package
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
         package: Optional specific package file (defaults to building new one)
+        rebuild: Force container rebuild (default False for fast deploys)
 
     Usage:
-        fab deploy                              # Build and deploy to test
-        fab deploy --host=crank                 # Build and deploy to prod
+        fab deploy                              # Fast deploy to test (no rebuild)
+        fab deploy --role=prod                  # Fast deploy to prod
+        fab deploy --rebuild                    # Full deploy with container rebuild
         fab deploy --package=deploys/cigarbox-1234567890.tar.gz  # Deploy specific package
     """
     timestamp = str(int(time.time()))
@@ -247,6 +354,7 @@ def deploy(c, host=DOCKER_TEST_HOST, package=None):
         package = build_package(c)
 
     package_basename = os.path.basename(package)
+    host = get_host_from_role(role)
 
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
@@ -286,10 +394,19 @@ def deploy(c, host=DOCKER_TEST_HOST, package=None):
             else:
                 print('✓ Database unchanged, skipping upload')
 
+        # Create logs directories with proper permissions for container user (UID 1000)
+        print('📁 Setting up logs directory...')
+        conn.run(f'mkdir -p {deploy_dir}/logs/nginx')
+        # Use sudo for chmod since docker may have created these as root
+        result = conn.run(f'sudo chmod -R 777 {deploy_dir}/logs', warn=True)
+        if not result.ok:
+            print('⚠️  Warning: Could not set log permissions (may need manual sudo chmod -R 777 ~/docker/cigarbox/logs)')
+
         # Build and start
+        compose_file = get_compose_file(role)
         with conn.cd(deploy_dir):
             # Stop any existing containers
-            conn.run('docker-compose down || true')
+            conn.run(f'docker-compose -f {compose_file} down || true')
 
             # Create .env if it doesn't exist
             conn.run('test -f .env || cp .env.example .env')
@@ -298,44 +415,90 @@ def deploy(c, host=DOCKER_TEST_HOST, package=None):
             conn.run('echo "Using ports from .env:" && grep PORT .env')
 
             # Build and start containers
-            conn.run('docker-compose build --pull')
-            conn.run('docker-compose up -d')
-            conn.run('docker-compose ps')
+            print(f'📦 Using {compose_file} for {role} environment')
 
-    print(f'✓ Deployed {package_basename} to {host}')
+            if rebuild:
+                print('🔨 Rebuilding containers (this will take a few minutes)...')
+                conn.run(f'docker-compose -f {compose_file} build --pull')
+            else:
+                print('⚡ Fast deploy: skipping container build (code is volume-mounted)')
+
+            # Start/restart containers (picks up new code from volumes)
+            conn.run(f'docker-compose -f {compose_file} up -d')
+            conn.run(f'docker-compose -f {compose_file} ps')
+
+    print(f'✓ Deployed {package_basename} to {role} ({host})')
 
 
 @task
-def restart(c, host=DOCKER_TEST_HOST, service=''):
+def rebuild(c, role='test'):
+    """Rebuild Docker containers (use when requirements.txt changes)
+
+    Args:
+        role: Target role (test, prod)
+
+    Usage:
+        fab rebuild                    # Rebuild containers on test
+        fab rebuild --role=prod        # Rebuild containers on prod
+
+    Note: This rebuilds the Docker images. Use this when:
+    - requirements.txt changes (new Python packages)
+    - Dockerfile changes
+    - System dependencies change
+    For code-only changes, use 'fab deploy' (much faster)
+    """
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
+
+    with Connection(host) as conn:
+        remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
+        deploy_dir = f'{remote_home}/docker/cigarbox'
+
+        with conn.cd(deploy_dir):
+            print(f'🛑 Stopping and removing old containers...')
+            conn.run(f'docker-compose -f {compose_file} down')
+            print(f'🔨 Rebuilding containers on {role} ({host})...')
+            conn.run(f'docker-compose -f {compose_file} build --pull')
+            print(f'🚀 Starting new containers...')
+            conn.run(f'docker-compose -f {compose_file} up -d')
+            conn.run(f'docker-compose -f {compose_file} ps')
+
+    print(f'✓ Rebuilt containers on {role} ({host})')
+
+
+@task
+def restart(c, role='test', service=''):
     """Restart Docker containers on remote server
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
         service: Optional service name (web, api, nginx)
 
     Usage:
         fab restart                          # Restart all on test
         fab restart --service=api            # Restart API on test
-        fab restart --host=crank --service=web  # Restart web on prod
+        fab restart --role=prod --service=web  # Restart web on prod
     """
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
         with conn.cd(deploy_dir):
             if service:
-                conn.run(f'docker-compose restart {service}')
-                print(f'✓ Restarted {service} on {host}')
+                conn.run(f'docker-compose -f {compose_file} restart {service}')
+                print(f'✓ Restarted {service} on {role}')
             else:
-                conn.run('docker-compose restart')
-                print(f'✓ Restarted all services on {host}')
+                conn.run(f'docker-compose -f {compose_file} restart')
+                print(f'✓ Restarted all services on {role}')
 
 
 @task
-def logs(c, host=DOCKER_TEST_HOST, service='', tail=50):
+def logs(c, role='test', service='', tail=50):
     """View Docker logs on remote server
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
         service: Optional service name (web, api, nginx)
         tail: Number of lines to show (default 50)
 
@@ -344,47 +507,57 @@ def logs(c, host=DOCKER_TEST_HOST, service='', tail=50):
         fab logs --service=api                # Show API logs
         fab logs --service=web --tail=100     # Show 100 lines
     """
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
         with conn.cd(deploy_dir):
             if service:
-                conn.run(f'docker-compose logs --tail={tail} {service}')
+                conn.run(f'docker-compose -f {compose_file} logs --tail={tail} {service}')
             else:
-                conn.run(f'docker-compose logs --tail={tail}')
+                conn.run(f'docker-compose -f {compose_file} logs --tail={tail}')
 
 
 @task
-def status(c, host=DOCKER_TEST_HOST):
+def status(c, role='test'):
     """Check Docker container status on remote server
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
 
-    Usage: fab status --host=testserver
+    Usage: fab status --role=test
     """
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
         with conn.cd(deploy_dir):
-            print(f'\n📊 Container Status on {host}:')
-            conn.run('docker-compose ps')
+            print(f'\n📊 Container Status on {role} ({host}):')
+            conn.run(f'docker-compose -f {compose_file} ps')
 
 
 @task
-def test_remote(c, host=DOCKER_TEST_HOST):
-    """Run unit tests on remote Docker server
+def test_remote(c, role='test'):
+    """Run tests on remote Docker server (inside the container)
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
 
-    Usage: fab test-remote
+    Usage:
+        fab test-remote              # Run tests on test server
+        fab test-remote --role=prod  # Run tests on prod server
     """
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
+
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
         with conn.cd(deploy_dir):
-            conn.run('docker-compose exec -T web python run_tests.py')
+            print(f'🧪 Running tests on {role} ({host}) inside container...')
+            conn.run(f'docker-compose -f {compose_file} exec -T web python run_tests.py')
 
 
 @task
@@ -402,30 +575,31 @@ def list_deploys(c):
 
 
 @task
-def list_backups(c, host=DOCKER_TEST_HOST):
+def list_backups(c, role='test'):
     """List available backups on remote server
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
 
-    Usage: fab list-backups --host=testserver
+    Usage: fab list-backups --role=test
     """
+    host = get_host_from_role(role)
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         backups_dir = f'{remote_home}/docker/backups'
         result = conn.run(f'ls -lht {backups_dir}/', warn=True)
         if result.ok:
-            print(f'💾 Available backups on {host}:')
+            print(f'💾 Available backups on {role} ({host}):')
         else:
-            print(f'No backups found on {host}')
+            print(f'No backups found on {role} ({host})')
 
 
 @task
-def rollback(c, host=DOCKER_TEST_HOST, backup=None):
+def rollback(c, role='test', backup=None):
     """Rollback to a previous backup on remote server
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
         backup: Backup filename (e.g., cigarbox-backup-1234567890.tar.gz)
 
     Usage:
@@ -438,6 +612,8 @@ def rollback(c, host=DOCKER_TEST_HOST, backup=None):
         return
 
     timestamp = str(int(time.time()))
+    host = get_host_from_role(role)
+    compose_file = get_compose_file(role)
 
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
@@ -457,7 +633,7 @@ def rollback(c, host=DOCKER_TEST_HOST, backup=None):
 
         # Stop containers
         with conn.cd(deploy_dir):
-            conn.run('docker-compose down || true')
+            conn.run(f'docker-compose -f {compose_file} down || true')
 
         # Clear deployment directory (except .env and photos.db)
         conn.run(f'cd {deploy_dir} && find . -maxdepth 1 ! -name . ! -name .env ! -name photos.db -exec rm -rf {{}} +')
@@ -468,25 +644,26 @@ def rollback(c, host=DOCKER_TEST_HOST, backup=None):
 
         # Restart containers
         with conn.cd(deploy_dir):
-            conn.run('docker-compose build --pull')
-            conn.run('docker-compose up -d')
-            conn.run('docker-compose ps')
+            conn.run(f'docker-compose -f {compose_file} build --pull')
+            conn.run(f'docker-compose -f {compose_file} up -d')
+            conn.run(f'docker-compose -f {compose_file} ps')
 
-    print(f'✓ Rolled back to {backup} on {host}')
+    print(f'✓ Rolled back to {backup} on {role} ({host})')
 
 
 @task
-def test_integration(c, host=DOCKER_TEST_HOST, port=8088):
+def test_integration(c, role='test', port=8088):
     """Run integration tests against remote Docker deployment
 
     Args:
-        host: Target host (testserver or crank)
+        role: Target role (test, prod)
         port: HTTP port (default 8088)
 
     Usage:
-        fab test-integration                    # Test testserver:8088
-        fab test-integration --host=crank --port=8088
+        fab test-integration                    # Test test server on port 8088
+        fab test-integration --role=prod --port=8088
     """
+    host = get_host_from_role(role)
     urls = ['/', '/photostream', '/tags', '/tags/misc', '/photosets', '/photosets/1068', '/photosets/1010/page/2']
     for url in urls:
         local(f'curl -sS -vL http://{host}:{port}{url} -o /dev/null')

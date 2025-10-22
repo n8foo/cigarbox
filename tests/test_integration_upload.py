@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Integration tests for upload.py CLI tool
+Integration tests for cli/upload.py CLI tool
 Tests against actual deployed Docker instance
 """
 
@@ -19,8 +19,9 @@ class TestUploadIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        # Get API URL from environment or use default test deployment
-        self.api_url = os.environ.get('CIGARBOX_TEST_API', 'http://testserver:8088/api')
+        # Get API URL from environment (set by fab test from fabric.yaml)
+        # Falls back to localhost if not set (for local Docker testing)
+        self.api_url = os.environ.get('CIGARBOX_TEST_API', 'http://localhost:8088/api')
         self.test_files = []
 
     def tearDown(self):
@@ -42,9 +43,9 @@ class TestUploadIntegration(unittest.TestCase):
         """Test uploading a new photo via CLI"""
         test_image = self.create_test_image('integration_test_new.jpg')
 
-        # Run upload.py as subprocess
+        # Run cli/upload.py as subprocess
         result = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--tags', 'integration_test,automated',
             '--apiurl', self.api_url,
@@ -61,7 +62,7 @@ class TestUploadIntegration(unittest.TestCase):
 
         # Upload first time
         result1 = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--tags', 'integration_test,duplicate',
             '--apiurl', self.api_url
@@ -71,7 +72,7 @@ class TestUploadIntegration(unittest.TestCase):
 
         # Upload second time - should detect as existing
         result2 = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--tags', 'integration_test,duplicate',
             '--apiurl', self.api_url
@@ -85,7 +86,7 @@ class TestUploadIntegration(unittest.TestCase):
         test_image = self.create_test_image('integration_test_photoset.jpg')
 
         result = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--photoset', 'Integration Test Set',
             '--tags', 'integration_test',
@@ -109,7 +110,7 @@ class TestUploadIntegration(unittest.TestCase):
         self.test_files.append(test_image)
 
         result = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--dirtag',
             '--apiurl', self.api_url
@@ -128,7 +129,7 @@ class TestUploadIntegration(unittest.TestCase):
         test_image = self.create_test_image('integration_test_dryrun.jpg')
 
         result = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--dryrun',
             '--apiurl', self.api_url
@@ -143,7 +144,7 @@ class TestUploadIntegration(unittest.TestCase):
         test_image2 = self.create_test_image('integration_test_multi2.jpg')
 
         result = subprocess.run([
-            sys.executable, 'upload.py',
+            sys.executable, 'cli/upload.py',
             '--files', test_image1, test_image2,
             '--tags', 'integration_test,multi_upload',
             '--apiurl', self.api_url
