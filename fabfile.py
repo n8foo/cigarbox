@@ -34,6 +34,7 @@ DEPLOY_INCLUDES = [
     "static/",
     "tests/",
     "cli/",
+    "scripts/",
     "nginx/*.conf",
     "requirements.txt",
     "docker-compose.yml",

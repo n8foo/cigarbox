@@ -14,7 +14,8 @@
 from flask import Flask, request, session, g, redirect, url_for, abort, \
   render_template, flash, send_from_directory
 
-from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, login_required
+from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, \
+  login_required, roles_required, current_user
 
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -24,9 +25,37 @@ import math
 from app import app
 from util import *
 from db import *
+from security import get_visible_privacy_levels, can_view_photo, can_edit_photo, \
+  can_manage_tags, can_manage_photosets
 
 # Configure Flask to work behind nginx proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+# Setup Flask-Security-Too
+user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
+security = Security(app, user_datastore)
+
+# Register user loader for Flask-Login (Flask-Security uses this)
+@security.login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID from database"""
+    try:
+        return User.get(User.id == int(user_id))
+    except User.DoesNotExist:
+        return None
+
+# Ensure database is connected for each request
+@app.before_request
+def before_request():
+    """Connect to database before each request"""
+    if db.is_closed():
+        db.connect()
+
+@app.teardown_request
+def teardown_request(exception):
+    """Close database after each request"""
+    if not db.is_closed():
+        db.close()
 
 
 # Utility Functions
@@ -83,12 +112,6 @@ def page_not_found(error):
 def internal_server_error(error):
   return render_template('500.html'), 500
 
-@app.teardown_appcontext
-def close_db(error):
-  """Closes the database again at the end of the request."""
-  db = getattr(g, '_database', None)
-  if db is not None:
-    db.close()
 
 @app.route('/', defaults={'page': 1})
 @app.route('/photostream', defaults={'page': 1})
@@ -96,7 +119,11 @@ def close_db(error):
 def photostream(page):
   """the list of the most recently added pictures"""
   baseurl = '%s/photostream' % (get_base_url())
-  photos_query = Photo.select().order_by(Photo.id.desc())
+  # Filter by privacy level based on current user (treat NULL as public)
+  visible_levels = get_visible_privacy_levels(current_user)
+  photos_query = Photo.select().where(
+    (Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))
+  ).order_by(Photo.id.desc())
 
   # Get pagination metadata
   pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
@@ -113,6 +140,9 @@ def photostream(page):
 def show_photo(photo_id):
   """a single photo"""
   photo = Photo.select().where(Photo.id == photo_id).get()
+  # Check if user has permission to view this photo
+  if not can_view_photo(current_user, photo):
+    abort(403)
   (sha1Path,filename) = getSha1Path(photo.sha1)
   photo.uri = sha1Path + '/' + filename
   tags = Tag.select().join(PhotoTag).where(PhotoTag.photo == photo_id)
@@ -129,10 +159,13 @@ def show_original_photo(photo_id):
 
 @app.route('/tags')
 def show_tags():
+  # Filter tags to only show counts for photos user can see (treat NULL as public)
+  visible_levels = get_visible_privacy_levels(current_user)
   tags = (Tag
          .select(Tag, fn.Count(Photo.id).alias('count'))
          .join(PhotoTag)
          .join(Photo)
+         .where((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
          .group_by(Tag))
   return render_template('tag_cloud.html', tags=tags)
 
@@ -140,10 +173,11 @@ def show_tags():
 @app.route('/tags/<string:tag>/page/<int:page>')
 def show_taged_photos(tag,page):
   baseurl = '%s/tags/%s' % (get_base_url(),tag)
+  visible_levels = get_visible_privacy_levels(current_user)
   photos_query = (Photo.select()
                   .join(PhotoTag)
                   .join(Tag)
-                  .where(Tag.name == tag)
+                  .where((Tag.name == tag) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
                   .order_by(Photo.id.desc()))
 
   # Get pagination metadata
@@ -161,8 +195,9 @@ def show_taged_photos(tag,page):
 @app.route('/date/<string:date>/page/<int:page>')
 def show_date_photos(date,page):
   baseurl = '%s/date/%s' % (get_base_url(),date)
+  visible_levels = get_visible_privacy_levels(current_user)
   photos_query = (Photo.select()
-                  .where(Photo.datetaken.startswith(date))
+                  .where((Photo.datetaken.startswith(date)) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
                   .order_by(Photo.datetaken.desc()))
 
   # Get pagination metadata
@@ -179,6 +214,9 @@ def show_date_photos(date,page):
 @app.route('/tags/<string:tag>/delete')
 @login_required
 def delete_tag(tag):
+  # Check permission
+  if not can_manage_tags(current_user):
+    abort(403)
   # get tag id since delete() doesn't support joins
   deleteTag = Tag.select().where(Tag.name == tag)
   deleteTag = deleteTag.get()
@@ -194,8 +232,11 @@ def delete_tag(tag):
 @app.route('/photos/<int:photo_id>/delete')
 @login_required
 def delete_photo(photo_id):
+  # Check permission
+  photo = Photo.select().where(Photo.id == photo_id).get()
+  if not can_edit_photo(current_user, photo):
+    abort(403)
   # delete photo from S3 (not working)
-  #photo = Photo.select().where(Photo.id == photo_id).get()
   #(sha1Path,filename) = getSha1Path(photo.sha1)
   #S3key='/%s/%s.%s' % (sha1Path,filename,photo.filetype)
   #aws.deleteFromS3(S3key,app.config)
@@ -210,6 +251,7 @@ def delete_photo(photo_id):
 def show_photosets(page):
   thumbCount = 2
   baseurl = '%s/photosets' % (get_base_url())
+  visible_levels = get_visible_privacy_levels(current_user)
   photosets_query = Photoset.select().order_by(Photoset.ts.desc())
 
   # Get pagination metadata
@@ -218,8 +260,9 @@ def show_photosets(page):
   # Get paginated results
   photosets = photosets_query.paginate(page, app.config['PER_PAGE'])
   for photoset in photosets:
+    # Filter thumbnails by privacy (treat NULL as public)
     thumbs = Photo.select().join(PhotoPhotoset).join(Photoset)
-    thumbs = thumbs.where(Photoset.id == photoset.id)
+    thumbs = thumbs.where((Photoset.id == photoset.id) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
     thumbs = thumbs.limit(thumbCount)
     thumbs = thumbs.order_by(Photo.datetaken.asc())
     for thumb in thumbs:
@@ -233,10 +276,11 @@ def show_photosets(page):
 @app.route('/photosets/<int:photoset_id>/page/<int:page>')
 def show_photoset(photoset_id,page):
   baseurl = '%s/photosets/%s' % (get_base_url(), photoset_id)
+  visible_levels = get_visible_privacy_levels(current_user)
   photos_query = (Photo.select()
                   .join(PhotoPhotoset)
                   .join(Photoset)
-                  .where(Photoset.id == photoset_id)
+                  .where((Photoset.id == photoset_id) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
                   .order_by(Photo.datetaken.asc()))
 
   # Get pagination metadata
@@ -255,6 +299,9 @@ def show_photoset(photoset_id,page):
 @app.route('/photosets/<int:photoset_id>/delete')
 @login_required
 def delete_photoset(photoset_id):
+  # Check permission
+  if not can_manage_photosets(current_user):
+    abort(403)
   # clean up relationships to soon-to-be deleted photoset
   #PhotoPhotoset.delete().where(PhotoPhotoset.photoset == photoset_id).execute
   # delete photoset
@@ -266,6 +313,9 @@ def delete_photoset(photoset_id):
 @app.route('/photosets/<int:photoset_id>/deletephotos')
 @login_required
 def delete_photoset_photos(photoset_id):
+  # Check permission
+  if not can_manage_photosets(current_user):
+    abort(403)
   # delete all photos and the photoset
   photos = Photo.select().join(PhotoPhotoset).join(Photoset)
   photos = photos.where(Photoset.id == photoset_id)
@@ -310,6 +360,7 @@ def allowed_file(filename):
 
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload():
   # Get the name of the uploaded files
   uploaded_files = request.files.getlist("file[]")

@@ -28,6 +28,7 @@ services:
       - ./web.py:/app/web.py
       - ./security.py:/app/security.py
       - ./templates:/app/templates
+      - ./scripts:/app/scripts
       - ./tests:/app/tests
       - ./run_tests.py:/app/run_tests.py
     environment:
@@ -68,6 +69,7 @@ services:
       - ./web.py:/app/web.py
       - ./security.py:/app/security.py
       - ./templates:/app/templates
+      - ./scripts:/app/scripts
       - ./tests:/app/tests
       - ./run_tests.py:/app/run_tests.py
     environment:

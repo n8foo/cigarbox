@@ -4,7 +4,10 @@ Werkzeug>=3.0.0
 
 # Authentication & Security
 Flask-Security-Too>=5.4.3
-bcrypt>=3.2.0
+Flask-WTF>=1.0.0
+WTForms>=3.0.0
+bcrypt>=3.2.0,<4.0.0
+email-validator>=2.0.0
 
 # Database
 peewee>=3.15.0
