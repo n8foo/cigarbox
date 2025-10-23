@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here.
 
+## [2025-10-23]
+
+### Added
+- Web authentication with Flask-Security-Too (roles: admin/contributor/viewer, permission levels: private/family/friends/public)
+- Database fields: User.fs_uniquifier, User.permission_level, Photo.uploaded_by_id, ShareToken model
+- Privacy filtering on all routes (NULL treated as public)
+- Login UI with 360-day session lifetime
+- scripts/ directory for server-side migrations and admin tools
+
+### Changed
+- Reorganized: cli/ for client tools (not deployed), scripts/ for server scripts (deployed)
+- Updated requirements.txt for Flask-Security-Too (bcrypt <4.0, Flask-WTF, WTForms, email-validator)
+- Database connection management with before_request/teardown_request handlers
+
+### Fixed
+- SECRET_KEY duplicate definition, UserRoles relationships, Flask-Principal integration disabled
+
 ## [2025-10-22]
 
 ### Added

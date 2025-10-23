@@ -88,6 +88,7 @@ class TestWebRoutes(unittest.TestCase):
         """Test photostream with pagination"""
         mock_query = MagicMock()
         mock_photo.select.return_value = mock_query
+        mock_query.where.return_value = mock_query  # Privacy filtering
         mock_query.order_by.return_value = mock_query
         mock_query.count.return_value = 0  # For pagination metadata
         mock_query.paginate.return_value = []

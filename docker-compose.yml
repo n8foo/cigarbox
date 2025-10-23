@@ -10,6 +10,8 @@ services:
       - ./static:/app/static
       - ./logs:/app/logs
       - ./config.py:/app/config.py
+      - ./cli:/app/cli      # Client tools (for local testing)
+      - ./scripts:/app/scripts
       - ./tests:/app/tests
       - ./run_tests.py:/app/run_tests.py
     environment:
@@ -38,6 +40,8 @@ services:
       - ./static:/app/static
       - ./logs:/app/logs
       - ./config.py:/app/config.py
+      - ./cli:/app/cli      # Client tools (for local testing)
+      - ./scripts:/app/scripts
       - ./tests:/app/tests
       - ./run_tests.py:/app/run_tests.py
     environment:

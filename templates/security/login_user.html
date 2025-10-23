@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% from "security/_macros.html" import render_field_with_errors, render_field %}
+
+{% block body %}
+<div class="row">
+  <div class="col-md-4 col-md-offset-4">
+    <h2>Login</h2>
+
+    {% if security.two_factor and security.two_factor_required %}
+      <p>Two-factor authentication is required</p>
+    {% endif %}
+
+    <form action="{{ url_for_security('login') }}" method="POST" name="login_user_form">
+      {{ login_user_form.hidden_tag() }}
+
+      <div class="form-group">
+        {{ render_field_with_errors(login_user_form.email, class="form-control", placeholder="Email") }}
+      </div>
+
+      <div class="form-group">
+        {{ render_field_with_errors(login_user_form.password, class="form-control", placeholder="Password") }}
+      </div>
+
+      <div class="checkbox">
+        <label>
+          {{ login_user_form.remember() }} Remember Me
+        </label>
+      </div>
+
+      {{ render_field(login_user_form.submit, class="btn btn-primary") }}
+    </form>
+
+    {% if security.recoverable %}
+    <p class="text-muted" style="margin-top: 20px;">
+      <a href="{{ url_for_security('forgot_password') }}">Forgot password?</a>
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -43,6 +43,30 @@ SECRET_KEY='change-this-to-a-random-secret-key'
 # Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'
 API_KEY='your-api-key-here'
 
+# Flask-Security-Too Configuration
+# IMPORTANT: Change SECURITY_PASSWORD_SALT to a random string in production!
+# Generate with: python -c 'import secrets; print(secrets.token_hex(32))'
+SECURITY_PASSWORD_SALT = 'change-this-to-a-random-salt'
+SECURITY_PASSWORD_HASH = 'bcrypt'
+SECURITY_PASSWORD_SINGLE_HASH = True  # Use plain bcrypt without HMAC wrapper
+SECURITY_REGISTERABLE = False  # Only admins can create users
+SECURITY_SEND_REGISTER_EMAIL = False
+SECURITY_TRACKABLE = False  # Disable login tracking (requires additional DB fields)
+SECURITY_CHANGEABLE = True  # Allow password changes
+SECURITY_RECOVERABLE = False  # No email-based password recovery (for now)
+SECURITY_USE_PERMISSIONS = False  # Disable Flask-Principal permissions system
+SECURITY_LOGIN_URL = '/login'
+SECURITY_LOGOUT_URL = '/logout'
+SECURITY_POST_LOGIN_VIEW = '/'
+SECURITY_POST_LOGOUT_VIEW = '/'
+
+# Session Configuration - Keep users logged in for 360 days
+from datetime import timedelta
+PERMANENT_SESSION_LIFETIME = timedelta(days=360)
+SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 PRIVACYFLAGS = {'public':0, 'friends':1, 'family':2, 'private':8, 'disabled':9}
 
 PER_PAGE=100
