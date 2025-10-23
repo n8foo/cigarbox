@@ -4,13 +4,23 @@ All notable changes to this project are documented here.
 
 ## [2025-10-22]
 
+### Added
+- **API authentication system** with simple API key validation
+- **Enhanced CLI upload tool** (cli/upload.py)
+  - Configurable rate limiting with --delay parameter (default 0.1s)
+  - Improved error handling with detailed error messages
+- **Deployment safety improvements**
+
+### Changed
+- **Simplified requirements.txt** 
+- Updated test suite to work with API authentication
+- Added volume mounts for tests/ and security.py to Docker containers
+
 ### Fixed
 - Fixed subpath URL generation in templates for proper relative path resolution
 - Updated URL generation in layout.html, photos.html, photoset.html, photosets.html, photostream.html, tag_cloud.html, and photo_in_photoset.html
 - Corrected get_base_url() usage in web.py for consistent URL handling
-
-### Added
-- Added config.py.example with comprehensive configuration template
+- Added config.py.example with configuration template
 - Added docker-compose-prod.yml for production deployment (2-container architecture without nginx)
 
 ## [2025-10-21]

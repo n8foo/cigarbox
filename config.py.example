@@ -38,6 +38,11 @@ DATABASE={'name'  :'photos.db',
 # Generate with: python -c 'import secrets; print(secrets.token_hex(32))'
 SECRET_KEY='change-this-to-a-random-secret-key'
 
+# API Key for authentication
+# IMPORTANT: Change this to a secure random key!
+# Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'
+API_KEY='your-api-key-here'
+
 PRIVACYFLAGS = {'public':0, 'friends':1, 'family':2, 'private':8, 'disabled':9}
 
 PER_PAGE=100

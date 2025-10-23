@@ -21,6 +21,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app import *
 from web import allowed_file
 from db import *
+from security import api_key_required
 import util, aws
 import process
 
@@ -80,6 +81,7 @@ def processPhoto(filename,localSha1='0',clientfilename=None):
   return(photo_id)
 
 @app.route('/api/upload', methods=['POST'])
+@api_key_required
 def apiupload():
 
   response=dict()
@@ -138,6 +140,16 @@ def apiupload():
   else:
     photoset = None
 
+  # check for privacy and set it on each photo
+  if 'privacy' in request.form:
+    privacy = request.form['privacy']
+    response['privacy'] = privacy
+    # set privacy for each photo
+    for photo_id in photo_ids:
+      process.setPhotoPrivacy(photo_id, privacy)
+  else:
+    privacy = None
+
   # turn back into a list since set is not jsonifyable
   photo_ids=list(photo_ids)
   response['photo_ids'] = photo_ids
@@ -145,6 +157,7 @@ def apiupload():
 
 
 @app.route('/api/photos/addtags', methods=['POST'])
+@api_key_required
 def apiphotosAddTags():
   data = request.get_json()
   photo_id = data['photo_id']
@@ -174,6 +187,7 @@ def apiphotosAddTags():
 
 
 @app.route('/api/photos/removetags', methods=['POST'])
+@api_key_required
 def apiphotosRemoveTags():
   data = request.get_json()
   photo_id = data['photo_id']
@@ -202,6 +216,7 @@ def apiphotosRemoveTags():
   return jsonify(response)
 
 @app.route('/api/photoset/addphoto', methods=['POST'])
+@api_key_required
 def apiphotossetAddPhoto():
   data = request.get_json()
   photo_id = data['photo_id']

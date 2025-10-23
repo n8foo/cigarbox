@@ -26,7 +26,10 @@ services:
       - ./process.py:/app/process.py
       - ./util.py:/app/util.py
       - ./web.py:/app/web.py
+      - ./security.py:/app/security.py
       - ./templates:/app/templates
+      - ./tests:/app/tests
+      - ./run_tests.py:/app/run_tests.py
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
@@ -63,7 +66,10 @@ services:
       - ./process.py:/app/process.py
       - ./util.py:/app/util.py
       - ./web.py:/app/web.py
+      - ./security.py:/app/security.py
       - ./templates:/app/templates
+      - ./tests:/app/tests
+      - ./run_tests.py:/app/run_tests.py
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
