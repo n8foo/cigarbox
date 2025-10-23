@@ -332,19 +332,21 @@ def build_package(c):
 
 
 @task
-def deploy(c, role='test', package=None, rebuild=False):
+def deploy(c, role='test', package=None, rebuild=False, force_db=False):
     """Deploy to Docker server using tgz package
 
     Args:
         role: Target role (test, prod)
         package: Optional specific package file (defaults to building new one)
         rebuild: Force container rebuild (default False for fast deploys)
+        force_db: Allow database upload (DANGEROUS for prod!)
 
     Usage:
         fab deploy                              # Fast deploy to test (no rebuild)
         fab deploy --role=prod                  # Fast deploy to prod
         fab deploy --rebuild                    # Full deploy with container rebuild
         fab deploy --package=deploys/cigarbox-1234567890.tar.gz  # Deploy specific package
+        fab deploy --force-db                   # Upload database (USE WITH CAUTION!)
     """
     timestamp = str(int(time.time()))
 
@@ -382,15 +384,35 @@ def deploy(c, role='test', package=None, rebuild=False):
         print(f'📂 Extracting deployment...')
         conn.run(f'cd {deploy_dir} && tar xzf {deploys_dir}/{package_basename}')
 
-        # Handle photos.db separately (don't overwrite on deploy)
+        # Handle photos.db separately
+        # Database is NEVER uploaded automatically - must use --force-db
         if os.path.exists('photos.db'):
             local_hash = hashlib.md5(open('photos.db', 'rb').read()).hexdigest()
             result = conn.run(f'test -f {deploy_dir}/photos.db && md5sum {deploy_dir}/photos.db | cut -d" " -f1 || echo "none"', hide=True)
             remote_hash = result.stdout.strip()
 
             if local_hash != remote_hash:
-                print('📦 Database changed, uploading...')
-                conn.put('photos.db', f'{deploy_dir}/photos.db')
+                if not force_db:
+                    print(f'⚠️  {role.upper()} database differs but not uploading (use --force-db to override)')
+                    print(f'   Local:  {local_hash}')
+                    print(f'   Remote: {remote_hash}')
+                else:
+                    # --force-db flag provided
+                    if role == 'prod':
+                        print('🚨 WARNING: About to upload database to PRODUCTION!')
+                        print(f'   Local:  {local_hash}')
+                        print(f'   Remote: {remote_hash}')
+                        response = input('Type "yes" to continue: ')
+                        if response.lower() != 'yes':
+                            print('❌ Database upload cancelled')
+                            return
+                    else:
+                        print(f'📦 Database changed, uploading to {role}...')
+                        print(f'   Local:  {local_hash}')
+                        print(f'   Remote: {remote_hash}')
+
+                    conn.put('photos.db', f'{deploy_dir}/photos.db')
+                    print(f'✓ Database uploaded to {role}')
             else:
                 print('✓ Database unchanged, skipping upload')
 
@@ -446,24 +468,13 @@ def rebuild(c, role='test'):
     - Dockerfile changes
     - System dependencies change
     For code-only changes, use 'fab deploy' (much faster)
+
+    This automatically deploys latest code before rebuilding.
     """
-    host = get_host_from_role(role)
-    compose_file = get_compose_file(role)
+    print(f'📋 Rebuild will: 1) Deploy latest code, 2) Rebuild containers')
 
-    with Connection(host) as conn:
-        remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
-        deploy_dir = f'{remote_home}/docker/cigarbox'
-
-        with conn.cd(deploy_dir):
-            print(f'🛑 Stopping and removing old containers...')
-            conn.run(f'docker-compose -f {compose_file} down')
-            print(f'🔨 Rebuilding containers on {role} ({host})...')
-            conn.run(f'docker-compose -f {compose_file} build --pull')
-            print(f'🚀 Starting new containers...')
-            conn.run(f'docker-compose -f {compose_file} up -d')
-            conn.run(f'docker-compose -f {compose_file} ps')
-
-    print(f'✓ Rebuilt containers on {role} ({host})')
+    # Deploy first to get latest code
+    deploy(c, role=role, rebuild=True)
 
 
 @task

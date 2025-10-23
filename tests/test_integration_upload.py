@@ -12,17 +12,37 @@ import sys
 from PIL import Image
 import subprocess
 import json
+import requests
 
 
 class TestUploadIntegration(unittest.TestCase):
     """Integration tests for upload.py against Docker deployment"""
 
+    @classmethod
+    def setUpClass(cls):
+        """Check if test server is available"""
+        cls.api_url = os.environ.get('CIGARBOX_TEST_API', 'http://localhost:8088/api')
+
+        # Check if server is reachable
+        try:
+            base_url = cls.api_url.replace('/api', '')
+            response = requests.get(f'{base_url}/about', timeout=2)
+            cls.server_available = response.status_code == 200
+        except:
+            cls.server_available = False
+
+        if not cls.server_available:
+            raise unittest.SkipTest(f'Test server not available at {cls.api_url}. Run integration tests with: fab test')
+
     def setUp(self):
         """Set up test fixtures"""
-        # Get API URL from environment (set by fab test from fabric.yaml)
-        # Falls back to localhost if not set (for local Docker testing)
-        self.api_url = os.environ.get('CIGARBOX_TEST_API', 'http://localhost:8088/api')
+        self.api_url = self.__class__.api_url
         self.test_files = []
+
+        # Get API key from config
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import config
+        self.api_key = config.API_KEY
 
     def tearDown(self):
         """Clean up test files"""
@@ -49,6 +69,7 @@ class TestUploadIntegration(unittest.TestCase):
             '--files', test_image,
             '--tags', 'integration_test,automated',
             '--apiurl', self.api_url,
+            '--apikey', self.api_key,
             '--privacy', 'public'
         ], capture_output=True, text=True)
 
@@ -65,7 +86,8 @@ class TestUploadIntegration(unittest.TestCase):
             sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--tags', 'integration_test,duplicate',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result1.returncode, 0)
@@ -75,7 +97,8 @@ class TestUploadIntegration(unittest.TestCase):
             sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--tags', 'integration_test,duplicate',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result2.returncode, 0)
@@ -90,7 +113,8 @@ class TestUploadIntegration(unittest.TestCase):
             '--files', test_image,
             '--photoset', 'Integration Test Set',
             '--tags', 'integration_test',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result.returncode, 0)
@@ -113,7 +137,8 @@ class TestUploadIntegration(unittest.TestCase):
             sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--dirtag',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result.returncode, 0)
@@ -132,7 +157,8 @@ class TestUploadIntegration(unittest.TestCase):
             sys.executable, 'cli/upload.py',
             '--files', test_image,
             '--dryrun',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result.returncode, 0)
@@ -147,7 +173,8 @@ class TestUploadIntegration(unittest.TestCase):
             sys.executable, 'cli/upload.py',
             '--files', test_image1, test_image2,
             '--tags', 'integration_test,multi_upload',
-            '--apiurl', self.api_url
+            '--apiurl', self.api_url,
+            '--apikey', self.api_key
         ], capture_output=True, text=True)
 
         self.assertEqual(result.returncode, 0)

@@ -35,6 +35,7 @@ class TestAPIEndpoints(unittest.TestCase):
         flask_app.config['DATABASE'] = {'name': self.test_db_path}
         flask_app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
         flask_app.config['ALLOWED_EXTENSIONS'] = ['jpg', 'png', 'gif']
+        flask_app.config['API_KEY'] = 'test-api-key-for-unit-tests'
 
         # Import api app (it's a separate Flask instance)
         from api import app as api_app
@@ -42,7 +43,9 @@ class TestAPIEndpoints(unittest.TestCase):
         api_app.config['DATABASE'] = {'name': self.test_db_path}
         api_app.config['UPLOAD_FOLDER'] = flask_app.config['UPLOAD_FOLDER']
         api_app.config['ALLOWED_EXTENSIONS'] = flask_app.config['ALLOWED_EXTENSIONS']
+        api_app.config['API_KEY'] = 'test-api-key-for-unit-tests'
         self.client = api_app.test_client()
+        self.api_key = 'test-api-key-for-unit-tests'
 
     def tearDown(self):
         """Clean up test database and files"""
@@ -95,7 +98,8 @@ class TestAPIEndpoints(unittest.TestCase):
             response = self.client.post(
                 '/api/photos/addtags',
                 data=json.dumps(payload),
-                content_type='application/json'
+                content_type='application/json',
+                headers={'X-API-Key': self.api_key}
             )
 
             self.assertEqual(response.status_code, 200)
@@ -118,7 +122,8 @@ class TestAPIEndpoints(unittest.TestCase):
             response = self.client.post(
                 '/api/photos/addtags',
                 data=json.dumps(payload),
-                content_type='application/json'
+                content_type='application/json',
+                headers={'X-API-Key': self.api_key}
             )
 
             self.assertEqual(response.status_code, 200)
@@ -142,7 +147,8 @@ class TestAPIEndpoints(unittest.TestCase):
             response = self.client.post(
                 '/api/photos/removetags',
                 data=json.dumps(payload),
-                content_type='application/json'
+                content_type='application/json',
+                headers={'X-API-Key': self.api_key}
             )
 
             self.assertEqual(response.status_code, 200)
@@ -165,7 +171,8 @@ class TestAPIEndpoints(unittest.TestCase):
                 response = self.client.post(
                     '/api/photoset/addphoto',
                     data=json.dumps(payload),
-                    content_type='application/json'
+                    content_type='application/json',
+                    headers={'X-API-Key': self.api_key}
                 )
 
                 self.assertEqual(response.status_code, 200)
@@ -182,7 +189,8 @@ class TestAPIEndpoints(unittest.TestCase):
         data = {
             'files': (BytesIO(b'fake image data'), 'test.jpg'),
             'sha1': 'abc123',
-            'clientfilename': 'test.jpg'
+            'clientfilename': 'test.jpg',
+            'api_key': self.api_key
         }
 
         with patch('api.allowed_file') as mock_allowed:
@@ -204,7 +212,8 @@ class TestAPIEndpoints(unittest.TestCase):
             'files': (BytesIO(b'fake image'), 'test.jpg'),
             'sha1': 'abc123',
             'clientfilename': 'test.jpg',
-            'tags': 'vacation,beach'
+            'tags': 'vacation,beach',
+            'api_key': self.api_key
         }
 
         with patch('api.processPhoto') as mock_process:
