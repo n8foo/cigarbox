@@ -36,7 +36,7 @@ parser.add_argument('--dirtag', help='auto tag photos based on parent directory.
 parser.add_argument('--photoset', help='add this import to a photoset')
 parser.add_argument('--privacy', help='set privacy on a photo, default is none/public', choices=['public','family','friends','private','disabled'], default='public')
 parser.add_argument('--importsource', default=os.uname()[1], help='override import source')
-parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint', default='http://127.0.0.1:9601/api')
+parser.add_argument('--apiurl', help='URL of the cigarbox API endpoint (or set CIGARBOX_API_URL env var)', default=None)
 parser.add_argument('--apikey', help='API key for authentication (or set CIGARBOX_API_KEY env var)')
 parser.add_argument('--dryrun', action='store_true', help='show what would have been done')
 parser.add_argument('--delay', type=float, default=0.1, help='delay between API calls in seconds (default: 0.1)')
@@ -54,6 +54,23 @@ app.config.from_object('config')
 
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
+def get_api_url():
+  """Get API URL from args, environment, config, or default"""
+  if args.apiurl:
+    return args.apiurl
+
+  # Check environment variable
+  env_url = os.environ.get('CIGARBOX_API_URL')
+  if env_url:
+    return env_url
+
+  # Check config for API URL setting
+  if hasattr(app.config, 'get') and app.config.get('API_URL'):
+    return app.config['API_URL']
+
+  # Fall back to localhost for local development
+  return 'http://127.0.0.1:9601/api'
+
 def get_api_key():
   """Get API key from args or environment"""
   if args.apikey:
@@ -64,7 +81,10 @@ def uploadFiles(filenames):
   # set up data to return
   response={}
 
-  # Get API key
+  # Get API URL and key
+  api_url = get_api_url()
+  logger.info('Using API URL: {}'.format(api_url))
+
   api_key = get_api_key()
   if not api_key:
     logger.error('API key required. Provide via --apikey or CIGARBOX_API_KEY environment variable')
@@ -134,7 +154,7 @@ def uploadFiles(filenames):
     # set up the POST with fields
     m = MultipartEncoder(fields=fields)
     try:
-      r = requests.post('{0}/upload'.format(args.apiurl), data=m,headers={'Content-Type': m.content_type})
+      r = requests.post('{0}/upload'.format(api_url), data=m,headers={'Content-Type': m.content_type})
     except Exception as e:
       logger.error('Failed to upload {}: {}'.format(filename, e))
       continue
@@ -180,7 +200,8 @@ def parentDirTags(file):
 
 
 def check_exists(sha1):
-  url = '{0}/sha1/{1}'.format(args.apiurl,sha1)
+  api_url = get_api_url()
+  url = '{0}/sha1/{1}'.format(api_url,sha1)
 
   # Note: sha1 lookup endpoint doesn't require auth (read-only)
   try:
@@ -200,7 +221,8 @@ def check_exists(sha1):
     return False
 
 def get_photo_id_from_sha1(sha1):
-  url = '{0}/sha1/{1}'.format(args.apiurl,sha1)
+  api_url = get_api_url()
+  url = '{0}/sha1/{1}'.format(api_url,sha1)
 
   try:
     resp = requests.get(url, timeout=30)
@@ -216,7 +238,8 @@ def get_photo_id_from_sha1(sha1):
 
 
 def api_add_tags(photo_id,tags):
-  url = '{0}/photos/addtags'.format(args.apiurl)
+  api_url = get_api_url()
+  url = '{0}/photos/addtags'.format(api_url)
   payload = dict(
     photo_id = photo_id,
     tags = tags
@@ -228,7 +251,8 @@ def api_add_tags(photo_id,tags):
   return data
 
 def api_add_photoset(photo_id,photoset):
-  url = '{0}/photoset/addphoto'.format(args.apiurl)
+  api_url = get_api_url()
+  url = '{0}/photoset/addphoto'.format(api_url)
   payload = dict(
     photo_id = photo_id,
     photoset = photoset

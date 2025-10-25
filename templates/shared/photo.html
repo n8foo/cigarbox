@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="alert alert-info">
+        <span class="glyphicon glyphicon-info-sign"></span>
+        You're viewing a shared photo.
+        {% if share_token.expires_at %}
+        This link expires {{ share_token.expires_at.strftime('%Y-%m-%d %H:%M') }}.
+        {% else %}
+        This link has no expiration.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Shared photo">
+    </div>
+
+    <div class="col-md-12" align="left">
+      <br>
+      {% if tags.count() > 0 %}
+      <p>
+        <strong>Tags:</strong>
+        {% for tag in tags %}
+        {{ tag.name }}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+      {% endif %}
+
+      {% if photo.datetaken %}
+      <p><strong>Date Taken:</strong> {{ photo.datetaken.strftime('%Y-%m-%d %H:%M') }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<br><br>
+
+{% endblock %}

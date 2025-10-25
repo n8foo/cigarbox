@@ -2,43 +2,87 @@
 
 ## Overview
 
-This document describes the testing infrastructure for CigarBox and the bugs that have been fixed.
+This document provides testing procedures for CigarBox features, focusing on manual testing of UI-heavy features and automated testing where appropriate.
 
-## Test Files
+## Automated Tests
 
-- `test_db.py` - Database model tests
-- `test_util.py` - Utility function tests
-- `test_process.py` - Photo processing function tests
-- `test_aws.py` - AWS S3 integration tests
-- `test_web.py` - Web route tests
-- `test_api.py` - API endpoint tests
+### Test Files
+- `tests/test_db.py` - Database model tests
+- `tests/test_util.py` - Utility function tests
+- `tests/test_process.py` - Photo processing function tests
+- `tests/test_aws.py` - AWS S3 integration tests
+- `tests/test_web.py` - Web route tests
+- `tests/test_api.py` - API endpoint tests
+- `tests/test_integration_upload.py` - End-to-end upload workflow
 
-## Running Tests
+### Running Tests
 
-### Run all tests:
+Run all tests locally:
 ```bash
-python run_tests.py
+python run_tests.py              # All unit tests (discovers from tests/)
+python -m pytest tests/          # Alternative with pytest
 ```
 
-### Run specific test file:
+Run tests against test server:
 ```bash
-python -m unittest test_db
-python -m unittest test_util
-python -m unittest test_process
-python -m unittest test_aws
-python -m unittest test_web
-python -m unittest test_api
+fab test                         # Tests against remote server (reads fabric.yaml)
+fab test-remote --role=test      # Tests inside Docker container
 ```
 
-### Run specific test class:
+Run specific test:
 ```bash
-python -m unittest test_db.TestDatabaseModels
+python -m unittest tests.test_db.TestDatabaseModels.test_photo_creation
 ```
 
-### Run specific test method:
-```bash
-python -m unittest test_db.TestDatabaseModels.test_photo_creation
-```
+Current coverage: **59 unit tests + 6 integration tests = 65 total**
+
+## Manual Testing Checklist
+
+### Pre-Deployment Testing
+Before deploying to production, test these features on the test server.
+
+#### 🎨 Bulk Photo Editor
+Navigate to `/photos/bulk-edit?ids=1,2,3` or click "Bulk Edit" from a tag page
+
+- [ ] Page loads showing photos with tag/privacy fields
+- [ ] Tag autocomplete - Type first few letters, dropdown appears
+- [ ] Space accepts autocomplete, adds comma
+- [ ] Edit a tag, hit Enter - green success alert appears
+- [ ] Refresh page - change persists
+- [ ] Only changed photos are saved (check console log count)
+- [ ] Tag fields wrap long lists (textarea, not input)
+- [ ] Cursor jumps to end when focused
+- [ ] Tab moves between fields (not autocomplete)
+- [ ] Bulk "Add Tags" / "Apply Privacy" / "Add to Photoset" work
+- [ ] Date grouping headers appear
+- [ ] "Just this group" links filter correctly
+- [ ] Pagination works without URL corruption
+
+#### 🔐 Authentication & Permissions
+
+- [ ] **Anonymous**: View photoset, images lazy load, no "View Original" button
+- [ ] **Login**: From photoset page, returns to photoset after login
+- [ ] **Logout**: Returns to same page after logout
+- [ ] **View Original**: Button appears when logged in, opens in new tab
+- [ ] **Signed URL**: Original image loads via temporary S3 URL
+- [ ] **Permission check**: Can't access others' private photos
+
+#### 👨‍💼 Admin Features
+
+- [ ] `/admin/photosets` - Shows count in heading "All Photosets (X)"
+- [ ] Pagination appears if > 100 photosets
+- [ ] Delete photoset → redirects to admin photosets (not photostream)
+- [ ] Returns to same page number after delete
+- [ ] `/admin/photos` - Images lazy load
+- [ ] `/admin/tags` - Tag operations work
+
+#### 🖼️ Image Display & Lazy Loading
+
+- [ ] Photostream - images lazy load as you scroll
+- [ ] Photosets page - thumbnail grids lazy load
+- [ ] Photoset detail - individual photos lazy load
+- [ ] Tag page - tagged photos lazy load
+- [ ] **Logged out** - all lazy loading still works
 
 ## Bugs Fixed
 

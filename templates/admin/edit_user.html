@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Edit User</h1>
+    <hr>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6 col-md-offset-3">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Edit: {{ user.email }}</h3>
+      </div>
+      <div class="panel-body">
+        <form method="POST" action="{{SITEURL}}/admin/users/{{ user.id }}/edit">
+          <!-- Permission Level -->
+          <div class="form-group">
+            <label for="permission_level">Permission Level</label>
+            <select name="permission_level" id="permission_level" class="form-control">
+              <option value="null" {% if user.permission_level is none %}selected{% endif %}>None (Public only)</option>
+              <option value="public" {% if user.permission_level == 'public' %}selected{% endif %}>Public</option>
+              <option value="friends" {% if user.permission_level == 'friends' %}selected{% endif %}>Friends</option>
+              <option value="family" {% if user.permission_level == 'family' %}selected{% endif %}>Family</option>
+              <option value="private" {% if user.permission_level == 'private' %}selected{% endif %}>Private (All)</option>
+            </select>
+            <p class="help-block">
+              <strong>Permission levels control what photos the user can view:</strong><br>
+              <strong>Private:</strong> Sees all photos (public, friends, family, private)<br>
+              <strong>Family:</strong> Sees public, friends, and family photos<br>
+              <strong>Friends:</strong> Sees public and friends photos<br>
+              <strong>Public:</strong> Sees only public photos
+            </p>
+          </div>
+
+          <!-- Roles -->
+          <div class="form-group">
+            <label>Roles</label>
+            {% for role in all_roles %}
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" name="roles" value="{{ role.name }}"
+                       {% if role.name in user_role_names %}checked{% endif %}>
+                <strong>{{ role.name }}</strong>
+                {% if role.description %}
+                - {{ role.description }}
+                {% endif %}
+              </label>
+            </div>
+            {% endfor %}
+            <p class="help-block">
+              <strong>admin:</strong> Full access to admin panel and all features<br>
+              <strong>contributor:</strong> Can manage tags, photosets, and own photos
+            </p>
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{SITEURL}}/admin/users" class="btn btn-default">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- User Info -->
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">User Information</h3>
+      </div>
+      <div class="panel-body">
+        <dl class="dl-horizontal">
+          <dt>ID:</dt>
+          <dd>{{ user.id }}</dd>
+          <dt>Email:</dt>
+          <dd>{{ user.email }}</dd>
+          <dt>Active:</dt>
+          <dd>{{ 'Yes' if user.active else 'No' }}</dd>
+          <dt>Registered:</dt>
+          <dd>{{ user.ts.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+          <dt>Confirmed:</dt>
+          <dd>{{ user.confirmed_at.strftime('%Y-%m-%d %H:%M:%S') if user.confirmed_at else 'Not confirmed' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

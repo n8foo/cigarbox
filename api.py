@@ -69,12 +69,29 @@ def processPhoto(filename,localSha1='0',clientfilename=None):
 
   # generate thumbnails
   thumbFilenames = util.genThumbnails(sha1,fileType,app.config)
+
   # send thumbnails to S3
+  S3success = False
   if process.checkImportStatusS3(photo_id) == False:
+    logger.info('S3 Thumbnail Upload Batch START: photo_id=%s thumbnail_count=%d', photo_id, len(thumbFilenames))
+    upload_success_count = 0
+    upload_fail_count = 0
+
     for thumbFilename in thumbFilenames:
-      S3success = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=True,policy='public-read')
+      result = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=True,policy='public-read')
+      if result:
+        upload_success_count += 1
+      else:
+        upload_fail_count += 1
+        logger.error('S3 Thumbnail Upload: Failed for %s', thumbFilename)
+
+    logger.info('S3 Thumbnail Upload Batch COMPLETE: photo_id=%s success=%d failed=%d total=%d',
+                photo_id, upload_success_count, upload_fail_count, len(thumbFilenames))
+
+    # Consider S3 upload successful only if ALL thumbnails uploaded
+    S3success = (upload_fail_count == 0 and upload_success_count > 0)
   else:
-    S3success = False
+    logger.info('S3 Thumbnail Upload SKIPPED: photo_id=%s already marked as uploaded', photo_id)
 
   # save import meta
   process.saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success,sha1=sha1,clientfilename=clientfilename)

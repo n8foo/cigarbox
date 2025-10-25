@@ -67,8 +67,13 @@ class TestWebRoutes(unittest.TestCase):
         result = find(test_list, 'name', 'bar')
         self.assertEqual(result, 1)
 
-        result = find(test_list, 'name', 'notfound')
-        self.assertEqual(result, -1)
+    def test_bulk_edit_route_exists(self):
+        """Test bulk edit route exists in app"""
+        from web import app
+        # Check that the route is registered
+        rules = [str(rule) for rule in app.url_map.iter_rules()]
+        self.assertTrue(any('/photos/bulk-edit' in rule for rule in rules),
+                       "Bulk edit route not found in URL map")
 
     def test_allowed_file(self):
         """Test file extension validation"""

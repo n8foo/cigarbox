@@ -2,7 +2,56 @@
 
 All notable changes to this project are documented here.
 
-## [2025-10-23]
+---
+
+## [2025-10-24] - Bulk Editor, Admin UI & Photo Processing
+
+### Added
+- **Bulk Photo Editor** (`/photos/bulk-edit`) with AJAX saves, smart change tracking, multi-line tag fields with
+dropdown autocomplete, date grouping with drill-down, and pagination
+- **Admin UI** - Complete admin interface with 10 new templates (dashboard, photos, tags, photosets, users,
+shares, create/edit pages)
+- **Share Links** - Temporary photo sharing via token (`/share/<token>`) with expiration
+- **View Original** button on photo pages (signed S3 URLs, login required)
+- **Pagination & search** on all admin list pages (100 per page)
+- Tags: search by name
+- Photosets: search by title or description
+- Users: search by email
+- Shares: search by photo ID or token
+- **Global lazy loading** (IntersectionObserver with 200px preload)
+- **Login/logout redirects** back to current page
+- Comprehensive S3 and thumbnail logging (file size, connection status, per-thumbnail success/failure tracking)
+- API URL configuration for cli/upload.py (priority: --apiurl arg > CIGARBOX_API_URL env > config.py > localhost)
+- Database migration script: ImportMeta cascade delete (scripts/migrate_2025_10_24_importmeta_cascade.py)
+- Global exception handler in app.py logs all unhandled errors to stderr
+
+### Changed
+- Tag fields now use textarea for better visibility
+- Photoset delete redirects to admin photosets page with page preservation
+- Cursor auto-positions to end when focusing tag fields
+- `/photos/<id>/original` route now requires login and checks permissions
+- Thumbnails always output as .jpg regardless of source format (PNG/GIF converted to RGB with white background)
+- ImportMeta.photo changed from IntegerField to ForeignKeyField with CASCADE delete
+- Foreign key constraints enabled in SQLite (pragmas={'foreign_keys': 1})
+
+### Fixed
+- Bulk editor change tracking accumulation across saves
+- Bulk tags operation blank success messages
+- Lazy loading for logged-out users (script was inside auth check)
+- Pagination URL corruption from query param concatenation
+- JavaScript button action capture using event listener capture phase
+- PNG thumbnails appearing as broken images (templates expected .jpg)
+- Orphaned ImportMeta records blocking migration (script now detects and cleans up)
+- Bulk edit 500 errors in production (added try/except with full traceback logging)
+
+  ### Migration Required
+  ```bash
+  # Run after deployment to add cascade delete to ImportMeta
+  docker exec -it -u root cigarbox-web python scripts/migrate_2025_10_24_importmeta_cascade.py
+  docker-compose restart  # Required to load new db.py ForeignKeyField definition
+  ```
+
+## [2025-10-23] - Authentication System
 
 ### Added
 - Web authentication with Flask-Security-Too (roles: admin/contributor/viewer, permission levels: private/family/friends/public)
@@ -18,6 +67,16 @@ All notable changes to this project are documented here.
 
 ### Fixed
 - SECRET_KEY duplicate definition, UserRoles relationships, Flask-Principal integration disabled
+
+### Migration Required
+**Database migration needed!** Run on server after deployment:
+```bash
+# 1. Run the authentication migration (as root for database write access)
+docker exec -it -u root cigarbox-web python scripts/migrate_2025_10_23_add_auth.py
+
+# 2. Create your first admin user (as root)
+docker exec -it -u root cigarbox-web python scripts/create_admin.py
+```
 
 ## [2025-10-22]
 

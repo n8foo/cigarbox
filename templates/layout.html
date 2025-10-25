@@ -53,11 +53,11 @@
                     {% if current_user.has_role('admin') %}
                       <li><a href="{{SITEURL}}/admin">Admin</a></li>
                     {% endif %}
-                    <li><a href="{{SITEURL}}/logout">Log Out</a></li>
+                    <li><a href="{{SITEURL}}/logout?next={{ request.path | urlencode }}">Log Out</a></li>
                   </ul>
                 </li>
               {% else %}
-                <li><a href="{{SITEURL}}/login">Log In</a></li>
+                <li><a href="{{SITEURL}}/login?next={{ request.path | urlencode }}">Log In</a></li>
               {% endif %}
             </ul>
           </div><!-- /.navbar-collapse -->

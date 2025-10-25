@@ -13,7 +13,10 @@
         <div class="panel-body">
           <a href="{{SITEURL}}/photosets/{{ photoset.id }}">
           {% for thumb in photoset.thumbs %}
-          <img class="img-thumbnail" alt="Responsive image" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ thumb.uri }}">
+          <img class="img-thumbnail lazy"
+               data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ thumb.uri }}"
+               src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23eee' width='100' height='100'/%3E%3C/svg%3E"
+               alt="Responsive image">
           {% endfor %}
           </a>
         </div>
@@ -28,5 +31,37 @@
   <!-- Pagination -->
   {{ render_pagination(pagination, baseurl) }}
 </div>
+
+<script>
+// Lazy load images
+document.addEventListener('DOMContentLoaded', function() {
+  var lazyImages = document.querySelectorAll('img.lazy');
+
+  if ('IntersectionObserver' in window) {
+    var imageObserver = new IntersectionObserver(function(entries, observer) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove('lazy');
+          imageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '200px'
+    });
+
+    lazyImages.forEach(function(img) {
+      imageObserver.observe(img);
+    });
+  } else {
+    // Fallback for older browsers
+    lazyImages.forEach(function(img) {
+      img.src = img.dataset.src;
+    });
+  }
+});
+</script>
+
 <br><br>
 {% endblock %}
