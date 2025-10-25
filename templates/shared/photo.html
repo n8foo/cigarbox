@@ -1,4 +1,18 @@
 {% extends "layout.html" %}
+
+{# Set Open Graph variables for social media preview #}
+{% set og_image = photo.uri %}
+{% set og_title = 'Shared Photo' %}
+{% set og_url = request.url %}
+{% set tag_list = tags | list %}
+{% if photo.datetaken %}
+{% set og_description = 'Photo taken on ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% set og_image_alt = 'Photo from ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% else %}
+{% set og_description = 'A shared photo from CigarBox' %}
+{% set og_image_alt = 'Shared photo' %}
+{% endif %}
+
 {% block body %}
 
 <div class="container">
@@ -23,10 +37,10 @@
 
     <div class="col-md-12" align="left">
       <br>
-      {% if tags.count() > 0 %}
+      {% if tag_list %}
       <p>
         <strong>Tags:</strong>
-        {% for tag in tags %}
+        {% for tag in tag_list %}
         {{ tag.name }}{% if not loop.last %}, {% endif %}
         {% endfor %}
       </p>

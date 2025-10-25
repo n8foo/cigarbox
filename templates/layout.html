@@ -4,9 +4,22 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% if twitter_card_image is defined %}
-    <meta name="twitter:card" content="photo"><meta name="twitter:image" content="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ twitter_card_image }}_b.jpg">
+
+    <!-- Open Graph meta tags for social media previews -->
+    {% if og_image is defined %}
+    <meta property="og:title" content="{{ og_title | default('Photo') }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ og_url | default(request.url) }}" />
+    <meta property="og:image" content="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ og_image }}_b.jpg" />
+    <meta property="og:site_name" content="CigarBox" />
+    {% if og_description is defined %}
+    <meta property="og:description" content="{{ og_description }}" />
     {% endif %}
+    {% if og_image_alt is defined %}
+    <meta property="og:image:alt" content="{{ og_image_alt }}" />
+    {% endif %}
+    {% endif %}
+
     <title>CigarBox</title>
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">

@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-25] Open Graph
+
+- Added Open Graph metadata to photos and share pages
+- Removed Twitter Cards references (RIP Twitter)
+- Validated with https://www.opengraph.xyz/
+
 
 ## [2025-10-24] - Bulk Editor, Admin UI & Photo Processing
 

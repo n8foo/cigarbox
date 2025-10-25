@@ -1,5 +1,17 @@
 {% extends "layout.html" %}
-{% set twitter_card_image = photo.uri %}
+
+{# Set Open Graph variables for social media preview #}
+{% set og_image = photo.uri %}
+{% set og_title = 'Photo #' + photo.id|string %}
+{% set og_url = request.url %}
+{% if photo.datetaken %}
+{% set og_description = 'Photo taken on ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% set og_image_alt = 'Photo from ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% else %}
+{% set og_description = 'A photo from CigarBox' %}
+{% set og_image_alt = 'Photo #' + photo.id|string %}
+{% endif %}
+
 {% block body %}
   <div class="container">
     <!-- Share Link Success Alert -->
