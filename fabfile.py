@@ -506,29 +506,81 @@ def restart(c, role='test', service=''):
 
 
 @task
-def logs(c, role='test', service='', tail=50):
-    """View Docker logs on remote server
+def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False):
+    """View Docker logs and optionally nginx logs on remote server
 
     Args:
         role: Target role (test, prod)
         service: Optional service name (web, api, nginx)
         tail: Number of lines to show (default 50)
+        show_nginx: Show host nginx logs (prod only)
+        show_all: Show both Docker and nginx logs
 
     Usage:
-        fab logs                              # Show all logs
-        fab logs --service=api                # Show API logs
-        fab logs --service=web --tail=100     # Show 100 lines
+        fab logs --role=prod                      # Show all Docker logs
+        fab logs --role=prod --service=web        # Show web container logs
+        fab logs --role=prod --show-nginx         # Show host nginx logs only
+        fab logs --role=prod --show-all           # Show Docker + nginx logs
+        fab logs --role=prod --tail=200           # Show 200 lines
     """
     host = get_host_from_role(role)
     compose_file = get_compose_file(role)
+
     with Connection(host) as conn:
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
-        with conn.cd(deploy_dir):
-            if service:
-                conn.run(f'docker-compose -f {compose_file} logs --tail={tail} {service}')
-            else:
-                conn.run(f'docker-compose -f {compose_file} logs --tail={tail}')
+
+        # Show Docker logs unless only nginx was requested
+        if not show_nginx or show_all:
+            print("\n" + "="*60)
+            print("DOCKER CONTAINER LOGS")
+            print("="*60 + "\n")
+            with conn.cd(deploy_dir):
+                if service:
+                    conn.run(f'docker-compose -f {compose_file} logs --tail={tail} {service}')
+                else:
+                    conn.run(f'docker-compose -f {compose_file} logs --tail={tail}')
+
+        # Show nginx logs if requested (prod only, since test has nginx in Docker)
+        if (show_nginx or show_all) and role == 'prod':
+            # Try domain-specific logs first, fall back to default
+            domain_logs = [
+                '/var/log/nginx/mybrainhurts.com-access.log',
+                '/var/log/nginx/access.log'
+            ]
+
+            print("\n" + "="*60)
+            print("NGINX ACCESS LOG")
+            print("="*60 + "\n")
+            access_shown = False
+            for log_path in domain_logs:
+                result = conn.run(f'test -f {log_path} && sudo tail -n {tail} {log_path}', warn=True, hide=True)
+                if result.ok:
+                    print(result.stdout)
+                    access_shown = True
+                    break
+            if not access_shown:
+                print("⚠️  Could not find nginx access log")
+
+            print("\n" + "="*60)
+            print("NGINX ERROR LOG")
+            print("="*60 + "\n")
+            error_logs = [
+                '/var/log/nginx/mybrainhurts.com-error.log',
+                '/var/log/nginx/error.log'
+            ]
+            error_shown = False
+            for log_path in error_logs:
+                result = conn.run(f'test -f {log_path} && sudo tail -n {tail} {log_path}', warn=True, hide=True)
+                if result.ok:
+                    print(result.stdout)
+                    error_shown = True
+                    break
+            if not error_shown:
+                print("⚠️  Could not find nginx error log")
+        elif show_nginx and role == 'test':
+            print("\n⚠️  Nginx logs not available for test environment (nginx runs in Docker)")
+            print("    Use: fab logs --role=test --service=nginx")
 
 
 @task

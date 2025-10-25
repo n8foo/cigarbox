@@ -38,10 +38,17 @@ DATABASE={'name'  :'photos.db',
 # Generate with: python -c 'import secrets; print(secrets.token_hex(32))'
 SECRET_KEY='change-this-to-a-random-secret-key'
 
+# API Configuration
 # API Key for authentication
 # IMPORTANT: Change this to a secure random key!
 # Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'
 API_KEY='your-api-key-here'
+
+# API URL for cli/upload.py script (optional, defaults to localhost)
+# For production with subpath: 'https://yourdomain.com/pictures/api'
+# For local Docker testing: 'http://localhost:8088/api'
+# Can also be set via CIGARBOX_API_URL environment variable
+# API_URL='http://localhost:9601/api'
 
 # Flask-Security-Too Configuration
 # IMPORTANT: Change SECURITY_PASSWORD_SALT to a random string in production!

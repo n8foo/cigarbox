@@ -24,7 +24,7 @@ def setup_custom_logger(name):
     return logger
 
 def genThumbnail(filename,thumbnailType,config,regen=False):
-  """generate a single thumbnail from a filename"""
+  """generate a single thumbnail from a filename - always outputs JPG regardless of source format"""
   # define the sizes of the various thumbnails
   thumbnailTypeDefinitions={
     's': (75,75), #should be square eventually
@@ -36,18 +36,59 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
     'c': (800,800),
     'b': (1024,1024)}
   size = thumbnailTypeDefinitions[thumbnailType]
-  thumbFilename = filename.split('.')[0] + '_' + thumbnailType + '.' + filename.split('.')[1]
-  if os.path.isfile(config['LOCALARCHIVEPATH']+'/'+thumbFilename) and regen == False:
+  # Always output thumbnails as .jpg regardless of input format
+  thumbFilename = filename.split('.')[0] + '_' + thumbnailType + '.jpg'
+  thumbFullPath = config['LOCALARCHIVEPATH']+'/'+thumbFilename
+  sourceFullPath = config['LOCALARCHIVEPATH']+'/'+filename
+
+  if os.path.isfile(thumbFullPath) and regen == False:
+    logger.info('Thumbnail EXISTS (skipping): %s', thumbFilename)
     return(thumbFilename)
   else:
     try:
-      logger.info('Generating thumbnail: %s' %(config['LOCALARCHIVEPATH']+'/'+thumbFilename))
-      img = Image.open(config['LOCALARCHIVEPATH']+'/'+filename)
+      logger.info('Thumbnail Generation START: type=%s size=%s source=%s target=%s',
+                  thumbnailType, size, filename, thumbFilename)
+
+      # Check if source exists
+      if not os.path.exists(sourceFullPath):
+        logger.error('Thumbnail Generation FAILED: Source file does not exist: %s', sourceFullPath)
+        raise IOError('Source file does not exist: %s' % sourceFullPath)
+
+      img = Image.open(sourceFullPath)
+      original_size = img.size
+      original_mode = img.mode
+      logger.info('Thumbnail Generation: Opened source image size=%s mode=%s', original_size, original_mode)
+
+      # Convert to RGB if necessary (PNG with transparency, palette mode, etc.)
+      if img.mode in ('RGBA', 'LA', 'P'):
+        logger.info('Thumbnail Generation: Converting from %s to RGB for JPEG output', img.mode)
+        # Create white background for images with transparency
+        if img.mode == 'P':
+          img = img.convert('RGBA')
+        if img.mode in ('RGBA', 'LA'):
+          background = Image.new('RGB', img.size, (255, 255, 255))
+          background.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
+          img = background
+        else:
+          img = img.convert('RGB')
+      elif img.mode != 'RGB':
+        logger.info('Thumbnail Generation: Converting from %s to RGB for JPEG output', img.mode)
+        img = img.convert('RGB')
+
       icc_profile = img.info.get('icc_profile')
       img.thumbnail(size,Image.Resampling.LANCZOS)
-      img.save(config['LOCALARCHIVEPATH']+'/'+thumbFilename, 'JPEG', icc_profile=icc_profile, quality=95)
+      final_size = img.size
+      logger.info('Thumbnail Generation: Resized to %s', final_size)
+
+      img.save(thumbFullPath, 'JPEG', icc_profile=icc_profile, quality=95)
+      thumb_file_size = os.path.getsize(thumbFullPath)
+      logger.info('Thumbnail Generation SUCCESS: %s created (%d bytes)', thumbFilename, thumb_file_size)
       return(thumbFilename)
     except IOError as e:
+      logger.error('Thumbnail Generation FAILED: IOError for %s: %s', thumbFilename, str(e))
+      raise e
+    except Exception as e:
+      logger.error('Thumbnail Generation FAILED: Unexpected error for %s: %s', thumbFilename, str(e))
       raise e
 
 def genThumbnails(sha1,fileType,config,regen=False):
@@ -55,11 +96,25 @@ def genThumbnails(sha1,fileType,config,regen=False):
   (sha1Path,filename) = getSha1Path(sha1)
   relativeFilename = '%s/%s.%s' % (sha1Path,filename,fileType)
 
+  logger.info('Thumbnail Batch START: sha1=%s filetype=%s source=%s', sha1, fileType, relativeFilename)
+
   thumbnailTypes = ['t','m','n','c','b']
   thumbnailFilenames = []
+  success_count = 0
+  fail_count = 0
+
   for thumbnailType in thumbnailTypes:
-    thumbFilename = genThumbnail(relativeFilename,thumbnailType,config,regen=regen)
-    thumbnailFilenames.append(thumbFilename)
+    try:
+      thumbFilename = genThumbnail(relativeFilename,thumbnailType,config,regen=regen)
+      thumbnailFilenames.append(thumbFilename)
+      success_count += 1
+    except Exception as e:
+      logger.error('Thumbnail Batch: Failed to generate type %s: %s', thumbnailType, str(e))
+      fail_count += 1
+
+  logger.info('Thumbnail Batch COMPLETE: sha1=%s success=%d failed=%d total=%d',
+              sha1, success_count, fail_count, len(thumbnailTypes))
+
   return thumbnailFilenames
 
 

@@ -1,12 +1,37 @@
 {% extends "layout.html" %}
 {% from "_pagination.html" import render_pagination %}
 {% block body %}
+
+{% if page_title %}
+<div class="row">
+  <div class="col-md-8">
+    <h1>{{ page_title }}</h1>
+    {% if photo_count %}
+    <p class="lead">{{ photo_count }} photo(s)</p>
+    {% endif %}
+  </div>
+  <div class="col-md-4 text-right">
+    {% if photo_ids and current_user.is_authenticated %}
+    <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
+      <span class="glyphicon glyphicon-th"></span> bulk edit
+    </a>
+    {% endif %}
+  </div>
+</div>
+<hr>
+{% endif %}
+
 <div>
   {% for row in photos|batch(4) %}
   <div class="row">
     {%- for photo in row %}
     <div class="col-xs-6 col-md-3">
-      <a href="{{SITEURL}}/photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
+      <a href="{{SITEURL}}/photos/{{ photo.id }}" class='thumbnail'>
+        <img class="lazy"
+             data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
+             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+             alt="Photo {{ photo.id }}">
+      </a>
     </div>
     {% endfor %}
   </div>
@@ -17,5 +42,37 @@
   <!-- Pagination -->
   {{ render_pagination(pagination, baseurl) }}
 </div>
+
+<script>
+// Lazy load images
+document.addEventListener('DOMContentLoaded', function() {
+  var lazyImages = document.querySelectorAll('img.lazy');
+
+  if ('IntersectionObserver' in window) {
+    var imageObserver = new IntersectionObserver(function(entries, observer) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove('lazy');
+          imageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '200px'
+    });
+
+    lazyImages.forEach(function(img) {
+      imageObserver.observe(img);
+    });
+  } else {
+    // Fallback for older browsers
+    lazyImages.forEach(function(img) {
+      img.src = img.dataset.src;
+    });
+  }
+});
+</script>
+
 <br><br>
 {% endblock %}

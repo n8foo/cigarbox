@@ -11,8 +11,8 @@ from app import app
 class UnknownField(object):
   pass
 
-# Create database instance
-db = SqliteDatabase(app.config['DATABASE']['name'])
+# Create database instance with foreign key constraints enabled
+db = SqliteDatabase(app.config['DATABASE']['name'], pragmas={'foreign_keys': 1})
 
 class BaseModel(Model):
   class Meta:
@@ -62,7 +62,7 @@ class PhotoTag(BaseModel):
 
 class ImportMeta(BaseModel):
   sha1         = TextField(null=False,unique=True)
-  photo        = IntegerField(null=False)
+  photo        = ForeignKeyField(Photo, backref='import_meta', on_delete='CASCADE')
   importpath   = TextField(null=True)
   importsource = TextField(null=True)
   filedate     = DateTimeField(null=True)
@@ -81,6 +81,10 @@ class Role(BaseModel, RoleMixin):
   name         = CharField(unique=True)
   description  = TextField(null=True)
 
+  def get_permissions(self):
+    """Stub for Flask-Principal compatibility (we don't use permissions)"""
+    return []
+
 
 class User(BaseModel, UserMixin):
   email        = TextField(unique=True)
@@ -91,17 +95,22 @@ class User(BaseModel, UserMixin):
   permission_level = CharField(null=True)  # 'private', 'family', 'friends', 'public'
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
+  @property
+  def roles(self):
+    """Return actual Role objects (Flask-Security compatibility)
+    Override the Peewee backref to return Role objects instead of UserRoles objects"""
+    return [ur.role for ur in UserRoles.select().where(UserRoles.user == self)]
+
   def has_role(self, role_name):
     """Override to check role by name (Flask-Security compatibility)"""
-    user_roles = UserRoles.select().where(UserRoles.user == self)
-    for ur in user_roles:
-      if ur.role.name == role_name:
+    for role in self.roles:
+      if role.name == role_name:
         return True
     return False
 
 class UserRoles(BaseModel):
-  user         = ForeignKeyField(User, related_name='user_roles')
-  role         = ForeignKeyField(Role, related_name='role_users')
+  user         = ForeignKeyField(User, related_name='user_roles_set')
+  role         = ForeignKeyField(Role, related_name='role_users_set')
   name         = property(lambda self: self.role.name)
   description  = property(lambda self: self.role.description)
 

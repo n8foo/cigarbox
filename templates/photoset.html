@@ -2,21 +2,56 @@
 {% from "_pagination.html" import render_pagination %}
 {% block body %}
 <div class="row">
-  <div class="col-md-10">
-    <h1><a href="{{SITEURL}}/photosets/{{ photoset.id }}">{{ photoset.title }}</a> </h1>
+  <div class="col-md-8">
+    <h1>{{ photoset.title }}</h1>
     {% if photoset.description %}
-    <h1><small> {{photoset.description}}</small></h1>{% endif %}
+    <p class="lead">{{photoset.description}}</p>
+    {% endif %}
   </div>
-  <div class="col-md-2" align="right">
-    <h2><small>{{ photoset.ts.strftime('%Y-%m-%d') }}</small></h2>
+  <div class="col-md-4 text-right">
+    <p class="text-muted">{{ photoset.ts.strftime('%Y-%m-%d') }}</p>
+    {% if can_manage %}
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#editPhotosetModal">
+        <span class="glyphicon glyphicon-pencil"></span> edit
+      </button>
+      <button type="button" class="btn btn-link" onclick="toggleSelectMode()">
+        <span class="glyphicon glyphicon-check"></span> select
+      </button>
+      <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
+        <span class="glyphicon glyphicon-th"></span> bulk edit
+      </a>
+    </div>
+    <div id="selectionControls" style="display: none;">
+      <button type="button" class="btn btn-sm btn-danger" onclick="removeSelected()">
+        <span class="glyphicon glyphicon-remove"></span> Remove Selected
+      </button>
+      <button type="button" class="btn btn-sm btn-default" onclick="toggleSelectMode()">
+        Cancel
+      </button>
+    </div>
+    {% endif %}
   </div>
 </div>
+<hr>
 <div>
   {% for row in photos|batch(4) %}
   <div class="row">
     {%- for photo in row %}
     <div class="col-xs-6 col-md-3">
-      <a href="{{SITEURL}}/photos/{{ photo.id }}" class='thumbnail'><img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"></a>
+      <div class="thumbnail">
+        {% if can_manage %}
+        <div class="photo-checkbox" style="display: none; position: absolute; top: 10px; left: 10px; z-index: 10;">
+          <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
+        </div>
+        {% endif %}
+        <a href="{{SITEURL}}/photos/{{ photo.id }}">
+          <img class="lazy"
+               data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
+               src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+               alt="Photo {{ photo.id }}">
+        </a>
+      </div>
     </div>
     {% endfor %}
   </div>
@@ -27,5 +62,118 @@
   <!-- Pagination -->
   {{ render_pagination(pagination, baseurl) }}
 </div>
+
+{% if can_manage %}
+<!-- Edit Photoset Modal -->
+<div class="modal fade" id="editPhotosetModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form method="POST" action="{{SITEURL}}/photosets/{{ photoset.id }}/update">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Edit Photoset</h4>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" name="title" id="title" class="form-control" value="{{ photoset.title }}" required>
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea name="description" id="description" class="form-control" rows="3">{{ photoset.description if photoset.description else '' }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+var selectMode = false;
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  var checkboxes = document.querySelectorAll('.photo-checkbox');
+  var controls = document.getElementById('selectionControls');
+
+  checkboxes.forEach(function(cb) {
+    cb.style.display = selectMode ? 'block' : 'none';
+  });
+
+  controls.style.display = selectMode ? 'inline' : 'none';
+
+  // Uncheck all when exiting select mode
+  if (!selectMode) {
+    document.querySelectorAll('input[name="photo_ids"]').forEach(function(cb) {
+      cb.checked = false;
+    });
+  }
+}
+
+function removeSelected() {
+  var checkboxes = document.querySelectorAll('input[name="photo_ids"]:checked');
+  if (checkboxes.length === 0) {
+    alert('Please select at least one photo to remove');
+    return;
+  }
+
+  if (!confirm('Remove ' + checkboxes.length + ' photo(s) from this photoset?')) {
+    return;
+  }
+
+  var photoIds = Array.from(checkboxes).map(function(cb) { return cb.value; });
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '{{SITEURL}}/photosets/{{ photoset.id }}/remove-photos';
+
+  photoIds.forEach(function(id) {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'photo_ids';
+    input.value = id;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+{% endif %}
+
+<script>
+// Lazy load images
+document.addEventListener('DOMContentLoaded', function() {
+  var lazyImages = document.querySelectorAll('img.lazy');
+
+  if ('IntersectionObserver' in window) {
+    var imageObserver = new IntersectionObserver(function(entries, observer) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove('lazy');
+          imageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '200px'
+    });
+
+    lazyImages.forEach(function(img) {
+      imageObserver.observe(img);
+    });
+  } else {
+    // Fallback for older browsers
+    lazyImages.forEach(function(img) {
+      img.src = img.dataset.src;
+    });
+  }
+});
+</script>
+
 <br><br>
 {% endblock %}

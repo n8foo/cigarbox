@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Admin Dashboard</h1>
+    <hr>
+  </div>
+</div>
+
+<!-- Admin Navigation -->
+<div class="row">
+  <div class="col-md-12">
+    <ul class="nav nav-pills">
+      <li class="active"><a href="{{SITEURL}}/admin">Dashboard</a></li>
+      <li><a href="{{SITEURL}}/admin/photos">Photos</a></li>
+      <li><a href="{{SITEURL}}/admin/tags">Tags</a></li>
+      <li><a href="{{SITEURL}}/admin/photosets">Photosets</a></li>
+      <li><a href="{{SITEURL}}/admin/users">Users</a></li>
+      <li><a href="{{SITEURL}}/admin/shares">Shares</a></li>
+    </ul>
+    <br>
+  </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row">
+  <div class="col-md-3">
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+        <h3 class="panel-title">Total Photos</h3>
+      </div>
+      <div class="panel-body">
+        <h2>{{ stats.total_photos }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="panel panel-info">
+      <div class="panel-heading">
+        <h3 class="panel-title">Total Tags</h3>
+      </div>
+      <div class="panel-body">
+        <h2>{{ stats.total_tags }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="panel panel-success">
+      <div class="panel-heading">
+        <h3 class="panel-title">Total Photosets</h3>
+      </div>
+      <div class="panel-body">
+        <h2>{{ stats.total_photosets }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="panel panel-warning">
+      <div class="panel-heading">
+        <h3 class="panel-title">Total Users</h3>
+      </div>
+      <div class="panel-body">
+        <h2>{{ stats.total_users }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Privacy Breakdown -->
+<div class="row">
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Privacy Breakdown</h3>
+      </div>
+      <div class="panel-body">
+        <table class="table">
+          <tr>
+            <td><strong>Public</strong></td>
+            <td>{{ stats.privacy_breakdown.public }}</td>
+          </tr>
+          <tr>
+            <td><strong>Friends</strong></td>
+            <td>{{ stats.privacy_breakdown.friends }}</td>
+          </tr>
+          <tr>
+            <td><strong>Family</strong></td>
+            <td>{{ stats.privacy_breakdown.family }}</td>
+          </tr>
+          <tr>
+            <td><strong>Private</strong></td>
+            <td>{{ stats.privacy_breakdown.private }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Photos -->
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Recent Photos</h3>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          {% for photo in stats.recent_photos %}
+          <div class="col-xs-6 col-md-4">
+            <a href="{{SITEURL}}/photos/{{ photo.id }}" class="thumbnail">
+              <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_t.jpg" alt="Photo {{ photo.id }}">
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Quick Actions</h3>
+      </div>
+      <div class="panel-body">
+        <a href="{{SITEURL}}/admin/photosets/create" class="btn btn-primary">Create Photoset</a>
+        <a href="{{SITEURL}}/admin/photos" class="btn btn-info">Manage Photos</a>
+        <a href="{{SITEURL}}/admin/tags" class="btn btn-success">Manage Tags</a>
+        <a href="{{SITEURL}}/admin/users" class="btn btn-warning">Manage Users</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
