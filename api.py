@@ -37,7 +37,7 @@ app.config.from_object('config')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 localArchivePath=app.config['LOCALARCHIVEPATH']
 
-logger = util.setup_custom_logger('cigarbox')
+logger = util.setup_custom_logger('cigarbox', service_name='api')
 
 # define a few variables for the API
 uploadToS3=True

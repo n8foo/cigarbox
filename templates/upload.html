@@ -1,19 +1,287 @@
 {% extends "layout.html" %}
 {% block body %}
 <div class="container">
-      
-<form action="http://127.0.0.1:9601/api/upload" method="post" enctype="multipart/form-data">
-  <div class="form-group">
-    <label for="InputFile">Upload Images</label>
-    <input type="file" multiple="" name="files" id="InputFile">
-    <p class="help-block">Select multiple files to upload.</p>
+  <div class="row">
+    <div class="col-md-12">
+      <h1>Upload Photos</h1>
+      <p class="text-muted">Select multiple photos to upload. You'll be able to add tags and settings after upload.</p>
+      <hr>
+    </div>
   </div>
-  <div class="form-group">
-    <label for="InputTags">Image Tags</label>
-    <input type="text" class="form-control" name='tags' id="InputTags" placeholder="tag1,tag2,etc">
-    <p class="help-block">comma separated list of tags to apply to all images</p>
+
+  <div class="row">
+    <div class="col-md-12">
+      <!-- Upload Zone -->
+      <div id="uploadZone" class="well text-center" style="padding: 40px; border: 2px dashed #ccc; background: #f9f9f9; cursor: pointer;">
+        <span class="glyphicon glyphicon-cloud-upload" style="font-size: 48px; color: #999;"></span>
+        <h3>Drop photos here or click to browse</h3>
+        <p class="text-muted">Supports: JPG, PNG, GIF, MOV, MP4, M4V (max 16MB each)</p>
+        <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
+      </div>
+
+      <!-- Upload Progress -->
+      <div id="uploadProgress" style="display: none; margin-top: 20px;">
+        <h4>Uploading...</h4>
+        <div id="fileList"></div>
+        <div class="progress" style="margin-top: 10px;">
+          <div id="overallProgress" class="progress-bar progress-bar-striped active" role="progressbar" style="width: 0%">
+            <span id="progressText">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Grid -->
+      <div id="previewGrid" class="row" style="margin-top: 20px;"></div>
+
+      <!-- Upload Button -->
+      <div id="uploadActions" style="display: none; margin-top: 20px;">
+        <button id="uploadBtn" class="btn btn-primary btn-lg">
+          <span class="glyphicon glyphicon-upload"></span> Upload <span id="fileCount">0</span> Photos
+        </button>
+        <button id="clearBtn" class="btn btn-default">
+          <span class="glyphicon glyphicon-remove"></span> Clear
+        </button>
+      </div>
+    </div>
   </div>
-  <button type="submit" class="btn btn-default">Upload</button>
-</form>
+</div>
+
+<style>
+  #uploadZone.dragover {
+    border-color: #337ab7;
+    background: #e7f3ff;
+  }
+  .preview-item {
+    position: relative;
+    margin-bottom: 15px;
+  }
+  .preview-item img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  .preview-item .remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255,255,255,0.9);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+  }
+  .file-item {
+    padding: 8px;
+    margin-bottom: 5px;
+    background: #f5f5f5;
+    border-radius: 4px;
+  }
+  .file-item.success { background: #dff0d8; }
+  .file-item.error { background: #f2dede; }
+</style>
+
+<script>
+(function() {
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const previewGrid = document.getElementById('previewGrid');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const uploadActions = document.getElementById('uploadActions');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const fileList = document.getElementById('fileList');
+  const overallProgress = document.getElementById('overallProgress');
+  const progressText = document.getElementById('progressText');
+  const fileCount = document.getElementById('fileCount');
+
+  let selectedFiles = [];
+
+  // Click to browse
+  uploadZone.addEventListener('click', () => fileInput.click());
+
+  // Drag and drop handlers
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+  });
+
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+  });
+
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // File input change
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+  });
+
+  // Handle selected files
+  function handleFiles(files) {
+    selectedFiles = Array.from(files);
+    if (selectedFiles.length === 0) return;
+
+    // Show previews
+    previewGrid.innerHTML = '';
+    selectedFiles.forEach((file, index) => {
+      const col = document.createElement('div');
+      col.className = 'col-xs-6 col-sm-4 col-md-3';
+
+      const previewItem = document.createElement('div');
+      previewItem.className = 'preview-item';
+
+      // Create preview
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src);
+        previewItem.appendChild(img);
+      } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(file);
+        video.style.width = '100%';
+        video.style.height = '150px';
+        video.style.objectFit = 'cover';
+        video.style.borderRadius = '4px';
+        previewItem.appendChild(video);
+      }
+
+      // Remove button
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        selectedFiles.splice(index, 1);
+        handleFiles(selectedFiles);
+      };
+      previewItem.appendChild(removeBtn);
+
+      // Filename
+      const filename = document.createElement('p');
+      filename.className = 'text-center';
+      filename.style.fontSize = '12px';
+      filename.style.marginTop = '5px';
+      filename.textContent = file.name;
+      previewItem.appendChild(filename);
+
+      col.appendChild(previewItem);
+      previewGrid.appendChild(col);
+    });
+
+    // Update count and show upload button
+    fileCount.textContent = selectedFiles.length;
+    uploadActions.style.display = 'block';
+    uploadZone.style.display = 'none';
+  }
+
+  // Clear selection
+  clearBtn.addEventListener('click', () => {
+    selectedFiles = [];
+    previewGrid.innerHTML = '';
+    uploadActions.style.display = 'none';
+    uploadZone.style.display = 'block';
+    fileInput.value = '';
+  });
+
+  // Upload files
+  uploadBtn.addEventListener('click', async () => {
+    if (selectedFiles.length === 0) return;
+
+    // Hide actions, show progress
+    uploadActions.style.display = 'none';
+    uploadProgress.style.display = 'block';
+    previewGrid.style.display = 'none';
+
+    // Create form data
+    const formData = new FormData();
+    selectedFiles.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // Track progress per file
+    fileList.innerHTML = '';
+    selectedFiles.forEach(file => {
+      const fileItem = document.createElement('div');
+      fileItem.className = 'file-item';
+      fileItem.textContent = file.name + ' - uploading...';
+      fileList.appendChild(fileItem);
+    });
+
+    try {
+      // Upload to web endpoint (same origin, uses session auth)
+      const response = await fetch('{{SITEURL}}/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      // Update progress to 100%
+      overallProgress.style.width = '100%';
+      progressText.textContent = '100%';
+      overallProgress.classList.remove('active');
+      overallProgress.classList.add('progress-bar-success');
+
+      // Mark all files as success
+      document.querySelectorAll('.file-item').forEach(item => {
+        item.className = 'file-item success';
+        item.textContent = item.textContent.replace('uploading...', '✓ uploaded');
+      });
+
+      // Redirect to bulk edit after a brief delay
+      setTimeout(() => {
+        const photoIds = data.photo_ids.join(',');
+        window.location.href = '{{SITEURL}}/photos/bulk-edit?ids=' + photoIds;
+      }, 1000);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      console.error('Error data:', data);  // Log the full error response
+
+      overallProgress.classList.add('progress-bar-danger');
+      overallProgress.classList.remove('active');
+
+      // Show detailed error message
+      let errorMsg = error.message;
+      if (data && data.body) {
+        errorMsg += '\n\nAPI Response:\n' + data.body;
+      }
+
+      document.querySelectorAll('.file-item').forEach(item => {
+        item.className = 'file-item error';
+        item.textContent = item.textContent.replace('uploading...', '✗ failed: ' + error.message);
+      });
+
+      // Show alert with full error details
+      alert('Upload failed:\n\n' + errorMsg);
+    }
+  });
+
+  // Simulate progress during upload (rough estimate)
+  uploadBtn.addEventListener('click', () => {
+    let progress = 0;
+    const interval = setInterval(() => {
+      if (progress < 90) {
+        progress += 10;
+        overallProgress.style.width = progress + '%';
+        progressText.textContent = progress + '%';
+      } else {
+        clearInterval(interval);
+      }
+    }, 500);
+  });
+})();
+</script>
 
 {% endblock %}

@@ -3,6 +3,35 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-25] - Web Upload Interface & Unified Logging
+
+### Added
+- **Web Upload Interface** - Modern drag-and-drop upload form at `/upload`
+- Multiple file selection (desktop: drag-drop, mobile: camera/gallery)
+- Image/video previews with thumbnails
+- Real-time upload progress tracking
+- Auto-redirect to bulk edit after upload
+- Responsive design for mobile and desktop
+- **Unified Logging System** - Single log file for all services
+- Both web and API containers log to `/app/logs/cigarbox.log`
+- Container identification: `[WEB]` and `[API]` prefixes
+- Action-based keywords: `UPLOAD_START`, `PHOTO_DB_INSERT`, `S3_UPLOAD`
+- One command to monitor everything: `tail -f logs/cigarbox.log`
+- Upload link in navigation menu (visible to logged-in users only)
+
+### Changed
+- Web uploads now process directly in web.py (no API proxy, no CORS complexity)
+- Logger configuration accepts `service_name` parameter for container identification
+- Nginx configuration: increased `client_max_body_size` to 16M for web uploads
+
+### Architecture
+- Clean separation: web.py = humans with browsers, api.py = CLI tools
+- Both use same underlying processing functions (process.py, util.py, aws.py)
+- No exposed API keys in browser, no cross-origin calls, session-based auth
+
+### Deployment
+Code-only update. Deploy with `fab deploy`.
+
 ## [2025-10-25] Open Graph
 
 - Added Open Graph metadata to photos and share pages

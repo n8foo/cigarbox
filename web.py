@@ -35,9 +35,15 @@ from db import *
 from security import get_visible_privacy_levels, can_view_photo, can_edit_photo, \
   can_manage_tags, can_manage_photosets
 from peewee import IntegrityError
+import process
+import aws
+import os
 
 # Configure Flask to work behind nginx proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+# Setup logging (shared file with API)
+logger = setup_custom_logger('cigarbox', service_name='web')
 
 # Setup Flask-Security-Too
 user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
@@ -905,26 +911,84 @@ def allowed_file(filename):
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload():
-  # Get the name of the uploaded files
-  uploaded_files = request.files.getlist("file[]")
-  filenames = []
-  for file in uploaded_files:
-    # Check if the file is one of the allowed types/extensions
-    if file and allowed_file(file.filename):
-      # Make the filename safe, remove unsupported chars
-      filename = secure_filename(file.filename)
-      # Move the file form the temporal folder to the upload
-      # folder we setup
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-      # Save the filename into a list, we'll use it later
-      filenames.append(filename)
-      # Redirect the user to the uploaded_file route, which
-      # will basicaly show on the browser the uploaded file
-  # Load an html page with a link to each uploaded file
-  return render_template('uploaded.html', filenames=filenames)
+  """Handle file uploads from web interface"""
+  uploaded_files = request.files.getlist('files')
 
-@app.route('/upload',methods=['GET'])
+  if not uploaded_files:
+    return jsonify({'error': 'No files uploaded'}), 400
+
+  response = dict()
+  photo_ids = set()
+  localArchivePath = app.config['LOCALARCHIVEPATH']
+
+  logger.info('UPLOAD_START user=%s files=%d', current_user.email, len(uploaded_files))
+
+  # Process each file
+  for file in uploaded_files:
+    if not file or not allowed_file(file.filename):
+      logger.warning('UPLOAD_SKIP invalid file: %s', file.filename if file else 'None')
+      continue
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    try:
+      # Save file to temp location
+      file.save(filepath)
+      logger.info('FILE_SAVED path=%s size=%d', filepath, os.path.getsize(filepath))
+
+      # Extract metadata
+      dateTaken = process.getDateTaken(filepath)
+      fileType = process.getfileType(os.path.basename(filepath))
+      sha1 = hashfile(filepath)
+
+      # Insert into database
+      photo_id = process.addPhotoToDB(sha1=sha1, fileType=fileType, dateTaken=dateTaken)
+      logger.info('PHOTO_DB_INSERT photo_id=%d sha1=%s', photo_id, sha1[:12])
+
+      # Archive the photo locally and to S3
+      process.archivePhoto(filepath, sha1, fileType, localArchivePath, True, photo_id)
+
+      # Generate thumbnails
+      thumbFilenames = genThumbnails(sha1, fileType, app.config)
+      logger.info('THUMBNAILS_GENERATED photo_id=%d count=%d', photo_id, len(thumbFilenames))
+
+      # Upload thumbnails to S3
+      S3success = False
+      if not process.checkImportStatusS3(photo_id):
+        upload_success = 0
+        for thumbFilename in thumbFilenames:
+          if aws.uploadToS3(localArchivePath + '/' + thumbFilename, thumbFilename,
+                           app.config, regen=True, policy='public-read'):
+            upload_success += 1
+        S3success = (upload_success == len(thumbFilenames))
+        logger.info('S3_THUMBNAILS_UPLOAD photo_id=%d success=%d/%d',
+                   photo_id, upload_success, len(thumbFilenames))
+
+      # Save import metadata
+      process.saveImportMeta(photo_id, filepath, importSource='web',
+                            S3=S3success, sha1=sha1)
+
+      photo_ids.add(photo_id)
+
+    except Exception as e:
+      logger.error('UPLOAD_ERROR file=%s error=%s', filename, str(e), exc_info=True)
+      continue
+
+  if not photo_ids:
+    logger.error('UPLOAD_FAILED no photos processed')
+    return jsonify({'error': 'No photos processed successfully'}), 500
+
+  photo_ids = list(photo_ids)
+  response['photo_ids'] = photo_ids
+  logger.info('UPLOAD_COMPLETE user=%s photo_ids=%s', current_user.email, photo_ids)
+
+  return jsonify(response)
+
+@app.route('/upload', methods=['GET'])
+@login_required
 def upload_form():
+  """Show the upload form"""
   return render_template('upload.html')
 
 # This route is expecting a parameter containing the name

@@ -12,15 +12,40 @@ import aws
 logger = logging.getLogger('cigarbox')
 
 
-def setup_custom_logger(name):
-    formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+def setup_custom_logger(name, service_name='app'):
+    """Setup logger that writes to both console and shared file
 
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
+    Args:
+        name: Logger name (usually 'cigarbox')
+        service_name: Service identifier ('web' or 'api') to distinguish containers
+    """
+    # Format: timestamp [SERVICE] LEVEL - module - message
+    formatter = logging.Formatter(
+        fmt=f'%(asctime)s [{service_name.upper()}] %(levelname)s - %(module)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
+
+    # Avoid duplicate handlers if called multiple times
+    if logger.handlers:
+        return logger
+
+    # Console handler (for docker logs command)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # File handler (shared log file - volume mounted)
+    try:
+        os.makedirs('/app/logs', exist_ok=True)
+        file_handler = logging.FileHandler('/app/logs/cigarbox.log')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        logger.warning(f'Could not setup file logging: {e}')
+
     return logger
 
 def genThumbnail(filename,thumbnailType,config,regen=False):

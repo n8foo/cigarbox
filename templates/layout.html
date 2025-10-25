@@ -53,6 +53,9 @@
               <li><a href="{{SITEURL}}/tags">Tags</a></li>
               <li><a href="{{SITEURL}}/photosets">Photosets</a></li>
               <li><a href="{{SITEURL}}/photostream">Photostream</a></li>
+              {% if current_user.is_authenticated %}
+              <li><a href="{{SITEURL}}/upload"><span class="glyphicon glyphicon-upload"></span> Upload</a></li>
+              {% endif %}
             </ul>
 
             <ul class="nav navbar-nav navbar-right">
