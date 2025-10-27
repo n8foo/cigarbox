@@ -3,6 +3,45 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-25] - Admin Tools & Data Integrity
+
+### Added
+- **Admin Tools Dashboard** at `/admin/tools` with unified navigation
+- **Migration Runner** - Web UI to run database migrations from `scripts/` directory
+  - Shows migration history with success/failure status and timestamped logs in `logs/migrations/`
+  - Idempotent migrations safe to re-run multiple times
+- **Data Audit Tools** with pagination (100 items/page) and shift-click range selection
+  - Missing dates audit: Find and fix photos with NULL `datetaken`
+  - Orphaned ImportMeta audit: Find and delete orphaned metadata records
+  - Clickable file dates linking to date search pages
+- **Development workflow tools**
+  - `fab dev` - Single command runs both web and API with combined output
+  - `fab watch-logs` - Tail shared cigarbox.log locally
+  - `fab logs --app-log` - View application logs on remote server
+- **Unified admin navigation** template (`admin/admin_base.html`) with Tools tab
+- Migration script: `scripts/migrate_2025_10_25_cascade_deletes.py` (idempotent)
+
+### Changed
+- **CASCADE delete constraints** on Photo relationships (PhotoTag, PhotoPhotoset, ShareToken)
+  - Prevents orphaned relationship records when photos are deleted
+  - Prevents ID reuse issues where deleted photo IDs inherit old tags/photosets
+- **File date fallback** in `process.py` - Uses file modification time when EXIF is missing
+- All admin templates now extend `admin_base.html` for consistent navigation
+- Delete operations redirect to appropriate admin pages instead of homepage
+- Deployment creates `static/cigarbox` with proper permissions for uploads
+- Flask's built-in logger now uses custom logger configuration in both web and API
+
+### Fixed
+- Improved directory permissions handling during deployment with better error messages
+- Date formatting in photo listings and edit forms
+- Tests updated for ImportMeta ForeignKey changes and login requirements
+
+### Migration Required
+```bash
+# Run after deployment to add CASCADE deletes
+docker exec -it -u root cigarbox-web python scripts/migrate_2025_10_25_cascade_deletes.py
+```
+
 ## [2025-10-25] - Web Upload Interface & Unified Logging
 
 ### Added

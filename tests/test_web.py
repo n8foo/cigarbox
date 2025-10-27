@@ -113,9 +113,11 @@ class TestWebRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_upload_form(self):
-        """Test upload form page"""
+        """Test upload form page requires login"""
         response = self.client.get('/upload')
-        self.assertEqual(response.status_code, 200)
+        # Should redirect to login page since @login_required decorator is applied
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login', response.location)
 
 
 class TestPhotoOperations(unittest.TestCase):

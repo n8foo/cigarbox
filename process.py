@@ -184,10 +184,32 @@ def parentDirPhotoSet(photo_id,file):
   return True
 
 def getDateTaken(filename):
-  """get a date from exif or file date"""
+  """get a date from exif or file date
+
+  Tries to extract date from EXIF DateTimeOriginal field first.
+  If EXIF data is not available, falls back to file modification time.
+
+  Args:
+    filename: Path to the image file
+
+  Returns:
+    datetime object or None
+  """
+  # Try to get date from EXIF data first
   try:
     exifDateTaken = util.getExifTags(filename)['DateTimeOriginal']
-    dateTaken = datetime.datetime.strptime(exifDateTaken, "%Y:%m:%d %H:%M:%S" )
+    dateTaken = datetime.datetime.strptime(exifDateTaken, "%Y:%m:%d %H:%M:%S")
+    logger.info('Using EXIF date for %s: %s', os.path.basename(filename), dateTaken)
+    return dateTaken
   except Exception as e:
-    dateTaken = None
-  return(dateTaken)
+    logger.debug('No EXIF date for %s, trying file modification time', os.path.basename(filename))
+
+  # Fall back to file modification time
+  try:
+    file_mtime = os.path.getmtime(filename)
+    dateTaken = datetime.datetime.fromtimestamp(file_mtime)
+    logger.info('Using file modification time for %s: %s', os.path.basename(filename), dateTaken)
+    return dateTaken
+  except Exception as e:
+    logger.warning('Could not determine date for %s: %s', os.path.basename(filename), str(e))
+    return None

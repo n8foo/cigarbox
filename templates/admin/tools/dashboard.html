@@ -1,0 +1,79 @@
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'tools' %}
+
+{% block admin_content %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Admin Tools</h1>
+    <hr>
+    <p class="lead">Database audits, maintenance, and migrations</p>
+  </div>
+</div>
+
+<!-- Audits Section -->
+<div class="row">
+  <div class="col-md-12">
+    <h2>Data Audits</h2>
+    <p>Scan for data quality issues and fix them selectively</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="panel panel-info">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span class="glyphicon glyphicon-time"></span>
+          Missing Date Taken
+        </h3>
+      </div>
+      <div class="panel-body">
+        <p>Find photos with missing <code>datetaken</code> field and backfill from file modification dates stored in ImportMeta.</p>
+        <a href="{{SITEURL}}/admin/tools/audit/missing-dates" class="btn btn-info">Run Audit</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="panel panel-warning">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span class="glyphicon glyphicon-exclamation-sign"></span>
+          Orphaned ImportMeta
+        </h3>
+      </div>
+      <div class="panel-body">
+        <p>Find ImportMeta records that don't have a corresponding Photo and clean them up.</p>
+        <a href="{{SITEURL}}/admin/tools/audit/orphaned-meta" class="btn btn-warning">Run Audit</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Migrations Section -->
+<div class="row">
+  <div class="col-md-12">
+    <h2>Database Migrations</h2>
+    <p>Run database schema migrations and view execution history</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span class="glyphicon glyphicon-cog"></span>
+          Migration Runner
+        </h3>
+      </div>
+      <div class="panel-body">
+        <p>Execute migration scripts from the <code>scripts/</code> directory. All migrations are idempotent and safe to run multiple times.</p>
+        <a href="{{SITEURL}}/admin/tools/migrations" class="btn btn-primary">View Migrations</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock admin_content %}

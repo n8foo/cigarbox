@@ -12,9 +12,6 @@
 """
 
 import sys
-sys.stdout = sys.stderr  # Force stdout to stderr for immediate logging
-sys.stderr.flush()
-sys.stdout.flush()
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
   render_template, flash, send_from_directory, jsonify
@@ -31,6 +28,7 @@ import datetime
 
 from app import app
 from util import *
+import util
 from db import *
 from security import get_visible_privacy_levels, can_view_photo, can_edit_photo, \
   can_manage_tags, can_manage_photosets
@@ -44,6 +42,10 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_
 
 # Setup logging (shared file with API)
 logger = setup_custom_logger('cigarbox', service_name='web')
+
+# Configure Flask's built-in logger to use our custom logger
+app.logger.handlers = logger.handlers
+app.logger.setLevel(logger.level)
 
 # Setup Flask-Security-Too
 user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
@@ -82,6 +84,37 @@ def get_base_url():
 def inject_siteurl():
   """Inject SITEURL into all templates"""
   return dict(SITEURL=get_base_url())
+
+@app.template_filter('format_datetime')
+def format_datetime_filter(value, format='%Y-%m-%d %H:%M'):
+  """Format a datetime or string as a formatted date string
+
+  Handles both datetime objects and string representations of dates.
+  Returns 'N/A' if value is None or invalid.
+  """
+  if not value:
+    return 'N/A'
+
+  # If it's already a datetime object, format it
+  if isinstance(value, datetime.datetime):
+    return value.strftime(format)
+
+  # If it's a string, try to parse it first
+  if isinstance(value, str):
+    try:
+      # Try common datetime formats
+      for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d']:
+        try:
+          dt = datetime.datetime.strptime(value, fmt)
+          return dt.strftime(format)
+        except ValueError:
+          continue
+      # If none worked, return the string as-is
+      return value
+    except:
+      return 'N/A'
+
+  return 'N/A'
 
 def find(lst, key, value):
   for i, dic in enumerate(lst):
@@ -728,7 +761,15 @@ def delete_photo(photo_id):
   deletedPhoto = Photo.delete().where(Photo.id == photo_id)
   deletedPhoto.execute()
   flash('Photo deleted')
-  return redirect(url_for('photostream'))
+
+  # Return to admin page if coming from admin, otherwise photostream
+  referrer = request.referrer
+  if referrer and '/admin/photos' in referrer:
+    # Preserve page number from query string if present
+    page = request.args.get('page', 1, type=int)
+    return redirect(url_for('admin_photos', page=page))
+  else:
+    return redirect(url_for('photostream'))
 
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
@@ -880,6 +921,11 @@ def add_photo():
 @app.route('/about')
 def about():
   return render_template('about.html')
+
+@app.route('/health')
+def health():
+  """Health check endpoint for Docker healthchecks - no logging"""
+  return jsonify({'status': 'ok'}), 200
 
 @app.route('/debug/user')
 @login_required
@@ -1483,6 +1529,385 @@ def admin_revoke_share(share_id):
     flash('Share link not found')
 
   return redirect(url_for('admin_shares'))
+
+
+# Admin Tools routes
+@app.route('/admin/tools')
+@roles_required('admin')
+def admin_tools():
+  """Admin tools dashboard"""
+  return render_template('admin/tools/dashboard.html')
+
+
+@app.route('/admin/tools/migrations')
+@roles_required('admin')
+def admin_tools_migrations():
+  """Migration runner interface"""
+  import glob
+  import re
+  from datetime import datetime
+
+  migrations = []
+  scripts_dir = os.path.join(os.path.dirname(__file__), 'scripts')
+  logs_dir = os.path.join(os.path.dirname(__file__), 'logs', 'migrations')
+
+  # Ensure logs directory exists
+  os.makedirs(logs_dir, exist_ok=True)
+
+  # Find all migration scripts
+  pattern = os.path.join(scripts_dir, 'migrate_*.py')
+  for filepath in sorted(glob.glob(pattern)):
+    filename = os.path.basename(filepath)
+
+    # Extract description from docstring
+    description = None
+    try:
+      with open(filepath, 'r') as f:
+        content = f.read()
+        # Look for docstring after first triple quotes
+        match = re.search(r'"""(.*?)"""', content, re.DOTALL)
+        if match:
+          # Get first line as description
+          lines = match.group(1).strip().split('\n')
+          description = lines[0] if lines else None
+    except:
+      pass
+
+    # Find recent log files for this migration
+    log_pattern = filename.replace('.py', '_*.log')
+    log_files = sorted(glob.glob(os.path.join(logs_dir, log_pattern)), reverse=True)
+
+    recent_runs = []
+    for log_file in log_files[:5]:  # Show last 5 runs
+      log_basename = os.path.basename(log_file)
+      # Extract timestamp from filename: migrate_YYYY_MM_DD_name_TIMESTAMP.log
+      timestamp_match = re.search(r'_(\d{14})\.log$', log_basename)
+      if timestamp_match:
+        timestamp_str = timestamp_match.group(1)
+        try:
+          timestamp = datetime.strptime(timestamp_str, '%Y%m%d%H%M%S')
+          timestamp_display = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+          timestamp_display = timestamp_str
+
+        # Check if migration succeeded by checking exit code in log
+        success = False
+        try:
+          with open(log_file, 'r') as f:
+            content = f.read()
+            # Look for "Exit code: 0" line
+            if 'Exit code: 0' in content:
+              success = True
+        except:
+          pass
+
+        recent_runs.append({
+          'timestamp': timestamp_display,
+          'log_file': log_basename,
+          'success': success
+        })
+
+    migrations.append({
+      'filename': filename,
+      'description': description,
+      'recent_runs': recent_runs
+    })
+
+  return render_template('admin/tools/migrations.html', migrations=migrations)
+
+
+@app.route('/admin/tools/migrations/run', methods=['POST'])
+@roles_required('admin')
+def admin_tools_migrations_run():
+  """Execute a migration script"""
+  import subprocess
+  from datetime import datetime
+
+  migration = request.form.get('migration')
+  if not migration or not migration.startswith('migrate_'):
+    flash('Invalid migration name')
+    return redirect(url_for('admin_tools_migrations'))
+
+  scripts_dir = os.path.join(os.path.dirname(__file__), 'scripts')
+  script_path = os.path.join(scripts_dir, migration)
+
+  if not os.path.exists(script_path):
+    flash('Migration script not found')
+    return redirect(url_for('admin_tools_migrations'))
+
+  # Create log filename with timestamp
+  logs_dir = os.path.join(os.path.dirname(__file__), 'logs', 'migrations')
+  os.makedirs(logs_dir, exist_ok=True)
+
+  timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+  log_basename = migration.replace('.py', f'_{timestamp}.log')
+  log_path = os.path.join(logs_dir, log_basename)
+
+  # Execute migration and capture output
+  try:
+    logger.info(f'Running migration: {migration}')
+    result = subprocess.run(
+      ['python', script_path],
+      capture_output=True,
+      text=True,
+      timeout=60
+    )
+
+    # Write output to log file
+    with open(log_path, 'w') as f:
+      f.write(f'Migration: {migration}\n')
+      f.write(f'Timestamp: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n')
+      f.write(f'Exit code: {result.returncode}\n')
+      f.write('\n=== STDOUT ===\n')
+      f.write(result.stdout)
+      f.write('\n=== STDERR ===\n')
+      f.write(result.stderr)
+
+    if result.returncode == 0:
+      flash(f'Migration completed successfully. View log: {log_basename}', 'success')
+      logger.info(f'Migration succeeded: {migration}')
+    else:
+      flash(f'Migration failed with exit code {result.returncode}. Check log: {log_basename}', 'danger')
+      logger.error(f'Migration failed: {migration} (exit code {result.returncode})')
+
+  except subprocess.TimeoutExpired:
+    flash('Migration timed out after 60 seconds', 'danger')
+    logger.error(f'Migration timeout: {migration}')
+  except Exception as e:
+    flash(f'Error running migration: {str(e)}', 'danger')
+    logger.error(f'Migration error: {migration} - {str(e)}')
+
+  return redirect(url_for('admin_tools_migrations'))
+
+
+@app.route('/admin/tools/migrations/log/<log_file>')
+@roles_required('admin')
+def admin_tools_migrations_log(log_file):
+  """View a migration log file"""
+  logs_dir = os.path.join(os.path.dirname(__file__), 'logs', 'migrations')
+  log_path = os.path.join(logs_dir, log_file)
+
+  if not os.path.exists(log_path):
+    flash('Log file not found')
+    return redirect(url_for('admin_tools_migrations'))
+
+  try:
+    with open(log_path, 'r') as f:
+      log_content = f.read()
+  except Exception as e:
+    flash(f'Error reading log file: {str(e)}')
+    return redirect(url_for('admin_tools_migrations'))
+
+  return render_template('admin/tools/migration_log.html',
+                        log_file=log_file,
+                        log_content=log_content)
+
+
+@app.route('/admin/tools/audit/missing-dates', defaults={'page': 1})
+@app.route('/admin/tools/audit/missing-dates/page/<int:page>')
+@roles_required('admin')
+def admin_tools_audit_missing_dates(page=1):
+  """Find photos with missing datetaken field"""
+  per_page = 100  # Show 100 items per page
+
+  # Find photos with NULL datetaken that have ImportMeta with filedate
+  photos_query = (Photo
+                 .select(Photo, ImportMeta)
+                 .join(ImportMeta, on=(Photo.id == ImportMeta.photo))
+                 .where(Photo.datetaken.is_null())
+                 .order_by(Photo.id.desc()))
+
+  # Calculate pagination
+  pagination = get_pagination_data(photos_query, page, per_page)
+
+  # Get paginated results
+  photos_paginated = photos_query.paginate(page, per_page)
+
+  photos_data = []
+  for photo in photos_paginated:
+    (sha1Path, filename) = util.getSha1Path(photo.sha1)
+    filedate = photo.import_meta[0].filedate if photo.import_meta else None
+
+    # Parse filedate and format for URL (YYYY-MM-DD)
+    filedate_url = None
+    if filedate:
+      if isinstance(filedate, str):
+        # Try to parse string and extract date portion
+        try:
+          from dateutil import parser
+          parsed_date = parser.parse(filedate)
+          filedate_url = parsed_date.strftime('%Y-%m-%d')
+        except (ValueError, parser.ParserError):
+          # If parsing fails, try to extract YYYY-MM-DD directly if present
+          if len(filedate) >= 10:
+            filedate_url = filedate[:10]  # Assume YYYY-MM-DD format at start
+      else:
+        filedate_url = filedate.strftime('%Y-%m-%d')
+
+    photo_data = {
+      'id': photo.id,
+      'uri': sha1Path + '/' + filename,
+      'datetaken': photo.datetaken,
+      'filedate': filedate,
+      'filedate_url': filedate_url
+    }
+    photos_data.append(photo_data)
+
+  return render_template('admin/tools/audit_missing_dates.html',
+                        photos=photos_data,
+                        pagination=pagination,
+                        total_count=pagination['total_items'])
+
+
+@app.route('/admin/tools/audit/missing-dates/fix', methods=['POST'])
+@roles_required('admin')
+def admin_tools_audit_missing_dates_fix():
+  """Fix selected photos by updating datetaken from ImportMeta.filedate"""
+  photo_ids = request.form.getlist('photo_ids')
+
+  if not photo_ids:
+    flash('No photos selected')
+    return redirect(url_for('admin_tools_audit_missing_dates'))
+
+  fixed_count = 0
+  error_count = 0
+
+  for photo_id in photo_ids:
+    try:
+      photo = Photo.get(Photo.id == int(photo_id))
+      import_meta = ImportMeta.get(ImportMeta.photo == photo)
+
+      if import_meta.filedate:
+        # Parse filedate string to datetime if needed
+        if isinstance(import_meta.filedate, str):
+          from dateutil import parser
+          try:
+            filedate = parser.parse(import_meta.filedate)
+          except (ValueError, parser.ParserError) as e:
+            logger.warning(f'Could not parse filedate for photo {photo_id}: {import_meta.filedate} - {e}')
+            error_count += 1
+            continue
+        else:
+          filedate = import_meta.filedate
+
+        photo.datetaken = filedate
+        photo.save()
+        fixed_count += 1
+        logger.info(f'Fixed photo {photo_id} datetaken from ImportMeta.filedate: {filedate}')
+      else:
+        logger.warning(f'Photo {photo_id} has no filedate in ImportMeta')
+        error_count += 1
+
+    except Photo.DoesNotExist:
+      logger.error(f'Photo {photo_id} not found')
+      error_count += 1
+    except ImportMeta.DoesNotExist:
+      logger.error(f'ImportMeta not found for photo {photo_id}')
+      error_count += 1
+    except Exception as e:
+      logger.error(f'Error fixing photo {photo_id}: {str(e)}')
+      error_count += 1
+
+  if fixed_count > 0:
+    flash(f'Successfully fixed {fixed_count} photos', 'success')
+  if error_count > 0:
+    flash(f'Failed to fix {error_count} photos (check logs)', 'warning')
+
+  return redirect(url_for('admin_tools_audit_missing_dates'))
+
+
+@app.route('/admin/tools/audit/orphaned-meta', defaults={'page': 1})
+@app.route('/admin/tools/audit/orphaned-meta/page/<int:page>')
+@roles_required('admin')
+def admin_tools_audit_orphaned_meta(page=1):
+  """Find ImportMeta records without corresponding Photos"""
+  per_page = 100  # Show 100 items per page
+
+  # First get total count
+  count_query = """
+    SELECT COUNT(*) FROM importmeta im
+    LEFT JOIN photo p ON im.photo_id = p.id
+    WHERE p.id IS NULL
+  """
+  cursor = db.execute_sql(count_query)
+  total_count = cursor.fetchone()[0]
+
+  # Calculate pagination manually for raw SQL
+  total_pages = math.ceil(total_count / per_page) if total_count > 0 else 1
+  offset = (page - 1) * per_page
+
+  # Get paginated results
+  query = """
+    SELECT im.id, im.sha1, im.importsource, im.filedate, im.ts
+    FROM importmeta im
+    LEFT JOIN photo p ON im.photo_id = p.id
+    WHERE p.id IS NULL
+    ORDER BY im.id DESC
+    LIMIT ? OFFSET ?
+  """
+
+  orphaned_records = []
+  cursor = db.execute_sql(query, (per_page, offset))
+  for row in cursor.fetchall():
+    orphaned_records.append({
+      'id': row[0],
+      'sha1': row[1],
+      'importsource': row[2],
+      'filedate': row[3],
+      'ts': row[4]
+    })
+
+  # Build pagination dict manually (since we're not using Peewee query)
+  pagination = {
+    'page': page,
+    'per_page': per_page,
+    'total_items': total_count,
+    'total_pages': total_pages,
+    'has_prev': page > 1,
+    'has_next': page < total_pages,
+    'prev_num': page - 1 if page > 1 else None,
+    'next_num': page + 1 if page < total_pages else None,
+    'pages': list(range(max(1, page - 2), min(total_pages, page + 2) + 1))
+  }
+
+  return render_template('admin/tools/audit_orphaned_meta.html',
+                        orphaned_records=orphaned_records,
+                        pagination=pagination,
+                        total_count=total_count)
+
+
+@app.route('/admin/tools/audit/orphaned-meta/fix', methods=['POST'])
+@roles_required('admin')
+def admin_tools_audit_orphaned_meta_fix():
+  """Delete selected orphaned ImportMeta records"""
+  record_ids = request.form.getlist('record_ids')
+
+  if not record_ids:
+    flash('No records selected')
+    return redirect(url_for('admin_tools_audit_orphaned_meta'))
+
+  deleted_count = 0
+  error_count = 0
+
+  for record_id in record_ids:
+    try:
+      import_meta = ImportMeta.get(ImportMeta.id == int(record_id))
+      import_meta.delete_instance()
+      deleted_count += 1
+      logger.info(f'Deleted orphaned ImportMeta record {record_id}')
+    except ImportMeta.DoesNotExist:
+      logger.error(f'ImportMeta {record_id} not found')
+      error_count += 1
+    except Exception as e:
+      logger.error(f'Error deleting ImportMeta {record_id}: {str(e)}')
+      error_count += 1
+
+  if deleted_count > 0:
+    flash(f'Successfully deleted {deleted_count} orphaned records', 'success')
+  if error_count > 0:
+    flash(f'Failed to delete {error_count} records (check logs)', 'warning')
+
+  return redirect(url_for('admin_tools_audit_orphaned_meta'))
 
 
 if __name__ == '__main__':

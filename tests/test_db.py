@@ -110,7 +110,9 @@ class TestDatabaseModels(unittest.TestCase):
             s3=1
         )
         self.assertIsNotNone(import_meta.id)
-        self.assertEqual(import_meta.photo, photo.id)
+        # After migration, photo is a ForeignKey that returns the Photo object
+        # Access .id to get the integer ID
+        self.assertEqual(import_meta.photo.id, photo.id)
         self.assertEqual(import_meta.s3, 1)
 
     def test_user_creation(self):

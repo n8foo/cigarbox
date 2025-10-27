@@ -1,26 +1,13 @@
-{% extends "layout.html" %}
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'users' %}
 {% from "_pagination.html" import render_pagination %}
-{% block body %}
+
+{% block admin_content %}
 
 <div class="row">
   <div class="col-md-12">
     <h1>User Management</h1>
     <hr>
-  </div>
-</div>
-
-<!-- Admin Navigation -->
-<div class="row">
-  <div class="col-md-12">
-    <ul class="nav nav-pills">
-      <li><a href="{{SITEURL}}/admin">Dashboard</a></li>
-      <li><a href="{{SITEURL}}/admin/photos">Photos</a></li>
-      <li><a href="{{SITEURL}}/admin/tags">Tags</a></li>
-      <li><a href="{{SITEURL}}/admin/photosets">Photosets</a></li>
-      <li class="active"><a href="{{SITEURL}}/admin/users">Users</a></li>
-      <li><a href="{{SITEURL}}/admin/shares">Shares</a></li>
-    </ul>
-    <br>
   </div>
 </div>
 
@@ -115,4 +102,4 @@
   </div>
 </div>
 
-{% endblock %}
+{% endblock admin_content %}

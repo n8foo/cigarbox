@@ -15,6 +15,7 @@ services:
       # Data files
       - ./photos.db:/app/photos.db
       - ./static:/app/static
+      - ./logs:/app/logs
       # Configuration
       - ./config.py:/app/config.py
       - ./gunicorn_config.py:/app/gunicorn_config.py
@@ -40,7 +41,7 @@ services:
       - cigarbox
     command: gunicorn --config gunicorn_config.py web:app
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9600/about', timeout=2)"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9600/health', timeout=2)"]
       interval: 30s
       timeout: 3s
       start_period: 5s
@@ -56,6 +57,7 @@ services:
       # Data files
       - ./photos.db:/app/photos.db
       - ./static:/app/static
+      - ./logs:/app/logs
       # Configuration
       - ./config.py:/app/config.py
       - ./gunicorn_config.py:/app/gunicorn_config.py
@@ -79,7 +81,7 @@ services:
       - cigarbox
     command: gunicorn --config gunicorn_config.py --bind 0.0.0.0:9601 api:app
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9601/api/sha1/test', timeout=2)"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9601/health', timeout=2)"]
       interval: 30s
       timeout: 3s
       start_period: 5s

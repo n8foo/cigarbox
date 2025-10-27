@@ -32,19 +32,26 @@ def setup_custom_logger(name, service_name='app'):
     if logger.handlers:
         return logger
 
-    # Console handler (for docker logs command)
+    # Console handler (for docker logs command and local dev)
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    # File handler (shared log file - volume mounted)
+    # File handler (shared log file)
+    # Use /app/logs in Docker containers, ./logs for local development
+    if os.path.exists('/app'):
+        log_dir = '/app/logs'
+    else:
+        log_dir = 'logs'
+
     try:
-        os.makedirs('/app/logs', exist_ok=True)
-        file_handler = logging.FileHandler('/app/logs/cigarbox.log')
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, 'cigarbox.log')
+        file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception as e:
-        logger.warning(f'Could not setup file logging: {e}')
+        logger.warning(f'Could not setup file logging to {log_dir}: {e}')
 
     return logger
 

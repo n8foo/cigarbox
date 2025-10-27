@@ -39,6 +39,10 @@ localArchivePath=app.config['LOCALARCHIVEPATH']
 
 logger = util.setup_custom_logger('cigarbox', service_name='api')
 
+# Configure Flask's built-in logger to use our custom logger
+app.logger.handlers = logger.handlers
+app.logger.setLevel(logger.level)
+
 # define a few variables for the API
 uploadToS3=True
 
@@ -96,6 +100,12 @@ def processPhoto(filename,localSha1='0',clientfilename=None):
   # save import meta
   process.saveImportMeta(photo_id,filename,importSource=os.uname()[1],S3=S3success,sha1=sha1,clientfilename=clientfilename)
   return(photo_id)
+
+@app.route('/health')
+def health():
+  """Health check endpoint for Docker healthchecks - no logging"""
+  from flask import jsonify
+  return jsonify({'status': 'ok'}), 200
 
 @app.route('/api/upload', methods=['POST'])
 @api_key_required

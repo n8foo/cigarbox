@@ -66,7 +66,7 @@
           <div class="form-group">
             <label for="datetaken">Date Taken</label>
             <input type="text" name="datetaken" id="datetaken" class="form-control"
-                   value="{{ photo.datetaken.strftime('%Y-%m-%d %H:%M:%S') if photo.datetaken else '' }}"
+                   value="{{ (photo.datetaken | format_datetime('%Y-%m-%d %H:%M:%S')) if photo.datetaken else '' }}"
                    placeholder="YYYY-MM-DD HH:MM:SS">
             <p class="help-block">Format: YYYY-MM-DD HH:MM:SS</p>
           </div>

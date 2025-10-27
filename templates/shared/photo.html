@@ -6,8 +6,8 @@
 {% set og_url = request.url %}
 {% set tag_list = tags | list %}
 {% if photo.datetaken %}
-{% set og_description = 'Photo taken on ' + photo.datetaken.strftime('%Y-%m-%d') %}
-{% set og_image_alt = 'Photo from ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% set og_description = 'Photo taken on ' + (photo.datetaken | format_datetime('%Y-%m-%d')) %}
+{% set og_image_alt = 'Photo from ' + (photo.datetaken | format_datetime('%Y-%m-%d')) %}
 {% else %}
 {% set og_description = 'A shared photo from CigarBox' %}
 {% set og_image_alt = 'Shared photo' %}
@@ -47,7 +47,7 @@
       {% endif %}
 
       {% if photo.datetaken %}
-      <p><strong>Date Taken:</strong> {{ photo.datetaken.strftime('%Y-%m-%d %H:%M') }}</p>
+      <p><strong>Date Taken:</strong> {{ photo.datetaken | format_datetime }}</p>
       {% endif %}
     </div>
   </div>

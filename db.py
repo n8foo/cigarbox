@@ -46,8 +46,8 @@ class Tag(BaseModel):
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotoPhotoset(BaseModel):
-  photo        = ForeignKeyField(Photo,null=False)
-  photoset     = ForeignKeyField(Photoset,null=False)
+  photo        = ForeignKeyField(Photo, null=False, on_delete='CASCADE')
+  photoset     = ForeignKeyField(Photoset, null=False, on_delete='CASCADE')
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotosetGallery(BaseModel):
@@ -56,8 +56,8 @@ class PhotosetGallery(BaseModel):
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class PhotoTag(BaseModel):
-  photo        = ForeignKeyField(Photo,null=False)
-  tag          = ForeignKeyField(Tag,null=False)
+  photo        = ForeignKeyField(Photo, null=False, on_delete='CASCADE')
+  tag          = ForeignKeyField(Tag, null=False)
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class ImportMeta(BaseModel):
@@ -71,7 +71,7 @@ class ImportMeta(BaseModel):
 
 class ShareToken(BaseModel):
   token        = CharField(unique=True, null=False)
-  photo        = ForeignKeyField(Photo, backref='share_tokens')
+  photo        = ForeignKeyField(Photo, backref='share_tokens', on_delete='CASCADE')
   created_by_id = IntegerField(null=True)  # Foreign key to User.id
   created_at   = DateTimeField(default=lambda: datetime.datetime.now())
   expires_at   = DateTimeField(null=True)

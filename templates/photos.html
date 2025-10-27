@@ -5,8 +5,8 @@
 {% set og_title = 'Photo #' + photo.id|string %}
 {% set og_url = request.url %}
 {% if photo.datetaken %}
-{% set og_description = 'Photo taken on ' + photo.datetaken.strftime('%Y-%m-%d') %}
-{% set og_image_alt = 'Photo from ' + photo.datetaken.strftime('%Y-%m-%d') %}
+{% set og_description = 'Photo taken on ' + (photo.datetaken | format_datetime('%Y-%m-%d')) %}
+{% set og_image_alt = 'Photo from ' + (photo.datetaken | format_datetime('%Y-%m-%d')) %}
 {% else %}
 {% set og_description = 'A photo from CigarBox' %}
 {% set og_image_alt = 'Photo #' + photo.id|string %}
@@ -89,7 +89,7 @@
           <dt>Date Taken:</dt>
           <dd>
             {% if photo.datetaken %}
-            <a href="{{SITEURL}}/date/{{ photo.datetaken.strftime('%Y-%m-%d') }}">{{ photo.datetaken.strftime('%Y-%m-%d %H:%M') }}</a>
+            <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">{{ photo.datetaken | format_datetime }}</a>
             {% else %}
             <span class="text-muted">Unknown</span>
             {% endif %}

@@ -1,0 +1,104 @@
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'tools' %}
+
+{% block admin_content %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Database Migrations</h1>
+    <hr>
+    <p class="lead">Run database schema migrations and view execution history</p>
+    <div class="alert alert-info">
+      <span class="glyphicon glyphicon-info-sign"></span>
+      <strong>Note:</strong> All migrations are idempotent and safe to run multiple times.
+      They check the current schema and skip if already applied.
+    </div>
+  </div>
+</div>
+
+<!-- Available Migrations -->
+<div class="row">
+  <div class="col-md-12">
+    <h2>Available Migrations</h2>
+  </div>
+</div>
+
+{% for migration in migrations %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span class="glyphicon glyphicon-file"></span>
+          {{ migration.filename }}
+        </h3>
+      </div>
+      <div class="panel-body">
+        {% if migration.description %}
+        <p>{{ migration.description }}</p>
+        {% else %}
+        <p class="text-muted">No description available</p>
+        {% endif %}
+
+        <!-- Recent Runs -->
+        {% if migration.recent_runs %}
+        <h4>Recent Runs</h4>
+        <ul class="list-unstyled">
+          {% for run in migration.recent_runs %}
+          <li>
+            <span class="glyphicon glyphicon-time"></span>
+            <strong>{{ run.timestamp }}</strong>
+            {% if run.success %}
+            <span class="label label-success">Success</span>
+            {% else %}
+            <span class="label label-danger">Failed</span>
+            {% endif %}
+            <a href="{{SITEURL}}/admin/tools/migrations/log/{{ run.log_file }}" class="btn btn-xs btn-default">
+              <span class="glyphicon glyphicon-eye-open"></span> View Log
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted"><em>Never run</em></p>
+        {% endif %}
+
+        <!-- Run Button -->
+        <form method="POST" action="{{SITEURL}}/admin/tools/migrations/run" style="display: inline;">
+          <input type="hidden" name="migration" value="{{ migration.filename }}">
+          <button type="submit" class="btn btn-primary" onclick="return confirm('Run migration: {{ migration.filename }}?');">
+            <span class="glyphicon glyphicon-play"></span> Run Migration
+          </button>
+        </form>
+
+        {% if migration.recent_runs %}
+        <a href="{{SITEURL}}/admin/tools/migrations/history/{{ migration.filename }}" class="btn btn-default">
+          <span class="glyphicon glyphicon-list"></span> View All Logs
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% if not migrations %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-warning">
+      <span class="glyphicon glyphicon-exclamation-sign"></span>
+      No migration scripts found in <code>scripts/</code> directory.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row">
+  <div class="col-md-12">
+    <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
+      <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+    </a>
+  </div>
+</div>
+
+{% endblock admin_content %}

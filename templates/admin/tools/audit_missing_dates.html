@@ -1,0 +1,155 @@
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'tools' %}
+{% from "_pagination.html" import render_pagination %}
+
+{% block admin_content %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Missing Date Taken Audit</h1>
+    <hr>
+    <p class="lead">Photos with missing <code>datetaken</code> field that can be backfilled from file modification dates</p>
+  </div>
+</div>
+
+{% if photos %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-info">
+      <span class="glyphicon glyphicon-info-sign"></span>
+      Found <strong>{{ total_count }}</strong> photos with missing dates (showing {{ photos|length }} on this page). Select photos to fix and click "Fix Selected" below.
+    </div>
+  </div>
+</div>
+
+<form method="POST" action="{{SITEURL}}/admin/tools/audit/missing-dates/fix">
+  <div class="row">
+    <div class="col-md-12">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"> Select All</th>
+            <th>Photo</th>
+            <th>ID</th>
+            <th>Current Date Taken</th>
+            <th>File Date (from ImportMeta)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for photo in photos %}
+          <tr>
+            <td>
+              <input type="checkbox" name="photo_ids" value="{{ photo.id }}" class="photo-checkbox">
+            </td>
+            <td>
+              <a href="{{SITEURL}}/photos/{{ photo.id }}" target="_blank">
+                <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_t.jpg"
+                     alt="Photo {{ photo.id }}"
+                     style="max-width: 50px;">
+              </a>
+            </td>
+            <td>{{ photo.id }}</td>
+            <td>
+              {% if photo.datetaken %}
+              {{ photo.datetaken }}
+              {% else %}
+              <span class="text-muted">NULL</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if photo.filedate %}
+              <a href="{{SITEURL}}/date/{{ photo.filedate_url }}" target="_blank">
+                <strong>{{ photo.filedate }}</strong>
+              </a>
+              {% else %}
+              <span class="text-warning">No file date available</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination and pagination.total_pages > 1 %}
+  <div class="row">
+    <div class="col-md-12">
+      {{ render_pagination(pagination, SITEURL + '/admin/tools/audit/missing-dates') }}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-12">
+      <button type="submit" class="btn btn-primary" onclick="return confirm('Fix selected photos on this page? This will update their datetaken field.');">
+        <span class="glyphicon glyphicon-ok"></span> Fix Selected Photos
+      </button>
+      <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
+        <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+      </a>
+    </div>
+  </div>
+</form>
+
+<script>
+// Select all functionality
+document.getElementById('select-all').addEventListener('change', function() {
+  var checkboxes = document.querySelectorAll('.photo-checkbox');
+  for (var checkbox of checkboxes) {
+    checkbox.checked = this.checked;
+  }
+});
+
+// Shift-click range selection
+(function() {
+  var checkboxes = document.querySelectorAll('.photo-checkbox');
+  var lastChecked = null;
+
+  checkboxes.forEach(function(checkbox) {
+    checkbox.addEventListener('click', function(e) {
+      if (!lastChecked) {
+        lastChecked = this;
+        return;
+      }
+
+      if (e.shiftKey) {
+        var start = Array.from(checkboxes).indexOf(this);
+        var end = Array.from(checkboxes).indexOf(lastChecked);
+        var range = [Math.min(start, end), Math.max(start, end)];
+
+        // Set all checkboxes in range to same state as the one just clicked
+        checkboxes.forEach(function(cb, index) {
+          if (index >= range[0] && index <= range[1]) {
+            cb.checked = lastChecked.checked;
+          }
+        });
+      }
+
+      lastChecked = this;
+    });
+  });
+})();
+</script>
+
+{% else %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-success">
+      <span class="glyphicon glyphicon-ok"></span>
+      <strong>All photos have dates!</strong> No photos found with missing <code>datetaken</code> field.
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
+      <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock admin_content %}

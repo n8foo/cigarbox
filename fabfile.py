@@ -226,6 +226,122 @@ def apiserver(c):
 
 
 @task
+def dev(c):
+    """Start both web and API servers with combined log output
+
+    Usage: fab dev
+
+    This runs both web (port 9600) and API (port 9601) servers simultaneously,
+    showing combined stdout/stderr output from both services plus the shared
+    cigarbox.log file. Press CTRL-C to stop both servers.
+    """
+    import subprocess
+    import signal
+    import sys
+    import threading
+
+    # Ensure logs directory exists
+    local('mkdir -p logs')
+
+    print('🚀 Starting CigarBox development servers...')
+    print('   Web:  http://localhost:9600')
+    print('   API:  http://localhost:9601')
+    print('   Logs: logs/cigarbox.log')
+    print('   Press CTRL-C to stop\n')
+
+    # Start both servers as subprocesses
+    web_process = subprocess.Popen(
+        ['python', 'web.py'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+
+    api_process = subprocess.Popen(
+        ['python', 'api.py'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+
+    # Function to stream output from a process
+    def stream_output(process, prefix):
+        try:
+            for line in process.stdout:
+                print(f'{prefix} {line}', end='')
+        except:
+            pass
+
+    # Start threads to stream output from both processes
+    web_thread = threading.Thread(target=stream_output, args=(web_process, '[WEB]'), daemon=True)
+    api_thread = threading.Thread(target=stream_output, args=(api_process, '[API]'), daemon=True)
+
+    web_thread.start()
+    api_thread.start()
+
+    # Handle CTRL-C gracefully
+    def signal_handler(sig, frame):
+        print('\n\n🛑 Shutting down servers...')
+        web_process.terminate()
+        api_process.terminate()
+
+        # Give processes 2 seconds to terminate gracefully
+        try:
+            web_process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            web_process.kill()
+
+        try:
+            api_process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            api_process.kill()
+
+        print('✓ Servers stopped')
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Wait for both processes (they run indefinitely until interrupted)
+    try:
+        # Use a loop that checks if processes are still running
+        # This allows the signal handler to interrupt cleanly
+        while web_process.poll() is None or api_process.poll() is None:
+            import time
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        signal_handler(signal.SIGINT, None)
+
+
+@task
+def watch_logs(c):
+    """Tail the shared cigarbox.log file locally
+
+    Usage: fab watch-logs
+
+    Monitors the local logs/cigarbox.log file that both web and API servers
+    write to. This is useful when running servers in the background or when
+    using 'fab dev' to see more detailed application-level logs.
+    """
+    import os
+
+    log_file = 'logs/cigarbox.log'
+
+    # Check if log file exists
+    if not os.path.exists(log_file):
+        print(f'⚠️  Log file not found: {log_file}')
+        print('   Start the dev servers first: fab dev')
+        return
+
+    print(f'📋 Watching {log_file}')
+    print('   Press CTRL-C to stop\n')
+
+    # Use tail -f to follow the log file
+    local(f'tail -f {log_file}')
+
+
+@task
 def cleanup(c):
     """Remove Python cache files and temporary data"""
     local('find . -type f -name "*.pyc" -delete')
@@ -323,11 +439,14 @@ def build_package(c):
     # Create deploys directory if needed
     local('mkdir -p deploys')
 
-    # Build tar command with all includes
+    # Build tar command with all includes and excludes
     tar_includes = ' '.join(DEPLOY_INCLUDES)
     package_name = f'deploys/cigarbox-{timestamp}.tar.gz'
 
-    local(f'tar czf {package_name} {tar_includes}')
+    # Exclude runtime directories from deployment package
+    # - logs: preserves production logs
+    # - static/cigarbox: image cache, server-generated, not needed in package
+    local(f'tar czf {package_name} --exclude="logs" --exclude="static/cigarbox" {tar_includes}')
     print(f'✓ Created deployment package: {package_name}')
     return package_name
 
@@ -417,13 +536,24 @@ def deploy(c, role='test', package=None, rebuild=False, force_db=False):
             else:
                 print('✓ Database unchanged, skipping upload')
 
-        # Create logs directories with proper permissions for container user (UID 1000)
-        print('📁 Setting up logs directory...')
+        # Create directories with proper permissions for container user (UID 1000)
+        print('📁 Setting up directories...')
         conn.run(f'mkdir -p {deploy_dir}/logs/nginx')
-        # Use sudo for chmod since docker may have created these as root
-        result = conn.run(f'sudo chmod -R 777 {deploy_dir}/logs', warn=True)
-        if not result.ok:
-            print('⚠️  Warning: Could not set log permissions (may need manual sudo chmod -R 777 ~/docker/cigarbox/logs)')
+        conn.run(f'mkdir -p {deploy_dir}/logs/migrations')
+        conn.run(f'mkdir -p {deploy_dir}/static/cigarbox')
+
+        # Try to set permissions (will work if user owns directories or has sudo configured)
+        logs_result = conn.run(f'chmod -R 777 {deploy_dir}/logs 2>/dev/null || true', warn=True)
+        static_result = conn.run(f'chmod -R 777 {deploy_dir}/static/cigarbox 2>/dev/null || true', warn=True)
+
+        # Check if permissions were set correctly
+        logs_check = conn.run(f'test -w {deploy_dir}/logs/cigarbox.log 2>/dev/null || test ! -e {deploy_dir}/logs/cigarbox.log', warn=True, hide=True)
+        static_check = conn.run(f'test -w {deploy_dir}/static/cigarbox 2>/dev/null', warn=True, hide=True)
+
+        if not logs_check.ok or not static_result.ok:
+            print('\n⚠️  IMPORTANT: Directory permissions may need manual setup')
+            print(f'    Run on server: sudo chmod -R 777 {deploy_dir}/logs {deploy_dir}/static/cigarbox')
+            print()
 
         # Build and start
         compose_file = get_compose_file(role)
@@ -506,21 +636,23 @@ def restart(c, role='test', service=''):
 
 
 @task
-def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False):
-    """View Docker logs and optionally nginx logs on remote server
+def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, app_log=False):
+    """View Docker logs, application log, and optionally nginx logs on remote server
 
     Args:
         role: Target role (test, prod)
         service: Optional service name (web, api, nginx)
         tail: Number of lines to show (default 50)
         show_nginx: Show host nginx logs (prod only)
-        show_all: Show both Docker and nginx logs
+        app_log: Show shared cigarbox.log application log
+        show_all: Show Docker + nginx + app logs
 
     Usage:
         fab logs --role=prod                      # Show all Docker logs
         fab logs --role=prod --service=web        # Show web container logs
+        fab logs --role=prod --app-log            # Show shared application log
         fab logs --role=prod --show-nginx         # Show host nginx logs only
-        fab logs --role=prod --show-all           # Show Docker + nginx logs
+        fab logs --role=prod --show-all           # Show Docker + nginx + app logs
         fab logs --role=prod --tail=200           # Show 200 lines
     """
     host = get_host_from_role(role)
@@ -530,16 +662,29 @@ def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False):
         remote_home = conn.run('echo $HOME', hide=True).stdout.strip()
         deploy_dir = f'{remote_home}/docker/cigarbox'
 
-        # Show Docker logs unless only nginx was requested
-        if not show_nginx or show_all:
+        # Show Docker logs unless only nginx or app_log was requested
+        if not show_nginx and not app_log or show_all:
             print("\n" + "="*60)
-            print("DOCKER CONTAINER LOGS")
+            print("DOCKER CONTAINER LOGS (stdout/stderr)")
             print("="*60 + "\n")
             with conn.cd(deploy_dir):
                 if service:
                     conn.run(f'docker-compose -f {compose_file} logs --tail={tail} {service}')
                 else:
                     conn.run(f'docker-compose -f {compose_file} logs --tail={tail}')
+
+        # Show shared application log if requested
+        if app_log or show_all:
+            print("\n" + "="*60)
+            print("APPLICATION LOG (cigarbox.log)")
+            print("="*60 + "\n")
+            app_log_path = f'{deploy_dir}/logs/cigarbox.log'
+            result = conn.run(f'test -f {app_log_path}', warn=True, hide=True)
+            if result.ok:
+                conn.run(f'tail -n {tail} {app_log_path}')
+            else:
+                print("⚠️  Application log not found")
+                print(f"    Expected: {app_log_path}")
 
         # Show nginx logs if requested (prod only, since test has nginx in Docker)
         if (show_nginx or show_all) and role == 'prod':
@@ -699,8 +844,8 @@ def rollback(c, role='test', backup=None):
         with conn.cd(deploy_dir):
             conn.run(f'docker-compose -f {compose_file} down || true')
 
-        # Clear deployment directory (except .env and photos.db)
-        conn.run(f'cd {deploy_dir} && find . -maxdepth 1 ! -name . ! -name .env ! -name photos.db -exec rm -rf {{}} +')
+        # Clear deployment directory (except .env, photos.db, and logs/)
+        conn.run(f'cd {deploy_dir} && find . -maxdepth 1 ! -name . ! -name .env ! -name photos.db ! -name logs -exec rm -rf {{}} +')
 
         # Extract backup
         print(f'📂 Restoring from backup: {backup}')

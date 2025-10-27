@@ -1,0 +1,137 @@
+{% extends "admin/admin_base.html" %}
+{% set active_page = 'tools' %}
+{% from "_pagination.html" import render_pagination %}
+
+{% block admin_content %}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Orphaned ImportMeta Audit</h1>
+    <hr>
+    <p class="lead">ImportMeta records without a corresponding Photo</p>
+  </div>
+</div>
+
+{% if orphaned_records %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-warning">
+      <span class="glyphicon glyphicon-exclamation-sign"></span>
+      Found <strong>{{ total_count }}</strong> orphaned ImportMeta records (showing {{ orphaned_records|length }} on this page). These should be cleaned up.
+    </div>
+  </div>
+</div>
+
+<form method="POST" action="{{SITEURL}}/admin/tools/audit/orphaned-meta/fix">
+  <div class="row">
+    <div class="col-md-12">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"> Select All</th>
+            <th>ImportMeta ID</th>
+            <th>SHA1</th>
+            <th>Import Date</th>
+            <th>Import Source</th>
+            <th>File Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in orphaned_records %}
+          <tr>
+            <td>
+              <input type="checkbox" name="record_ids" value="{{ record.id }}" class="record-checkbox">
+            </td>
+            <td>{{ record.id }}</td>
+            <td><code>{{ record.sha1[:12] }}...</code></td>
+            <td>{{ record.ts }}</td>
+            <td>{{ record.importsource or 'N/A' }}</td>
+            <td>{{ record.filedate or 'N/A' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination and pagination.total_pages > 1 %}
+  <div class="row">
+    <div class="col-md-12">
+      {{ render_pagination(pagination, SITEURL + '/admin/tools/audit/orphaned-meta') }}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-12">
+      <button type="submit" class="btn btn-danger" onclick="return confirm('Delete selected orphaned records on this page? This cannot be undone.');">
+        <span class="glyphicon glyphicon-trash"></span> Delete Selected Records
+      </button>
+      <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
+        <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+      </a>
+    </div>
+  </div>
+</form>
+
+<script>
+// Select all functionality
+document.getElementById('select-all').addEventListener('change', function() {
+  var checkboxes = document.querySelectorAll('.record-checkbox');
+  for (var checkbox of checkboxes) {
+    checkbox.checked = this.checked;
+  }
+});
+
+// Shift-click range selection
+(function() {
+  var checkboxes = document.querySelectorAll('.record-checkbox');
+  var lastChecked = null;
+
+  checkboxes.forEach(function(checkbox) {
+    checkbox.addEventListener('click', function(e) {
+      if (!lastChecked) {
+        lastChecked = this;
+        return;
+      }
+
+      if (e.shiftKey) {
+        var start = Array.from(checkboxes).indexOf(this);
+        var end = Array.from(checkboxes).indexOf(lastChecked);
+        var range = [Math.min(start, end), Math.max(start, end)];
+
+        // Set all checkboxes in range to same state as the one just clicked
+        checkboxes.forEach(function(cb, index) {
+          if (index >= range[0] && index <= range[1]) {
+            cb.checked = lastChecked.checked;
+          }
+        });
+      }
+
+      lastChecked = this;
+    });
+  });
+})();
+</script>
+
+{% else %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-success">
+      <span class="glyphicon glyphicon-ok"></span>
+      <strong>No orphaned records!</strong> All ImportMeta records have corresponding Photos.
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
+      <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock admin_content %}
