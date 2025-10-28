@@ -813,23 +813,63 @@ def show_photosets(page):
   thumbCount = 2
   baseurl = '%s/photosets' % (get_base_url())
   visible_levels = get_visible_privacy_levels(current_user)
-  photosets_query = Photoset.select().order_by(Photoset.ts.desc())
+
+  # Get photoset IDs that have at least one visible photo (single efficient query)
+  photosets_with_visible_photos = (
+    Photoset.select(Photoset.id)
+    .join(PhotoPhotoset)
+    .join(Photo)
+    .where((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
+    .group_by(Photoset.id)
+  )
+
+  # Extract IDs into a list
+  visible_photoset_ids = [ps.id for ps in photosets_with_visible_photos]
+
+  # Filter photosets to only those with visible photos
+  if visible_photoset_ids:
+    photosets_query = (
+      Photoset.select()
+      .where(Photoset.id.in_(visible_photoset_ids))
+      .order_by(Photoset.ts.desc())
+    )
+  else:
+    # No visible photosets, return empty query
+    photosets_query = Photoset.select().where(Photoset.id == -1)
 
   # Get pagination metadata
   pagination = get_pagination_data(photosets_query, page, app.config['PER_PAGE'])
 
   # Get paginated results
-  photosets = photosets_query.paginate(page, app.config['PER_PAGE'])
-  for photoset in photosets:
-    # Filter thumbnails by privacy (treat NULL as public)
-    thumbs = Photo.select().join(PhotoPhotoset).join(Photoset)
-    thumbs = thumbs.where((Photoset.id == photoset.id) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
-    thumbs = thumbs.limit(thumbCount)
-    thumbs = thumbs.order_by(Photo.datetaken.asc())
-    for thumb in thumbs:
-      (sha1Path, filename) = getSha1Path(thumb.sha1)
-      thumb.uri = '%s/%s_t.jpg' % (sha1Path, filename)
-    photoset.thumbs = thumbs
+  photosets = list(photosets_query.paginate(page, app.config['PER_PAGE']))
+
+  if photosets:
+    # Fetch all thumbnails for all photosets in a single query
+    photoset_ids = [ps.id for ps in photosets]
+    all_thumbs = (
+      Photo.select(Photo, PhotoPhotoset.photoset)
+      .join(PhotoPhotoset)
+      .where(
+        (PhotoPhotoset.photoset.in_(photoset_ids)) &
+        ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
+      )
+      .order_by(Photo.datetaken.asc())
+    )
+
+    # Group thumbnails by photoset_id in Python
+    thumbs_by_photoset = {}
+    for thumb in all_thumbs:
+      photoset_id = thumb.photophotoset.photoset_id
+      if photoset_id not in thumbs_by_photoset:
+        thumbs_by_photoset[photoset_id] = []
+      if len(thumbs_by_photoset[photoset_id]) < thumbCount:
+        (sha1Path, filename) = getSha1Path(thumb.sha1)
+        thumb.uri = '%s/%s_t.jpg' % (sha1Path, filename)
+        thumbs_by_photoset[photoset_id].append(thumb)
+
+    # Attach thumbnails to photosets
+    for photoset in photosets:
+      photoset.thumbs = thumbs_by_photoset.get(photoset.id, [])
 
   return render_template('photosets.html', photosets=photosets, pagination=pagination, baseurl=baseurl)
 

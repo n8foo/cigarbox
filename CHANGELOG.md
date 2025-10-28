@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-28] - Photosets Privacy Fix
+
+### Fixed
+- **Empty photosets appearing for logged-out users**
+  - Photosets with only private photos no longer show in list view
+  - Uses efficient JOIN with GROUP BY to find photosets with visible photos
+  - Bulk-fetches all thumbnails in single query (3 total queries vs N+2)
+  - Pagination counts now accurate after filtering
+
+---
 ## [2025-10-27] - Upload & Delete Improvements
 
 ### Added
