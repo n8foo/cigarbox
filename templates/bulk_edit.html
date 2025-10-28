@@ -69,8 +69,9 @@
               <label class="col-sm-2 control-label">Add to Photoset:</label>
               <div class="col-sm-8">
                 <div class="input-group">
-                  <select name="bulk_photoset" class="form-control">
+                  <select name="bulk_photoset" id="photosetSelect" class="form-control">
                     <option value="">Select photoset...</option>
+                    <option value="__new__">+ Create New Photoset</option>
                     {% for photoset in photosets %}
                     <option value="{{ photoset.id }}">{{ photoset.title }}</option>
                     {% endfor %}
@@ -81,6 +82,8 @@
                     </button>
                   </span>
                 </div>
+                <input type="text" name="new_photoset_title" id="newPhotosetTitle" class="form-control" placeholder="Enter new photoset title" style="margin-top: 10px; display: none;">
+                <p class="help-block">Add all photos to an existing photoset or create a new one</p>
               </div>
             </div>
 
@@ -574,6 +577,19 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+});
+
+// Show/hide new photoset input
+document.getElementById('photosetSelect').addEventListener('change', function() {
+  var newPhotosetTitle = document.getElementById('newPhotosetTitle');
+  if (this.value === '__new__') {
+    newPhotosetTitle.style.display = 'block';
+    newPhotosetTitle.required = true;
+    newPhotosetTitle.focus();
+  } else {
+    newPhotosetTitle.style.display = 'none';
+    newPhotosetTitle.required = false;
+  }
 });
 </script>
 

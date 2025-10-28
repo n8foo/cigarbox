@@ -318,25 +318,35 @@ def bulk_edit_photos(page):
           success = False
 
       elif action == 'bulk_photoset':
-        # Add all photos to photoset
+        # Add all photos to photoset (or create new one)
         photoset_id = request.form.get('bulk_photoset')
-        if photoset_id:
+        new_photoset_title = request.form.get('new_photoset_title', '').strip()
+
+        if photoset_id == '__new__' and new_photoset_title:
+          # Create new photoset
+          photoset = Photoset.create(
+            title=new_photoset_title,
+            description='',
+            primary_photo_id=photo_ids[0] if photo_ids and photo_ids[0] else None
+          )
+          logger.info('PHOTOSET_CREATED id=%d title=%s user=%s', photoset.id, new_photoset_title, current_user.email)
+        elif photoset_id and photoset_id != '__new__':
           photoset = Photoset.select().where(Photoset.id == int(photoset_id)).first()
-          if photoset:
-            count = 0
-            for photo_id in photo_ids:
-              if not photo_id:
-                continue
-              photo = Photo.select().where(Photo.id == int(photo_id)).first()
-              if photo and can_edit_photo(current_user, photo):
-                PhotoPhotoset.get_or_create(photo=photo, photoset=photoset)
-                count += 1
-            message = f'Added {count} photos to photoset "{photoset.title}"'
-          else:
-            message = 'Photoset not found'
-            success = False
         else:
-          message = 'No photoset selected'
+          photoset = None
+
+        if photoset:
+          count = 0
+          for photo_id in photo_ids:
+            if not photo_id:
+              continue
+            photo = Photo.select().where(Photo.id == int(photo_id)).first()
+            if photo and can_edit_photo(current_user, photo):
+              PhotoPhotoset.get_or_create(photo=photo, photoset=photoset)
+              count += 1
+          message = f'Added {count} photos to photoset "{photoset.title}"'
+        else:
+          message = 'No photoset selected or created'
           success = False
 
       elif action == 'individual_privacy':
@@ -753,14 +763,40 @@ def delete_photo(photo_id):
   photo = Photo.select().where(Photo.id == photo_id).get()
   if not can_edit_photo(current_user, photo):
     abort(403)
-  # delete photo from S3 (not working)
-  #(sha1Path,filename) = getSha1Path(photo.sha1)
-  #S3key='/%s/%s.%s' % (sha1Path,filename,photo.filetype)
-  #aws.deleteFromS3(S3key,app.config)
-  # delete photo from db
-  deletedPhoto = Photo.delete().where(Photo.id == photo_id)
-  deletedPhoto.execute()
-  flash('Photo deleted')
+
+  try:
+    # Delete all related records first (in case CASCADE isn't working)
+    # Delete photo-tag relationships
+    PhotoTag.delete().where(PhotoTag.photo == photo_id).execute()
+    logger.info('PHOTO_DELETE_TAGS photo_id=%d user=%s', photo_id, current_user.email)
+
+    # Delete photo-photoset relationships
+    PhotoPhotoset.delete().where(PhotoPhotoset.photo == photo_id).execute()
+    logger.info('PHOTO_DELETE_PHOTOSETS photo_id=%d user=%s', photo_id, current_user.email)
+
+    # Delete import metadata
+    ImportMeta.delete().where(ImportMeta.photo == photo_id).execute()
+    logger.info('PHOTO_DELETE_IMPORT_META photo_id=%d user=%s', photo_id, current_user.email)
+
+    # Delete share tokens
+    ShareToken.delete().where(ShareToken.photo == photo_id).execute()
+    logger.info('PHOTO_DELETE_SHARE_TOKENS photo_id=%d user=%s', photo_id, current_user.email)
+
+    # Delete photo from S3 (commented out - not working)
+    #(sha1Path,filename) = getSha1Path(photo.sha1)
+    #S3key='/%s/%s.%s' % (sha1Path,filename,photo.filetype)
+    #aws.deleteFromS3(S3key,app.config)
+
+    # Finally, delete the photo itself
+    deletedPhoto = Photo.delete().where(Photo.id == photo_id)
+    deletedPhoto.execute()
+    logger.info('PHOTO_DELETED photo_id=%d sha1=%s user=%s', photo_id, photo.sha1[:12], current_user.email)
+
+    flash('Photo deleted')
+  except Exception as e:
+    logger.error('PHOTO_DELETE_FAILED photo_id=%d error=%s', photo_id, str(e), exc_info=True)
+    flash(f'Failed to delete photo: {str(e)}', 'error')
+    return redirect(request.referrer or url_for('photostream'))
 
   # Return to admin page if coming from admin, otherwise photostream
   referrer = request.referrer

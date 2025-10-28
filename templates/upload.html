@@ -190,7 +190,7 @@
     fileInput.value = '';
   });
 
-  // Upload files
+  // Upload files one at a time
   uploadBtn.addEventListener('click', async () => {
     if (selectedFiles.length === 0) return;
 
@@ -199,87 +199,101 @@
     uploadProgress.style.display = 'block';
     previewGrid.style.display = 'none';
 
-    // Create form data
-    const formData = new FormData();
-    selectedFiles.forEach(file => {
-      formData.append('files', file);
-    });
-
     // Track progress per file
     fileList.innerHTML = '';
+    const fileItems = [];
     selectedFiles.forEach(file => {
       const fileItem = document.createElement('div');
       fileItem.className = 'file-item';
-      fileItem.textContent = file.name + ' - uploading...';
+      fileItem.textContent = file.name + ' - waiting...';
       fileList.appendChild(fileItem);
+      fileItems.push(fileItem);
     });
 
-    try {
-      // Upload to web endpoint (same origin, uses session auth)
-      const response = await fetch('{{SITEURL}}/upload', {
-        method: 'POST',
-        body: formData
-      });
+    const allPhotoIds = [];
+    let completedCount = 0;
+    let failedCount = 0;
 
-      const data = await response.json();
+    // Upload each file individually
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const fileItem = fileItems[i];
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
+      try {
+        // Update status
+        fileItem.textContent = file.name + ' - uploading...';
+
+        // Create form data with single file
+        const formData = new FormData();
+        formData.append('files', file);
+
+        // Upload to web endpoint (same origin, uses session auth)
+        const response = await fetch('{{SITEURL}}/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Upload failed');
+        }
+
+        // Mark file as success
+        fileItem.className = 'file-item success';
+        fileItem.textContent = file.name + ' - ✓ uploaded';
+        completedCount++;
+
+        // Collect photo IDs
+        if (data.photo_ids && data.photo_ids.length > 0) {
+          allPhotoIds.push(...data.photo_ids);
+        }
+
+      } catch (error) {
+        console.error('Upload error for ' + file.name + ':', error);
+        fileItem.className = 'file-item error';
+        fileItem.textContent = file.name + ' - ✗ failed: ' + error.message;
+        failedCount++;
       }
 
-      // Update progress to 100%
-      overallProgress.style.width = '100%';
-      progressText.textContent = '100%';
-      overallProgress.classList.remove('active');
-      overallProgress.classList.add('progress-bar-success');
+      // Update overall progress
+      const progress = Math.round(((i + 1) / selectedFiles.length) * 100);
+      overallProgress.style.width = progress + '%';
+      progressText.textContent = progress + '%';
+    }
 
-      // Mark all files as success
-      document.querySelectorAll('.file-item').forEach(item => {
-        item.className = 'file-item success';
-        item.textContent = item.textContent.replace('uploading...', '✓ uploaded');
-      });
+    // Upload complete
+    overallProgress.classList.remove('active');
+
+    if (failedCount === 0) {
+      // All succeeded
+      overallProgress.classList.add('progress-bar-success');
 
       // Redirect to bulk edit after a brief delay
       setTimeout(() => {
-        const photoIds = data.photo_ids.join(',');
+        const photoIds = allPhotoIds.join(',');
         window.location.href = '{{SITEURL}}/photos/bulk-edit?ids=' + photoIds;
       }, 1000);
+    } else if (completedCount > 0) {
+      // Some succeeded, some failed
+      overallProgress.classList.add('progress-bar-warning');
 
-    } catch (error) {
-      console.error('Upload error:', error);
-      console.error('Error data:', data);  // Log the full error response
+      // Ask user what to do
+      const proceed = confirm(
+        completedCount + ' of ' + selectedFiles.length + ' files uploaded successfully.\n' +
+        failedCount + ' failed.\n\n' +
+        'Go to bulk edit for successful uploads?'
+      );
 
+      if (proceed && allPhotoIds.length > 0) {
+        const photoIds = allPhotoIds.join(',');
+        window.location.href = '{{SITEURL}}/photos/bulk-edit?ids=' + photoIds;
+      }
+    } else {
+      // All failed
       overallProgress.classList.add('progress-bar-danger');
-      overallProgress.classList.remove('active');
-
-      // Show detailed error message
-      let errorMsg = error.message;
-      if (data && data.body) {
-        errorMsg += '\n\nAPI Response:\n' + data.body;
-      }
-
-      document.querySelectorAll('.file-item').forEach(item => {
-        item.className = 'file-item error';
-        item.textContent = item.textContent.replace('uploading...', '✗ failed: ' + error.message);
-      });
-
-      // Show alert with full error details
-      alert('Upload failed:\n\n' + errorMsg);
+      alert('All uploads failed. Please check the file sizes (max 16MB each) and try again.');
     }
-  });
-
-  // Simulate progress during upload (rough estimate)
-  uploadBtn.addEventListener('click', () => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      if (progress < 90) {
-        progress += 10;
-        overallProgress.style.width = progress + '%';
-        progressText.textContent = progress + '%';
-      } else {
-        clearInterval(interval);
-      }
-    }, 500);
   });
 })();
 </script>

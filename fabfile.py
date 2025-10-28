@@ -636,7 +636,7 @@ def restart(c, role='test', service=''):
 
 
 @task
-def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, app_log=False):
+def logs(c, role='test', service='', tail=50, show_nginx=False, all=False, app_log=False, follow=False, n=None):
     """View Docker logs, application log, and optionally nginx logs on remote server
 
     Args:
@@ -645,16 +645,22 @@ def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, 
         tail: Number of lines to show (default 50)
         show_nginx: Show host nginx logs (prod only)
         app_log: Show shared cigarbox.log application log
-        show_all: Show Docker + nginx + app logs
+        all: Show Docker + nginx + app logs
+        follow: Follow logs in real-time (like tail -f)
+        n: Alias for tail (number of lines)
 
     Usage:
         fab logs --role=prod                      # Show all Docker logs
         fab logs --role=prod --service=web        # Show web container logs
         fab logs --role=prod --app-log            # Show shared application log
         fab logs --role=prod --show-nginx         # Show host nginx logs only
-        fab logs --role=prod --show-all           # Show Docker + nginx + app logs
+        fab logs --role=prod --all                # Show Docker + nginx + app logs
         fab logs --role=prod --tail=200           # Show 200 lines
+        fab logs --role=prod -n 20 --follow       # Follow logs (tail -f style)
     """
+    # Use -n alias if provided
+    if n is not None:
+        tail = n
     host = get_host_from_role(role)
     compose_file = get_compose_file(role)
 
@@ -663,7 +669,7 @@ def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, 
         deploy_dir = f'{remote_home}/docker/cigarbox'
 
         # Show Docker logs unless only nginx or app_log was requested
-        if not show_nginx and not app_log or show_all:
+        if not show_nginx and not app_log or all:
             print("\n" + "="*60)
             print("DOCKER CONTAINER LOGS (stdout/stderr)")
             print("="*60 + "\n")
@@ -674,20 +680,23 @@ def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, 
                     conn.run(f'docker-compose -f {compose_file} logs --tail={tail}')
 
         # Show shared application log if requested
-        if app_log or show_all:
+        if app_log or all:
             print("\n" + "="*60)
             print("APPLICATION LOG (cigarbox.log)")
             print("="*60 + "\n")
             app_log_path = f'{deploy_dir}/logs/cigarbox.log'
             result = conn.run(f'test -f {app_log_path}', warn=True, hide=True)
             if result.ok:
-                conn.run(f'tail -n {tail} {app_log_path}')
+                tail_cmd = f'tail -n {tail} {app_log_path}'
+                if follow:
+                    tail_cmd = f'tail -n {tail} -f {app_log_path}'
+                conn.run(tail_cmd)
             else:
                 print("⚠️  Application log not found")
                 print(f"    Expected: {app_log_path}")
 
         # Show nginx logs if requested (prod only, since test has nginx in Docker)
-        if (show_nginx or show_all) and role == 'prod':
+        if (show_nginx or all) and role == 'prod':
             # Try domain-specific logs first, fall back to default
             domain_logs = [
                 '/var/log/nginx/mybrainhurts.com-access.log',
@@ -699,9 +708,12 @@ def logs(c, role='test', service='', tail=50, show_nginx=False, show_all=False, 
             print("="*60 + "\n")
             access_shown = False
             for log_path in domain_logs:
-                result = conn.run(f'test -f {log_path} && sudo tail -n {tail} {log_path}', warn=True, hide=True)
+                tail_cmd = f'sudo tail -n {tail} {log_path}'
+                if follow:
+                    tail_cmd = f'sudo tail -n {tail} -f {log_path}'
+                result = conn.run(f'test -f {log_path}', warn=True, hide=True)
                 if result.ok:
-                    print(result.stdout)
+                    conn.run(tail_cmd)
                     access_shown = True
                     break
             if not access_shown:
@@ -858,6 +870,45 @@ def rollback(c, role='test', backup=None):
             conn.run(f'docker-compose -f {compose_file} ps')
 
     print(f'✓ Rolled back to {backup} on {role} ({host})')
+
+
+@task
+def check_nginx_config(c, role='prod', config='mybrainhurts.com.conf', local_path='/Users/nathan/Sync/UNMX/ops/nginx/sites'):
+    """Compare local and remote nginx config file checksums
+
+    Args:
+        role: Target role (test, prod)
+        config: Config filename (default: mybrainhurts.com.conf)
+        local_path: Local path to nginx configs directory
+
+    Usage:
+        fab check-nginx-config --role=prod
+        fab check-nginx-config --role=prod --config=other.conf
+    """
+    host = get_host_from_role(role)
+    local_file = f'{local_path}/{config}'
+    remote_file = f'/etc/nginx/sites-available/{config}'
+
+    # Get local sha1sum
+    result = local(f'shasum {local_file}', hide=True)
+    local_sha = result.stdout.split()[0]
+
+    with Connection(host) as conn:
+        # Get remote sha1sum
+        result = conn.run(f'sudo shasum {remote_file}', hide=True)
+        remote_sha = result.stdout.split()[0]
+
+        print(f'\n📋 Nginx Config Comparison: {config}')
+        print(f'   Local:  {local_sha}')
+        print(f'   Remote: {remote_sha}')
+
+        if local_sha == remote_sha:
+            print(f'   ✓ Files match')
+        else:
+            print(f'   ✗ FILES DIFFER - local and remote are out of sync!')
+            print(f'\n   To deploy: Use your ops repo fabric deployment')
+
+        return local_sha == remote_sha
 
 
 @task

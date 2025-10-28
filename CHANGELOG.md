@@ -3,6 +3,32 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-27] - Upload & Delete Improvements
+
+### Added
+- **Per-file upload system** - Sequential file uploads instead of single multi-file request
+  - Real-time per-file progress tracking with success/failure status
+  - Better error handling for partial upload failures
+  - Keeps upload size at 16MB max per file
+- **Inline photoset creation** in bulk-edit interface
+  - "+ Create New Photoset" option with inline input field
+  - Backend creates photoset when `__new__` selected with title
+- **Enhanced logging capabilities**
+  - `--follow` flag for live log streaming (tail -f style)
+  - `-n` alias for `--tail` parameter
+  - Renamed `--show-all` to `--all` for consistency
+- **Nginx config checker** - `fab check-nginx-config` task compares local vs remote configs
+
+### Changed
+- Upload interface now sends files individually with per-file progress
+
+### Fixed
+- **Photo deletion CASCADE failures**
+  - Manually delete all relationships (PhotoTag, PhotoPhotoset, ImportMeta, ShareToken)
+  - Added detailed logging for each deletion step
+  - Added try/catch with user-facing error messages
+  - Prevents FOREIGN KEY constraint errors on delete
+
 ## [2025-10-25] - Admin Tools & Data Integrity
 
 ### Added
