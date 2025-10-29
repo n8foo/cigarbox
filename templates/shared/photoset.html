@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{# Set Open Graph variables for social media preview #}
+{% set og_title = 'Shared Photoset: ' + photoset.title %}
+{% set og_url = request.url %}
+{% set og_description = photoset.description or 'A shared photoset from CigarBox' %}
+
+{% block body %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="alert alert-info">
+        <span class="glyphicon glyphicon-info-sign"></span>
+        You're viewing a shared photoset.
+        {% if share_token.comment %}
+        <br><strong>{{ share_token.comment }}</strong>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <h2>{{ photoset.title }}</h2>
+      {% if photoset.description %}
+      <p class="text-muted">{{ photoset.description }}</p>
+      {% endif %}
+      <hr>
+    </div>
+  </div>
+
+  <!-- Photo Grid -->
+  {% for row in photos|batch(4) %}
+  <div class="row">
+    {% for photo in row %}
+    <div class="col-xs-6 col-md-3">
+      <div class="thumbnail">
+        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}">
+          <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg" alt="Photo" class="img-responsive">
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<br><br>
+
+{% endblock %}

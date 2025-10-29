@@ -21,10 +21,8 @@
       <div class="alert alert-info">
         <span class="glyphicon glyphicon-info-sign"></span>
         You're viewing a shared photo.
-        {% if share_token.expires_at %}
-        This link expires {{ share_token.expires_at.strftime('%Y-%m-%d %H:%M') }}.
-        {% else %}
-        This link has no expiration.
+        {% if share_token.comment %}
+        <br><strong>{{ share_token.comment }}</strong>
         {% endif %}
       </div>
     </div>
@@ -32,7 +30,14 @@
 
   <div class="row">
     <div class="col-md-12">
-      <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Shared photo">
+      <div style="position: relative; display: inline-block;">
+        <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Shared photo">
+        {% if share_token.allow_download %}
+        <a href="{{SITEURL}}/shared/{{ share_token.token }}/download" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">
+          <span class="glyphicon glyphicon-download-alt"></span> Download Original
+        </a>
+        {% endif %}
+      </div>
     </div>
 
     <div class="col-md-12" align="left">

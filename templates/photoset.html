@@ -1,6 +1,37 @@
 {% extends "layout.html" %}
 {% from "_pagination.html" import render_pagination %}
 {% block body %}
+
+<!-- Share Link Success Alert -->
+{% if session.share_link %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-success alert-dismissible" role="alert">
+      <button type="button" class="close" data-dismiss="alert">&times;</button>
+      <h4><span class="glyphicon glyphicon-ok-circle"></span> Photoset Share Link Created!</h4>
+      <p>Copy this link to share this photoset:</p>
+      <div class="input-group">
+        <input type="text" class="form-control" value="{{ session.share_link }}" id="shareUrlInput" readonly>
+        <span class="input-group-btn">
+          <button class="btn btn-primary" type="button" onclick="copyShareLink()">
+            <span class="glyphicon glyphicon-copy"></span> Copy
+          </button>
+        </span>
+      </div>
+      <p class="help-block" style="margin-top: 10px;">
+        {% if session.share_expires and session.share_expires > 0 %}
+        This link will expire in {{ session.share_expires }} days.
+        {% else %}
+        This link never expires.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+{% set _ = session.pop('share_link', None) %}
+{% set _ = session.pop('share_expires', None) %}
+{% endif %}
+
 <div class="row">
   <div class="col-md-8">
     <h1>{{ photoset.title }}</h1>
@@ -14,6 +45,9 @@
     <div class="btn-group btn-group-sm">
       <button type="button" class="btn btn-link" data-toggle="modal" data-target="#editPhotosetModal">
         <span class="glyphicon glyphicon-pencil"></span> edit
+      </button>
+      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#sharePhotosetModal">
+        <span class="glyphicon glyphicon-share"></span> share
       </button>
       <button type="button" class="btn btn-link" onclick="toggleSelectMode()">
         <span class="glyphicon glyphicon-check"></span> select
@@ -45,7 +79,7 @@
           <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
         </div>
         {% endif %}
-        <a href="{{SITEURL}}/photos/{{ photo.id }}">
+        <a href="{{SITEURL}}/photos/{{ photo.id }}?context=photoset:{{ photoset.id }}">
           <img class="lazy"
                data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
@@ -61,9 +95,79 @@
 
   <!-- Pagination -->
   {{ render_pagination(pagination, baseurl) }}
+
+  {% if can_manage %}
+  <!-- Share Management Section -->
+  <div style="margin-top: 30px;">
+    <div class="panel panel-default">
+      <div class="panel-heading" style="cursor: pointer;" onclick="togglePhotosetShares()">
+        <h4 class="panel-title">
+          <span class="glyphicon glyphicon-link"></span> Active Shares
+          <span class="glyphicon glyphicon-chevron-down pull-right" id="photosetSharesChevron"></span>
+        </h4>
+      </div>
+      <div class="panel-body" id="photosetSharesPanel" style="display: none;">
+        <div id="photosetSharesList">
+          <p class="text-muted"><em>Loading shares...</em></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {% if can_manage %}
+<!-- Share Photoset Modal -->
+<div class="modal fade" id="sharePhotosetModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form method="POST" action="{{SITEURL}}/photosets/{{ photoset.id }}/share">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Create Photoset Share Link</h4>
+        </div>
+        <div class="modal-body">
+          <p>Create a secure link to share this entire photoset with others.</p>
+
+          <div class="form-group">
+            <label for="comment">Comment / Note</label>
+            <textarea name="comment" id="comment" class="form-control" rows="2" placeholder="Optional note about this share"></textarea>
+            <small class="text-muted">This note is for your reference only.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="days">Expiration</label>
+            <select name="days" id="days" class="form-control">
+              <option value="1">1 day</option>
+              <option value="7">7 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="90">90 days</option>
+              <option value="365">1 year</option>
+              <option value="0">Never expires</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="max_views">Max Views</label>
+            <input type="number" name="max_views" id="max_views" class="form-control" min="1" placeholder="Unlimited">
+            <small class="text-muted">Leave blank for unlimited views.</small>
+          </div>
+
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" name="allow_download"> Allow downloading original photos
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Edit Photoset Modal -->
 <div class="modal fade" id="editPhotosetModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
@@ -140,6 +244,98 @@ function removeSelected() {
 
   document.body.appendChild(form);
   form.submit();
+}
+
+function togglePhotosetShares() {
+  var panel = document.getElementById('photosetSharesPanel');
+  var chevron = document.getElementById('photosetSharesChevron');
+
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    chevron.className = 'glyphicon glyphicon-chevron-up pull-right';
+    loadPhotosetShares();
+  } else {
+    panel.style.display = 'none';
+    chevron.className = 'glyphicon glyphicon-chevron-down pull-right';
+  }
+}
+
+function loadPhotosetShares() {
+  fetch('{{SITEURL}}/photosets/{{ photoset.id }}/shares')
+    .then(response => response.json())
+    .then(data => {
+      var html = '';
+      if (data.shares && data.shares.length > 0) {
+        html += '<table class="table table-condensed table-striped">';
+        html += '<thead><tr><th>Comment</th><th>Views</th><th>Created</th><th>Expires</th><th>Download</th><th>Actions</th></tr></thead>';
+        html += '<tbody>';
+        data.shares.forEach(function(share) {
+          html += '<tr>';
+          html += '<td>' + (share.comment || '<em class="text-muted">No comment</em>') + '</td>';
+          html += '<td>' + share.views + (share.max_views ? '/' + share.max_views : '/∞') + '</td>';
+          html += '<td>' + share.created_at + '</td>';
+          html += '<td>' + (share.expires_at || '<em class="text-muted">Never</em>') + '</td>';
+          html += '<td>' + (share.allow_download ? '<span class="glyphicon glyphicon-ok text-success"></span>' : '<span class="glyphicon glyphicon-remove text-muted"></span>') + '</td>';
+          html += '<td>';
+          html += '<button class="btn btn-xs btn-danger" onclick="revokeShare(' + share.id + ')"><span class="glyphicon glyphicon-ban-circle"></span> Revoke</button> ';
+          html += '<button class="btn btn-xs btn-default" onclick="copyShareUrl(\'' + share.url + '\')"><span class="glyphicon glyphicon-copy"></span></button>';
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+      } else {
+        html = '<p class="text-muted"><em>No active shares for this photoset.</em></p>';
+      }
+      document.getElementById('photosetSharesList').innerHTML = html;
+    })
+    .catch(error => {
+      document.getElementById('photosetSharesList').innerHTML = '<p class="text-danger">Error loading shares.</p>';
+      console.error('Error:', error);
+    });
+}
+
+function revokeShare(shareId) {
+  if (confirm('Revoke this share link? It will no longer work.')) {
+    fetch('{{SITEURL}}/shares/' + shareId + '/revoke', { method: 'POST' })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          loadPhotosetShares(); // Reload the list
+        } else {
+          alert('Error: ' + (data.error || 'Failed to revoke share'));
+        }
+      })
+      .catch(error => {
+        alert('Error revoking share');
+        console.error('Error:', error);
+      });
+  }
+}
+
+function copyShareUrl(url) {
+  navigator.clipboard.writeText(url).then(function() {
+    alert('Share URL copied to clipboard!');
+  }).catch(function() {
+    prompt('Copy this URL:', url);
+  });
+}
+
+function copyShareLink() {
+  var input = document.getElementById('shareUrlInput');
+  input.select();
+  input.setSelectionRange(0, 99999); // For mobile
+
+  try {
+    document.execCommand('copy');
+    var btn = event.target.closest('button');
+    var originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="glyphicon glyphicon-ok"></span> Copied!';
+    setTimeout(function() {
+      btn.innerHTML = originalText;
+    }, 2000);
+  } catch (err) {
+    alert('Failed to copy. Please copy manually: ' + input.value);
+  }
 }
 </script>
 {% endif %}

@@ -181,7 +181,7 @@ def photostream(page):
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
 
-  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl)
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, context='photostream')
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
@@ -202,8 +202,96 @@ def show_photo(photo_id):
   # Check if user can edit this photo
   can_edit = can_edit_photo(current_user, photo)
 
+  # Detect navigation context from referrer or query params
+  context = request.args.get('context', '')
+  context_name = None
+  context_url = None
+  prev_photo = None
+  next_photo = None
+  visible_levels = get_visible_privacy_levels(current_user)
+
+  if context.startswith('photoset:'):
+    # Navigating within a photoset
+    photoset_id = int(context.split(':')[1])
+    context_name = f"Photoset"
+    context_url = f"{get_base_url()}/photosets/{photoset_id}"
+
+    photos_query = (Photo.select()
+                    .join(PhotoPhotoset)
+                    .where((PhotoPhotoset.photoset == photoset_id) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .order_by(Photo.datetaken.asc()))
+
+    all_photos = list(photos_query)
+    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
+    if current_index is not None:
+      if current_index > 0:
+        prev_photo = all_photos[current_index - 1]
+      if current_index < len(all_photos) - 1:
+        next_photo = all_photos[current_index + 1]
+
+  elif context.startswith('tag:'):
+    # Navigating within a tag
+    tag_name = context.split(':', 1)[1]
+    context_name = f"Tag: {tag_name}"
+    context_url = f"{get_base_url()}/tags/{tag_name}"
+
+    photos_query = (Photo.select()
+                    .join(PhotoTag)
+                    .join(Tag)
+                    .where((Tag.name == tag_name) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .order_by(Photo.id.desc()))
+
+    all_photos = list(photos_query)
+    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
+    if current_index is not None:
+      if current_index > 0:
+        prev_photo = all_photos[current_index - 1]
+      if current_index < len(all_photos) - 1:
+        next_photo = all_photos[current_index + 1]
+
+  elif context.startswith('date:'):
+    # Navigating within a date
+    date_str = context.split(':', 1)[1]
+    context_name = f"Date: {date_str}"
+    context_url = f"{get_base_url()}/date/{date_str}"
+
+    photos_query = (Photo.select()
+                    .where((Photo.datetaken >= date_str) &
+                           (Photo.datetaken < date_str + ' 23:59:59') &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .order_by(Photo.datetaken.asc()))
+
+    all_photos = list(photos_query)
+    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
+    if current_index is not None:
+      if current_index > 0:
+        prev_photo = all_photos[current_index - 1]
+      if current_index < len(all_photos) - 1:
+        next_photo = all_photos[current_index + 1]
+
+  elif context == 'photostream' or not context:
+    # Default: photostream navigation
+    context_name = "Photostream"
+    context_url = f"{get_base_url()}/photostream"
+
+    photos_query = Photo.select().where(
+      (Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))
+    ).order_by(Photo.id.desc())
+
+    all_photos = list(photos_query)
+    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
+    if current_index is not None:
+      if current_index > 0:
+        prev_photo = all_photos[current_index - 1]
+      if current_index < len(all_photos) - 1:
+        next_photo = all_photos[current_index + 1]
+
   return render_template('photos.html', photo=photo, tags=tags,
-                        photo_photosets=photo_photosets, can_edit=can_edit)
+                        photo_photosets=photo_photosets, can_edit=can_edit,
+                        context=context, context_name=context_name, context_url=context_url,
+                        prev_photo=prev_photo, next_photo=next_photo)
 
 
 @app.route('/photos/<int:photo_id>/update', methods=['POST'])
@@ -921,6 +1009,85 @@ def update_photoset_inline(photoset_id):
   return redirect(url_for('show_photoset', photoset_id=photoset_id, page=1))
 
 
+@app.route('/photosets/<int:photoset_id>/share', methods=['POST'])
+@login_required
+def create_photoset_share_link(photoset_id):
+  """Create a shareable link for a photoset"""
+  photoset = Photoset.select().where(Photoset.id == photoset_id).get()
+
+  # Check permission
+  if not can_manage_photosets(current_user):
+    abort(403)
+
+  # Get parameters from form
+  days = int(request.form.get('days', 30))
+  expires_at = datetime.datetime.now() + datetime.timedelta(days=days) if days > 0 else None
+  comment = request.form.get('comment', '').strip() or None
+  allow_download = request.form.get('allow_download') == 'on'
+  max_views = request.form.get('max_views', '').strip()
+  max_views = int(max_views) if max_views and max_views.isdigit() else None
+
+  # Generate secure token
+  token = secrets.token_urlsafe(32)
+
+  # Create share token
+  share_token = ShareToken.create(
+    token=token,
+    share_type='photoset',
+    photo=None,
+    photoset=photoset,
+    comment=comment,
+    allow_download=allow_download,
+    max_views=max_views,
+    created_by_id=current_user.id,
+    expires_at=expires_at
+  )
+
+  logger.info('SHARE_CREATED share_id=%d photoset_id=%d type=photoset comment=%s allow_download=%s max_views=%s user=%s',
+              share_token.id, photoset_id, comment or 'none', allow_download, max_views or 'unlimited', current_user.email)
+
+  # Generate shareable URL
+  share_url = f"{get_base_url()}/shared/photoset/{token}"
+
+  # Store in session to display on next page load
+  session['share_link'] = share_url
+  session['share_expires'] = days
+
+  flash(f'Photoset share link created! Valid for {days} days.' if days > 0 else 'Photoset share link created (no expiration).')
+  return redirect(url_for('show_photoset', photoset_id=photoset_id, page=1))
+
+
+@app.route('/photosets/<int:photoset_id>/shares')
+@login_required
+def list_photoset_shares(photoset_id):
+  """List all shares for a photoset"""
+  photoset = Photoset.select().where(Photoset.id == photoset_id).get()
+
+  # Check permission
+  if not can_manage_photosets(current_user):
+    abort(403)
+
+  shares = ShareToken.select().where(
+    (ShareToken.photoset == photoset_id) &
+    (ShareToken.share_type == 'photoset')
+  ).order_by(ShareToken.created_at.desc())
+
+  shares_data = []
+  for share in shares:
+    shares_data.append({
+      'id': share.id,
+      'url': f"{get_base_url()}/shared/photoset/{share.token}",
+      'comment': share.comment,
+      'views': share.views,
+      'max_views': share.max_views,
+      'allow_download': share.allow_download,
+      'created_at': share.created_at.strftime('%Y-%m-%d %H:%M'),
+      'expires_at': share.expires_at.strftime('%Y-%m-%d %H:%M') if share.expires_at else None
+    })
+
+  return jsonify({'shares': shares_data})
+
+
 @app.route('/photosets/<int:photoset_id>/remove-photos', methods=['POST'])
 @login_required
 def remove_photos_from_photoset(photoset_id):
@@ -1496,9 +1663,13 @@ def create_share_link(photo_id):
   if not can_view_photo(current_user, photo):
     abort(403)
 
-  # Get expiration days from form (default: 30 days)
+  # Get parameters from form
   days = int(request.form.get('days', 30))
   expires_at = datetime.datetime.now() + datetime.timedelta(days=days) if days > 0 else None
+  comment = request.form.get('comment', '').strip() or None
+  allow_download = request.form.get('allow_download') == 'on'
+  max_views = request.form.get('max_views', '').strip()
+  max_views = int(max_views) if max_views and max_views.isdigit() else None
 
   # Generate secure token
   token = secrets.token_urlsafe(32)
@@ -1506,10 +1677,18 @@ def create_share_link(photo_id):
   # Create share token
   share_token = ShareToken.create(
     token=token,
+    share_type='photo',
     photo=photo,
+    photoset=None,
+    comment=comment,
+    allow_download=allow_download,
+    max_views=max_views,
     created_by_id=current_user.id,
     expires_at=expires_at
   )
+
+  logger.info('SHARE_CREATED share_id=%d photo_id=%d type=photo comment=%s allow_download=%s max_views=%s user=%s',
+              share_token.id, photo_id, comment or 'none', allow_download, max_views or 'unlimited', current_user.email)
 
   # Generate shareable URL
   share_url = f"{get_base_url()}/shared/{token}"
@@ -1522,6 +1701,66 @@ def create_share_link(photo_id):
   return redirect(url_for('show_photo', photo_id=photo_id))
 
 
+@app.route('/photos/<int:photo_id>/shares')
+@login_required
+def list_photo_shares(photo_id):
+  """List all shares for a photo"""
+  photo = Photo.select().where(Photo.id == photo_id).get()
+
+  # Check permission
+  if not can_view_photo(current_user, photo):
+    abort(403)
+
+  shares = ShareToken.select().where(
+    (ShareToken.photo == photo_id) &
+    (ShareToken.share_type == 'photo')
+  ).order_by(ShareToken.created_at.desc())
+
+  shares_data = []
+  for share in shares:
+    shares_data.append({
+      'id': share.id,
+      'url': f"{get_base_url()}/shared/{share.token}",
+      'comment': share.comment,
+      'views': share.views,
+      'max_views': share.max_views,
+      'allow_download': share.allow_download,
+      'created_at': share.created_at.strftime('%Y-%m-%d %H:%M'),
+      'expires_at': share.expires_at.strftime('%Y-%m-%d %H:%M') if share.expires_at else None
+    })
+
+  return jsonify({'shares': shares_data})
+
+
+@app.route('/shares/<int:share_id>/revoke', methods=['POST'])
+@login_required
+def revoke_share(share_id):
+  """Revoke a share link"""
+  try:
+    share = ShareToken.get_by_id(share_id)
+
+    # Check permission
+    if share.share_type == 'photo':
+      photo = share.photo
+      if not can_view_photo(current_user, photo):
+        abort(403)
+    elif share.share_type == 'photoset':
+      if not can_manage_photosets(current_user):
+        abort(403)
+
+    logger.info('SHARE_REVOKED share_id=%d type=%s user=%s', share_id, share.share_type, current_user.email)
+
+    # Delete the share
+    share.delete_instance()
+
+    return jsonify({'success': True})
+  except ShareToken.DoesNotExist:
+    return jsonify({'success': False, 'error': 'Share not found'}), 404
+  except Exception as e:
+    logger.error('SHARE_REVOKE_FAILED share_id=%d error=%s', share_id, str(e))
+    return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/shared/<string:token>')
 def view_shared_photo(token):
   """View a photo via share token"""
@@ -1530,13 +1769,25 @@ def view_shared_photo(token):
   except ShareToken.DoesNotExist:
     abort(404)
 
+  # Check if share type is correct
+  if share_token.share_type != 'photo':
+    abort(404)
+
   # Check if token has expired
   if share_token.expires_at and share_token.expires_at < datetime.datetime.now():
     return render_template('shared/expired.html'), 410
 
+  # Check if max views reached
+  if share_token.max_views and share_token.views >= share_token.max_views:
+    return render_template('shared/limit_reached.html', share_token=share_token), 410
+
   # Increment view count
   share_token.views += 1
   share_token.save()
+
+  logger.info('SHARE_VIEW share_id=%d photo_id=%d views=%d/%s ip=%s',
+              share_token.id, share_token.photo.id, share_token.views,
+              share_token.max_views or 'unlimited', request.remote_addr)
 
   # Get photo
   photo = Photo.select().where(Photo.id == share_token.photo).get()
@@ -1548,6 +1799,195 @@ def view_shared_photo(token):
 
   return render_template('shared/photo.html', photo=photo, tags=tags,
                         share_token=share_token)
+
+
+@app.route('/shared/<string:token>/download')
+def download_shared_photo(token):
+  """Track download of original photo via share token"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.token == token).get()
+  except ShareToken.DoesNotExist:
+    abort(404)
+
+  # Check if share type is correct
+  if share_token.share_type != 'photo':
+    abort(404)
+
+  # Check if downloads are allowed
+  if not share_token.allow_download:
+    abort(403)
+
+  # Check expiration and view limits
+  if share_token.expires_at and share_token.expires_at < datetime.datetime.now():
+    abort(410)
+  if share_token.max_views and share_token.views >= share_token.max_views:
+    abort(410)
+
+  # Log download (not tracked in DB, only in logs)
+  photo = share_token.photo
+  logger.info('SHARE_DOWNLOAD share_id=%d photo_id=%d share_url=%s comment=%s ip=%s user_agent=%s',
+              share_token.id, photo.id, f'/shared/{token}',
+              share_token.comment or 'none', request.remote_addr, request.user_agent.string)
+
+  # Get signed URL for original photo (private S3 object)
+  (sha1Path, filename) = getSha1Path(photo.sha1)
+  S3Key = '/' + sha1Path + '/' + filename + '.' + photo.filetype
+  originalURL = aws.getPrivateURL(app.config, S3Key)
+
+  if originalURL:
+    return redirect(originalURL)
+  else:
+    abort(404)
+
+
+@app.route('/shared/photoset/<string:token>')
+def view_shared_photoset(token):
+  """View a photoset via share token"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.token == token).get()
+  except ShareToken.DoesNotExist:
+    abort(404)
+
+  # Check if share type is correct
+  if share_token.share_type != 'photoset':
+    abort(404)
+
+  # Check if token has expired
+  if share_token.expires_at and share_token.expires_at < datetime.datetime.now():
+    return render_template('shared/expired.html'), 410
+
+  # Check if max views reached
+  if share_token.max_views and share_token.views >= share_token.max_views:
+    return render_template('shared/limit_reached.html', share_token=share_token), 410
+
+  # Increment view count
+  share_token.views += 1
+  share_token.save()
+
+  logger.info('SHARE_VIEW share_id=%d photoset_id=%d views=%d/%s ip=%s',
+              share_token.id, share_token.photoset.id, share_token.views,
+              share_token.max_views or 'unlimited', request.remote_addr)
+
+  # Get photoset and all photos (bypass privacy - share grants access)
+  photoset = share_token.photoset
+  photos = (Photo.select()
+            .join(PhotoPhotoset)
+            .where(PhotoPhotoset.photoset == photoset)
+            .order_by(Photo.datetaken.asc()))
+
+  # Add URIs for thumbnails
+  for photo in photos:
+    (sha1Path, filename) = getSha1Path(photo.sha1)
+    photo.uri = f"{sha1Path}/{filename}"
+
+  return render_template('shared/photoset.html', photoset=photoset, photos=photos,
+                        share_token=share_token)
+
+
+@app.route('/shared/photoset/<string:token>/photo/<int:photo_id>')
+def view_shared_photoset_photo(token, photo_id):
+  """View individual photo from shared photoset"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.token == token).get()
+  except ShareToken.DoesNotExist:
+    abort(404)
+
+  # Check if share type is correct
+  if share_token.share_type != 'photoset':
+    abort(404)
+
+  # Check if token has expired
+  if share_token.expires_at and share_token.expires_at < datetime.datetime.now():
+    return render_template('shared/expired.html'), 410
+
+  # Check if max views reached
+  if share_token.max_views and share_token.views >= share_token.max_views:
+    return render_template('shared/limit_reached.html', share_token=share_token), 410
+
+  # Verify photo is in photoset
+  photo_in_set = PhotoPhotoset.select().where(
+    (PhotoPhotoset.photoset == share_token.photoset) &
+    (PhotoPhotoset.photo == photo_id)
+  ).count()
+
+  if not photo_in_set:
+    abort(404)
+
+  # Get photo
+  photo = Photo.get_by_id(photo_id)
+  (sha1Path, filename) = getSha1Path(photo.sha1)
+  photo.uri = f"{sha1Path}/{filename}"
+
+  # Get all photos in photoset for navigation
+  all_photos = list(Photo.select()
+                    .join(PhotoPhotoset)
+                    .where(PhotoPhotoset.photoset == share_token.photoset)
+                    .order_by(Photo.datetaken.asc()))
+
+  # Find current position and prev/next
+  current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
+  prev_photo = all_photos[current_index - 1] if current_index and current_index > 0 else None
+  next_photo = all_photos[current_index + 1] if current_index is not None and current_index < len(all_photos) - 1 else None
+
+  # Get tags for this photo
+  tags = Tag.select().join(PhotoTag).where(PhotoTag.photo == photo.id)
+
+  return render_template('shared/photoset_photo.html',
+                        photo=photo, tags=tags,
+                        share_token=share_token,
+                        photoset=share_token.photoset,
+                        prev_photo=prev_photo,
+                        next_photo=next_photo,
+                        current_pos=current_index + 1 if current_index is not None else 1,
+                        total_photos=len(all_photos))
+
+
+@app.route('/shared/photoset/<string:token>/photo/<int:photo_id>/download')
+def download_shared_photoset_photo(token, photo_id):
+  """Track download of photo from shared photoset"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.token == token).get()
+  except ShareToken.DoesNotExist:
+    abort(404)
+
+  # Check if share type is correct
+  if share_token.share_type != 'photoset':
+    abort(404)
+
+  # Check if downloads are allowed
+  if not share_token.allow_download:
+    abort(403)
+
+  # Check expiration and view limits
+  if share_token.expires_at and share_token.expires_at < datetime.datetime.now():
+    abort(410)
+  if share_token.max_views and share_token.views >= share_token.max_views:
+    abort(410)
+
+  # Verify photo is in photoset
+  photo_in_set = PhotoPhotoset.select().where(
+    (PhotoPhotoset.photoset == share_token.photoset) &
+    (PhotoPhotoset.photo == photo_id)
+  ).count()
+
+  if not photo_in_set:
+    abort(404)
+
+  # Log download
+  photo = Photo.get_by_id(photo_id)
+  logger.info('SHARE_DOWNLOAD share_id=%d photoset_id=%d photo_id=%d share_url=%s comment=%s ip=%s user_agent=%s',
+              share_token.id, share_token.photoset.id, photo_id, f'/shared/photoset/{token}',
+              share_token.comment or 'none', request.remote_addr, request.user_agent.string)
+
+  # Get signed URL for original photo (private S3 object)
+  (sha1Path, filename) = getSha1Path(photo.sha1)
+  S3Key = '/' + sha1Path + '/' + filename + '.' + photo.filetype
+  originalURL = aws.getPrivateURL(app.config, S3Key)
+
+  if originalURL:
+    return redirect(originalURL)
+  else:
+    abort(404)
 
 
 @app.route('/admin/shares')

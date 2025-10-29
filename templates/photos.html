@@ -44,10 +44,58 @@
     {% set _ = session.pop('share_expires', None) %}
     {% endif %}
 
+    <!-- Navigation Breadcrumb -->
+    {% if context_name %}
+    <div class="row">
+      <div class="col-md-12">
+        <ol class="breadcrumb">
+          <li><a href="{{ context_url }}">{{ context_name }}</a></li>
+          <li class="active">Photo</li>
+        </ol>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="row">
       <div class="col-md-12">
         <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
       </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    {% if prev_photo or next_photo %}
+    <div class="row" style="margin-top: 15px;">
+      <div class="col-md-12 text-center">
+        <div class="btn-group" role="group">
+          {% if prev_photo %}
+          <a href="{{SITEURL}}/photos/{{ prev_photo.id }}?context={{ context }}" class="btn btn-default" id="prevPhotoBtn">
+            <span class="glyphicon glyphicon-chevron-left"></span> Previous
+          </a>
+          {% else %}
+          <button class="btn btn-default" disabled>
+            <span class="glyphicon glyphicon-chevron-left"></span> Previous
+          </button>
+          {% endif %}
+
+          <a href="{{ context_url }}" class="btn btn-primary">
+            <span class="glyphicon glyphicon-th"></span> Back to {{ context_name }}
+          </a>
+
+          {% if next_photo %}
+          <a href="{{SITEURL}}/photos/{{ next_photo.id }}?context={{ context }}" class="btn btn-default" id="nextPhotoBtn">
+            Next <span class="glyphicon glyphicon-chevron-right"></span>
+          </a>
+          {% else %}
+          <button class="btn btn-default" disabled>
+            Next <span class="glyphicon glyphicon-chevron-right"></span>
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
       <!-- Photo Details -->
       <div class="col-md-12">
         <hr>
@@ -116,7 +164,30 @@
         <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#shareModal">
           <span class="glyphicon glyphicon-share"></span> Share
         </button>
+        {% if can_edit %}
+        <button type="button" class="btn btn-sm btn-danger" onclick="deletePhoto({{ photo.id }})">
+          <span class="glyphicon glyphicon-trash"></span> Delete
+        </button>
+        {% endif %}
       </div>
+
+      <!-- Share Management Section -->
+      <div class="col-md-12" style="margin-top: 20px;">
+        <div class="panel panel-default">
+          <div class="panel-heading" style="cursor: pointer;" onclick="toggleShares()">
+            <h4 class="panel-title">
+              <span class="glyphicon glyphicon-link"></span> Active Shares
+              <span class="glyphicon glyphicon-chevron-down pull-right" id="sharesChevron"></span>
+            </h4>
+          </div>
+          <div class="panel-body" id="sharesPanel" style="display: none;">
+            <div id="sharesList">
+              <p class="text-muted"><em>Loading shares...</em></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Share Modal -->
       <div class="modal fade" id="shareModal" tabindex="-1" role="dialog">
@@ -129,6 +200,13 @@
               </div>
               <div class="modal-body">
                 <p>Create a secure link to share this photo with others.</p>
+
+                <div class="form-group">
+                  <label for="comment">Comment / Note</label>
+                  <textarea name="comment" id="comment" class="form-control" rows="2" placeholder="Optional note about this share (e.g., who it's for, why it was created)"></textarea>
+                  <small class="text-muted">This note is for your reference only.</small>
+                </div>
+
                 <div class="form-group">
                   <label for="days">Expiration</label>
                   <select name="days" id="days" class="form-control">
@@ -139,6 +217,18 @@
                     <option value="365">1 year</option>
                     <option value="0">Never expires</option>
                   </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="max_views">Max Views</label>
+                  <input type="number" name="max_views" id="max_views" class="form-control" min="1" placeholder="Unlimited">
+                  <small class="text-muted">Leave blank for unlimited views.</small>
+                </div>
+
+                <div class="checkbox">
+                  <label>
+                    <input type="checkbox" name="allow_download"> Allow downloading original photo
+                  </label>
                 </div>
               </div>
               <div class="modal-footer">
@@ -209,8 +299,6 @@
       </div>
       {% endif %}
 
-      {% endif %}
-
     </div>
   </div>
   <br><br>
@@ -233,5 +321,107 @@
       alert('Failed to copy. Please copy manually: ' + input.value);
     }
   }
+
+  function deletePhoto(photoId) {
+    if (confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
+      window.location.href = '{{SITEURL}}/photos/' + photoId + '/delete';
+    }
+  }
+
+  function toggleShares() {
+    var panel = document.getElementById('sharesPanel');
+    var chevron = document.getElementById('sharesChevron');
+
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      chevron.className = 'glyphicon glyphicon-chevron-up pull-right';
+      loadShares();
+    } else {
+      panel.style.display = 'none';
+      chevron.className = 'glyphicon glyphicon-chevron-down pull-right';
+    }
+  }
+
+  function loadShares() {
+    fetch('{{SITEURL}}/photos/{{ photo.id }}/shares')
+      .then(response => response.json())
+      .then(data => {
+        var html = '';
+        if (data.shares && data.shares.length > 0) {
+          html += '<table class="table table-condensed table-striped">';
+          html += '<thead><tr><th>Comment</th><th>Views</th><th>Created</th><th>Expires</th><th>Download</th><th>Actions</th></tr></thead>';
+          html += '<tbody>';
+          data.shares.forEach(function(share) {
+            html += '<tr>';
+            html += '<td>' + (share.comment || '<em class="text-muted">No comment</em>') + '</td>';
+            html += '<td>' + share.views + (share.max_views ? '/' + share.max_views : '/∞') + '</td>';
+            html += '<td>' + share.created_at + '</td>';
+            html += '<td>' + (share.expires_at || '<em class="text-muted">Never</em>') + '</td>';
+            html += '<td>' + (share.allow_download ? '<span class="glyphicon glyphicon-ok text-success"></span>' : '<span class="glyphicon glyphicon-remove text-muted"></span>') + '</td>';
+            html += '<td>';
+            html += '<button class="btn btn-xs btn-danger" onclick="revokeShare(' + share.id + ')"><span class="glyphicon glyphicon-ban-circle"></span> Revoke</button> ';
+            html += '<button class="btn btn-xs btn-default" onclick="copyShareUrl(\'' + share.url + '\')"><span class="glyphicon glyphicon-copy"></span></button>';
+            html += '</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        } else {
+          html = '<p class="text-muted"><em>No active shares for this photo.</em></p>';
+        }
+        document.getElementById('sharesList').innerHTML = html;
+      })
+      .catch(error => {
+        document.getElementById('sharesList').innerHTML = '<p class="text-danger">Error loading shares.</p>';
+        console.error('Error:', error);
+      });
+  }
+
+  function revokeShare(shareId) {
+    if (confirm('Revoke this share link? It will no longer work.')) {
+      fetch('{{SITEURL}}/shares/' + shareId + '/revoke', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            loadShares(); // Reload the list
+          } else {
+            alert('Error: ' + (data.error || 'Failed to revoke share'));
+          }
+        })
+        .catch(error => {
+          alert('Error revoking share');
+          console.error('Error:', error);
+        });
+    }
+  }
+
+  function copyShareUrl(url) {
+    navigator.clipboard.writeText(url).then(function() {
+      alert('Share URL copied to clipboard!');
+    }).catch(function() {
+      prompt('Copy this URL:', url);
+    });
+  }
+
+  // Keyboard navigation for prev/next photos
+  document.addEventListener('keydown', function(e) {
+    // Ignore if user is typing in an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+      var prevBtn = document.getElementById('prevPhotoBtn');
+      if (prevBtn) {
+        e.preventDefault();
+        window.location.href = prevBtn.href;
+      }
+    } else if (e.key === 'ArrowRight') {
+      var nextBtn = document.getElementById('nextPhotoBtn');
+      if (nextBtn) {
+        e.preventDefault();
+        window.location.href = nextBtn.href;
+      }
+    }
+  });
   </script>
 {% endblock %}

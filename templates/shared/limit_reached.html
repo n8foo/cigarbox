@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="alert alert-warning">
+        <h2><span class="glyphicon glyphicon-ban-circle"></span> View Limit Reached</h2>
+        <p>This share link has reached its maximum view limit.</p>
+        {% if share_token.comment %}
+        <p><strong>Note:</strong> {{ share_token.comment }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

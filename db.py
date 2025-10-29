@@ -70,12 +70,17 @@ class ImportMeta(BaseModel):
   ts           = DateTimeField(default=lambda: datetime.datetime.now())
 
 class ShareToken(BaseModel):
-  token        = CharField(unique=True, null=False)
-  photo        = ForeignKeyField(Photo, backref='share_tokens', on_delete='CASCADE')
-  created_by_id = IntegerField(null=True)  # Foreign key to User.id
-  created_at   = DateTimeField(default=lambda: datetime.datetime.now())
-  expires_at   = DateTimeField(null=True)
-  views        = IntegerField(default=0)
+  token          = CharField(unique=True, null=False)
+  share_type     = CharField(default='photo')  # 'photo' or 'photoset'
+  photo          = ForeignKeyField(Photo, backref='share_tokens', on_delete='CASCADE', null=True)
+  photoset       = ForeignKeyField(Photoset, backref='share_tokens', on_delete='CASCADE', null=True)
+  comment        = TextField(null=True)
+  allow_download = BooleanField(default=False)
+  max_views      = IntegerField(null=True)  # NULL = unlimited
+  created_by_id  = IntegerField(null=True)  # Foreign key to User.id
+  created_at     = DateTimeField(default=lambda: datetime.datetime.now())
+  expires_at     = DateTimeField(null=True)
+  views          = IntegerField(default=0)
 
 class Role(BaseModel, RoleMixin):
   name         = CharField(unique=True)

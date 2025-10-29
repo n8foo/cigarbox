@@ -3,6 +3,47 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-29] - Photo Sharing System & Navigation
+
+### Added
+- **Unified photo and photoset sharing system**
+  - Single ShareToken table handles both photos and photosets
+  - Share comments/metadata for tracking who/why shares were created
+  - Download original toggle (uses signed S3 URLs)
+  - Max views limit (NULL = unlimited)
+  - View tracking with detailed logging (IP, user agent, comment)
+  - Share management UI on photo and photoset pages (collapsible panels)
+  - Inline revoke capability with AJAX
+  - Copy-to-clipboard for share URLs
+
+- **Context-aware photo navigation**
+  - Prev/Next buttons when viewing photos
+  - Maintains context: photostream, photosets, tags, dates
+  - Breadcrumb navigation showing current context
+  - "Back to [Context]" button for easy return
+
+- **Keyboard navigation**
+  - Arrow keys (← →) to navigate between photos
+  - Works in regular photos and shared photosets
+  - Disabled when typing in form fields
+
+- **Enhanced shared photoset viewing**
+  - Individual photo pages (not direct S3 links)
+  - Full-size photo display with navigation
+  - Download button on photo page (if enabled)
+  - Breadcrumb back to photoset grid
+
+### Fixed
+- **Jinja template syntax error** in photos.html (duplicate endif)
+- **S3 download access** - Use signed URLs for private originals instead of direct links
+- **Missing share URL display** for photoset shares (added success alert with copy button)
+
+### Changed
+- Photo page now includes navigation context from referrer
+- Photostream and photoset grids link with context parameters
+- Share creation includes comment, max views, and download options
+
+---
 ## [2025-10-28] - Photosets Privacy Fix
 
 ### Fixed
