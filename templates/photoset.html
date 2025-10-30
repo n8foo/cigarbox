@@ -91,7 +91,7 @@
           <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
         </div>
         {% endif %}
-        <a href="{{SITEURL}}/photos/{{ photo.id }}?context=photoset:{{ photoset.id }}">
+        <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}">
           <img class="lazy"
                data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"

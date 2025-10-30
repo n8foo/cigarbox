@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-30] - Pagination Context Preservation and Config Improvements
+
+### Added
+- **Pagination context preservation**
+  - Breadcrumb navigation now preserves page numbers across all contexts
+  - Photo links include page number (e.g., `?context=photostream:page:5`)
+  - "Back to" buttons return to exact page you were browsing
+  - Works for photostream, photosets, tags, and date views
+  - Page numbers displayed with colon separator (e.g., "Photostream : 5")
+
+### Fixed
+- **Date context navigation**
+  - Uses `startswith()` for flexible date matching (handles `2007-12-2` and `2007-12-02`)
+  - Fixed navigation direction for date context (DESC order like photostream)
+  - Navigation and keyboard shortcuts now work correctly on date pages
+
+---
 ## [2025-10-30] - UI Improvements and Navigation Enhancements
 
 ### Added

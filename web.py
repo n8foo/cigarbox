@@ -181,7 +181,9 @@ def photostream(page):
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
 
-  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, context='photostream')
+  # Include page number in context for breadcrumb navigation
+  context = f'photostream:page:{page}' if page > 1 else 'photostream'
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, context=context)
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
@@ -212,11 +214,19 @@ def show_photo(photo_id):
 
   if context.startswith('photoset:'):
     # Navigating within a photoset (ordered by datetaken)
-    photoset_id = int(context.split(':')[1])
+    # Context format: photoset:id or photoset:id:page:N
+    parts = context.split(':')
+    photoset_id = int(parts[1])
     # Get photoset name for breadcrumb
     photoset = Photoset.select().where(Photoset.id == photoset_id).first()
     context_name = photoset.title if photoset else "Photoset"
     context_url = f"{get_base_url()}/photosets/{photoset_id}"
+
+    # Check if there's a page number in the context
+    if len(parts) == 4 and parts[2] == 'page':
+      page_num = parts[3]
+      context_url = f"{get_base_url()}/photosets/{photoset_id}/page/{page_num}"
+      context_name = f"{context_name} : {page_num}"
 
     # Base query for photos in this photoset
     base_query = (Photo.select()
@@ -245,9 +255,17 @@ def show_photo(photo_id):
 
   elif context.startswith('tag:'):
     # Navigating within a tag (ordered by ID desc)
-    tag_name = context.split(':', 1)[1]
+    # Context format: tag:name or tag:name:page:N
+    parts = context.split(':')
+    tag_name = parts[1]
     context_name = f"Tag: {tag_name}"
     context_url = f"{get_base_url()}/tags/{tag_name}"
+
+    # Check if there's a page number in the context
+    if len(parts) == 4 and parts[2] == 'page':
+      page_num = parts[3]
+      context_url = f"{get_base_url()}/tags/{tag_name}/page/{page_num}"
+      context_name = f"Tag: {tag_name} : {page_num}"
 
     # Base query for photos with this tag
     base_query = (Photo.select()
@@ -271,40 +289,53 @@ def show_photo(photo_id):
                   .first())
 
   elif context.startswith('date:'):
-    # Navigating within a specific date (ordered by datetaken)
-    date_str = context.split(':', 1)[1]
+    # Navigating within a specific date (ordered by datetaken DESC - newest first)
+    # Context format: date:YYYY-MM-DD or date:YYYY-MM-DD:page:N
+    parts = context.split(':')
+    date_str = parts[1]
     context_name = f"Date: {date_str}"
     context_url = f"{get_base_url()}/date/{date_str}"
 
-    # Base query for photos on this date
+    # Check if there's a page number in the context
+    if len(parts) == 4 and parts[2] == 'page':
+      page_num = parts[3]
+      context_url = f"{get_base_url()}/date/{date_str}/page/{page_num}"
+      context_name = f"Date: {date_str} : {page_num}"
+
+    # Base query for photos on this date (using startswith for flexible date matching)
     base_query = (Photo.select()
-                  .where((Photo.datetaken >= date_str) &
-                         (Photo.datetaken < date_str + ' 23:59:59') &
+                  .where((Photo.datetaken.startswith(date_str)) &
                          ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
 
     # Get current photo's datetaken for comparison
     current_datetaken = photo.datetaken
 
-    # Next photo: later time, or same time but higher ID
+    # Next photo: earlier time (DESC order), or same time but lower ID
     next_photo = (base_query
-                  .where((Photo.datetaken > current_datetaken) |
-                         ((Photo.datetaken == current_datetaken) & (Photo.id > photo_id)))
-                  .order_by(Photo.datetaken.asc(), Photo.id.asc())
-                  .limit(1)
-                  .first())
-
-    # Previous photo: earlier time, or same time but lower ID
-    prev_photo = (base_query
                   .where((Photo.datetaken < current_datetaken) |
                          ((Photo.datetaken == current_datetaken) & (Photo.id < photo_id)))
                   .order_by(Photo.datetaken.desc(), Photo.id.desc())
                   .limit(1)
                   .first())
 
-  elif context == 'photostream' or not context:
+    # Previous photo: later time (DESC order), or same time but higher ID
+    prev_photo = (base_query
+                  .where((Photo.datetaken > current_datetaken) |
+                         ((Photo.datetaken == current_datetaken) & (Photo.id > photo_id)))
+                  .order_by(Photo.datetaken.asc(), Photo.id.asc())
+                  .limit(1)
+                  .first())
+
+  elif context.startswith('photostream') or not context:
     # Default: photostream navigation (ordered by ID desc)
     context_name = "Photostream"
     context_url = f"{get_base_url()}/photostream"
+
+    # Check if there's a page number in the context
+    if context.startswith('photostream:page:'):
+      page_num = context.split(':')[-1]
+      context_url = f"{get_base_url()}/photostream/page/{page_num}"
+      context_name = f"Photostream : {page_num}"
 
     # Base query for all visible photos
     base_query = Photo.select().where(
@@ -756,10 +787,12 @@ def show_taged_photos(tag,page):
   all_photo_ids = [str(p.id) for p in photos_query]
   photo_ids_str = ','.join(all_photo_ids)
 
+  # Include page number in context for breadcrumb navigation
+  context = f'tag:{tag}:page:{page}' if page > 1 else f'tag:{tag}'
   return render_template('tag.html', photos=photos, tag=tag_obj,
                         photo_count=photo_count, pagination=pagination,
                         baseurl=baseurl, can_manage=can_manage,
-                        photo_ids=photo_ids_str)
+                        photo_ids=photo_ids_str, context=context)
 
 
 @app.route('/tags/<string:tag>/rename', methods=['POST'])
@@ -865,10 +898,12 @@ def show_date_photos(date,page):
   all_photo_ids = [str(p.id) for p in photos_query]
   photo_ids_str = ','.join(all_photo_ids)
 
+  # Include page number in context for breadcrumb navigation
+  context = f'date:{date}:page:{page}' if page > 1 else f'date:{date}'
   return render_template('photostream.html', photos=photos, pagination=pagination,
                         baseurl=baseurl, page_title=f'Photos from {date}',
                         photo_count=photo_count, photo_ids=photo_ids_str,
-                        context=f'date:{date}')
+                        context=context)
 
 @app.route('/tags/<string:tag>/delete')
 @login_required
@@ -1059,10 +1094,12 @@ def show_photoset(photoset_id,page):
                  .group_by(Tag.id)
                  .order_by(Tag.name))
 
+  # Include page number in context for breadcrumb navigation
+  context = f'photoset:{photoset_id}:page:{page}' if page > 1 else f'photoset:{photoset_id}'
   return render_template('photoset.html', photos=photos, photoset=photoset,
                         pagination=pagination, baseurl=baseurl, can_manage=can_manage,
                         photo_ids=photo_ids_str, date_range=date_range,
-                        unique_tags=unique_tags)
+                        unique_tags=unique_tags, context=context)
 
 
 @app.route('/photosets/<int:photoset_id>/update', methods=['POST'])
