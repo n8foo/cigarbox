@@ -3,6 +3,84 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-30] - UI Improvements and Navigation Enhancements
+
+### Added
+- **Keyboard shortcuts for photo page**
+  - Arrow keys (←/→) for photo navigation, (↑) for back to context
+  - `t` to edit tags, `p` for privacy, `s` to share, `o` for original
+  - `Delete` key to delete photo, `?` to show keyboard help
+  - `Esc` to close modals
+  - Respects browser shortcuts (Alt/Cmd/Ctrl combinations)
+  - Auto-focus on input fields when modals open
+
+- **Keyboard shortcuts for photoset page**
+  - `s` to share photoset, `e` for bulk edit
+  - Respects browser shortcuts (Alt/Cmd/Ctrl combinations)
+
+- **Photoset metadata display (Icon Metadata Bar pattern)**
+  - Date range of photos in set (e.g., "2024-01-15 to 2024-03-20")
+  - Shows single date if all photos from same day
+  - All unique tags across photoset photos (clickable)
+  - Date with calendar icon displayed under description
+
+- **Share count badges**
+  - Red notification badges on Share buttons (photos and photosets)
+  - Shows count only when shares exist
+  - Clicking badge navigates to admin shares with search pre-filled
+
+- **Context-aware navigation for tags and dates**
+  - Tag pages now pass `?context=tag:name` to photo links
+  - Date pages pass `?context=date:YYYY-MM-DD`
+  - Enables prev/next navigation within tag/date contexts
+
+- **Photoset breadcrumb shows photoset title**
+  - When viewing photo from photoset context, breadcrumb shows actual photoset name
+  - e.g., "Vacation 2024 / Photo #123" instead of "Photoset / Photo #123"
+
+### Changed
+- **Photo page header redesign (Icon Metadata Bar pattern)**
+  - Header split 50/50 (col-md-6 / col-md-6) for better space efficiency
+  - Photo ID with date and time inline in breadcrumb
+  - Photosets list below breadcrumb (filters out current context photoset)
+  - Tags displayed in right column with icon
+  - All action buttons in right column header
+  - Icon-based button style matching photoset pages
+  - Removed duplicate details section below photo
+
+- **Photoset page enhancements**
+  - Delete button moved to edit modal footer (progressive disclosure)
+  - Date displayed under description instead of in action area
+  - Tags moved to right column for cleaner layout
+  - Removed "Active Shares" collapsible panel
+
+- **Share management improvements**
+  - Replaced collapsible share panels with notification badges
+  - Admin shares page now shows both photos and photosets
+  - Added Comment column to shares table
+  - Action buttons use icons only (copy, revoke) for compact display
+
+- **Fabric logs command simplified**
+  - Removed confusing flags, now shows all logs by default
+  - Docker logs + application log + nginx logs (prod)
+  - New `fab follow-logs` command for live streaming
+  - 100 lines per log source (configurable with `--tail`)
+
+### Fixed
+- **Photoset date range logic**
+  - Single date shown when all photos from same day
+  - Compares date strings instead of datetime objects
+- **Keyboard shortcuts respect browser navigation**
+  - Arrow keys with modifiers (Alt/Cmd/Ctrl) no longer intercepted
+- **Admin shares query includes photoset shares**
+  - Changed to LEFT OUTER JOIN to show all share types
+  - Search works for photo ID, photoset ID, or token
+- **Header whitespace optimization**
+  - Tighter margins on date and photoset displays
+  - Reduced vertical spacing in photo and photoset headers
+  - Better use of above-the-fold space
+
+---
 ## [2025-10-29] - Navigation Performance Optimization
 
 ### Performance

@@ -35,7 +35,7 @@
   <div class="row">
     {%- for photo in row %}
     <div class="col-xs-6 col-md-3">
-      <a href="{{SITEURL}}/photos/{{ photo.id }}" class='thumbnail'>
+      <a href="{{SITEURL}}/photos/{{ photo.id }}?context=tag:{{ tag.name }}" class='thumbnail'>
         <img class="lazy"
              data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"

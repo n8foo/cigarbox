@@ -44,17 +44,93 @@
     {% set _ = session.pop('share_expires', None) %}
     {% endif %}
 
-    <!-- Navigation Breadcrumb -->
-    {% if context_name %}
+    <!-- Header with Navigation and Actions -->
     <div class="row">
-      <div class="col-md-12">
+      <div class="col-md-6">
+        {% if context_name %}
         <ol class="breadcrumb">
           <li><a href="{{ context_url }}">{{ context_name }}</a></li>
-          <li class="active">Photo</li>
+          <li class="active">
+            Photo #{{ photo.id }}
+            {% if photo.datetaken %}
+            <span style="margin-left: 15px;">
+              <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">
+                <span class="glyphicon glyphicon-calendar"></span> {{ photo.datetaken | format_datetime }}
+              </a>
+            </span>
+            {% endif %}
+          </li>
         </ol>
+        {% else %}
+        <h3>
+          Photo #{{ photo.id }}
+          {% if photo.datetaken %}
+          <small class="text-muted">
+            <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">
+              <span class="glyphicon glyphicon-calendar"></span> {{ photo.datetaken | format_datetime }}
+            </a>
+          </small>
+          {% endif %}
+        </h3>
+        {% endif %}
+        {% if photo_photosets and photo_photosets.count() > 0 %}
+          {% set other_photosets = [] %}
+          {% for pp in photo_photosets %}
+            {% if pp.photoset.id != context_photoset_id %}
+              {% set _ = other_photosets.append(pp) %}
+            {% endif %}
+          {% endfor %}
+          {% if other_photosets|length > 0 %}
+        <p class="text-muted" style="font-size: 14px; margin-top: 3px; margin-bottom: 0;">
+          <span class="glyphicon glyphicon-folder-open"></span>
+          {% for pp in other_photosets %}
+          <a href="{{SITEURL}}/photosets/{{ pp.photoset.id }}" class="label label-primary">{{ pp.photoset.title }}</a>
+          {% endfor %}
+        </p>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="col-md-6 text-right">
+        {% if tags %}
+        <p class="text-muted">
+          <span class="glyphicon glyphicon-tag"></span>
+          {% for tag in tags %}
+          <a href="{{SITEURL}}/tags/{{ tag.name }}" class="label label-default">{{ tag.name }}</a>
+          {% endfor %}
+        </p>
+        {% endif %}
+        {% if current_user.is_authenticated and can_edit %}
+        <div class="btn-group btn-group-sm">
+          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#privacyModal" title="Privacy">
+            <span class="glyphicon glyphicon-lock"></span>
+            {% if photo.privacy == 0 or photo.privacy is none %}
+            <span class="text-success">public</span>
+            {% elif photo.privacy == 1 %}
+            <span class="text-info">friends</span>
+            {% elif photo.privacy == 2 %}
+            <span class="text-warning">family</span>
+            {% elif photo.privacy == 3 %}
+            <span class="text-danger">private</span>
+            {% endif %}
+          </button>
+          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#tagsModal" title="Edit Tags">
+            <span class="glyphicon glyphicon-tag"></span> edit
+          </button>
+          <a href="{{SITEURL}}/photos/{{ photo.id }}/original" class="btn btn-link" target="_blank" title="View Original">
+            <span class="glyphicon glyphicon-picture"></span> original
+          </a>
+          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#shareModal" title="Share">
+            <span class="glyphicon glyphicon-share"></span> share
+            <span class="badge" id="shareCountBadge" style="display: none; background-color: #d9534f;"></span>
+          </button>
+          <button type="button" class="btn btn-link text-danger" onclick="deletePhoto({{ photo.id }})" title="Delete">
+            <span class="glyphicon glyphicon-trash"></span> delete
+          </button>
+        </div>
+        {% endif %}
       </div>
     </div>
-    {% endif %}
+    <hr>
 
     <div class="row">
       <div class="col-md-12">
@@ -94,100 +170,6 @@
       </div>
     </div>
     {% endif %}
-
-    <div class="row">
-      <!-- Photo Details -->
-      <div class="col-md-12">
-        <hr>
-        <dl class="dl-horizontal">
-          <dt>Privacy:</dt>
-          <dd>
-            {% if photo.privacy == 0 or photo.privacy is none %}
-            <span class="label label-success">Public</span>
-            {% elif photo.privacy == 1 %}
-            <span class="label label-info">Friends</span>
-            {% elif photo.privacy == 2 %}
-            <span class="label label-warning">Family</span>
-            {% elif photo.privacy == 3 %}
-            <span class="label label-danger">Private</span>
-            {% endif %}
-
-            {% if current_user.is_authenticated and can_edit %}
-            <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#privacyModal">
-              <span class="glyphicon glyphicon-pencil"></span> Change
-            </button>
-            {% endif %}
-          </dd>
-
-          <dt>Tags:</dt>
-          <dd>
-            {% for tag in tags %}
-            <a href="{{SITEURL}}/tags/{{ tag.name }}" class="label label-default">{{  tag.name  }}</a>
-            {% else %}
-            <span class="text-muted">No tags</span>
-            {% endfor %}
-
-            {% if current_user.is_authenticated and can_edit %}
-            <button type="button" class="btn btn-xs btn-default" data-toggle="modal" data-target="#tagsModal">
-              <span class="glyphicon glyphicon-tag"></span> Edit Tags
-            </button>
-            {% endif %}
-          </dd>
-
-          <dt>Date Taken:</dt>
-          <dd>
-            {% if photo.datetaken %}
-            <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">{{ photo.datetaken | format_datetime }}</a>
-            {% else %}
-            <span class="text-muted">Unknown</span>
-            {% endif %}
-          </dd>
-
-          {% if photo_photosets and photo_photosets.count() > 0 %}
-          <dt>In Photosets:</dt>
-          <dd>
-            {% for pp in photo_photosets %}
-            <a href="{{SITEURL}}/photosets/{{ pp.photoset.id }}" class="label label-primary">{{ pp.photoset.title }}</a>
-            {% endfor %}
-          </dd>
-          {% endif %}
-        </dl>
-      </div>
-
-      <!-- Action Buttons -->
-      {% if current_user.is_authenticated %}
-      <div class="col-md-12" align="left">
-        <br>
-        <a href="{{SITEURL}}/photos/{{ photo.id }}/original" class="btn btn-sm btn-primary" target="_blank">
-          <span class="glyphicon glyphicon-picture"></span> View Original
-        </a>
-        <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#shareModal">
-          <span class="glyphicon glyphicon-share"></span> Share
-        </button>
-        {% if can_edit %}
-        <button type="button" class="btn btn-sm btn-danger" onclick="deletePhoto({{ photo.id }})">
-          <span class="glyphicon glyphicon-trash"></span> Delete
-        </button>
-        {% endif %}
-      </div>
-
-      <!-- Share Management Section -->
-      <div class="col-md-12" style="margin-top: 20px;">
-        <div class="panel panel-default">
-          <div class="panel-heading" style="cursor: pointer;" onclick="toggleShares()">
-            <h4 class="panel-title">
-              <span class="glyphicon glyphicon-link"></span> Active Shares
-              <span class="glyphicon glyphicon-chevron-down pull-right" id="sharesChevron"></span>
-            </h4>
-          </div>
-          <div class="panel-body" id="sharesPanel" style="display: none;">
-            <div id="sharesList">
-              <p class="text-muted"><em>Loading shares...</em></p>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
 
       <!-- Share Modal -->
       <div class="modal fade" id="shareModal" tabindex="-1" role="dialog">
@@ -299,6 +281,48 @@
       </div>
       {% endif %}
 
+      <!-- Keyboard Shortcuts Help Modal -->
+      <div class="modal fade" id="keyboardHelpModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal">&times;</button>
+              <h4 class="modal-title"><span class="glyphicon glyphicon-keyboard"></span> Keyboard Shortcuts</h4>
+            </div>
+            <div class="modal-body">
+              <h5>Navigation</h5>
+              <dl class="dl-horizontal">
+                <dt><kbd>←</kbd></dt><dd>Previous photo</dd>
+                <dt><kbd>→</kbd></dt><dd>Next photo</dd>
+                <dt><kbd>↑</kbd></dt><dd>Back to {{ context_name|default('context') }}</dd>
+              </dl>
+
+              {% if current_user.is_authenticated and can_edit %}
+              <h5>Photo Actions</h5>
+              <dl class="dl-horizontal">
+                <dt><kbd>t</kbd></dt><dd>Edit tags</dd>
+                <dt><kbd>p</kbd></dt><dd>Change privacy</dd>
+                <dt><kbd>s</kbd></dt><dd>Share photo</dd>
+                <dt><kbd>o</kbd></dt><dd>View original</dd>
+                <dt><kbd>Del</kbd></dt><dd>Delete photo</dd>
+              </dl>
+              {% endif %}
+
+              <h5>General</h5>
+              <dl class="dl-horizontal">
+                <dt><kbd>?</kbd></dt><dd>Show this help</dd>
+                <dt><kbd>Esc</kbd></dt><dd>Close modals</dd>
+              </dl>
+
+              <p class="text-muted"><small><em>Tip: Hold Alt/Cmd/Ctrl with arrow keys for browser navigation</em></small></p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
   <br><br>
@@ -328,87 +352,47 @@
     }
   }
 
-  function toggleShares() {
-    var panel = document.getElementById('sharesPanel');
-    var chevron = document.getElementById('sharesChevron');
-
-    if (panel.style.display === 'none') {
-      panel.style.display = 'block';
-      chevron.className = 'glyphicon glyphicon-chevron-up pull-right';
-      loadShares();
-    } else {
-      panel.style.display = 'none';
-      chevron.className = 'glyphicon glyphicon-chevron-down pull-right';
-    }
-  }
-
-  function loadShares() {
+  // Load share count on page load
+  function loadShareCount() {
     fetch('{{SITEURL}}/photos/{{ photo.id }}/shares')
       .then(response => response.json())
       .then(data => {
-        var html = '';
         if (data.shares && data.shares.length > 0) {
-          html += '<table class="table table-condensed table-striped">';
-          html += '<thead><tr><th>Comment</th><th>Views</th><th>Created</th><th>Expires</th><th>Download</th><th>Actions</th></tr></thead>';
-          html += '<tbody>';
-          data.shares.forEach(function(share) {
-            html += '<tr>';
-            html += '<td>' + (share.comment || '<em class="text-muted">No comment</em>') + '</td>';
-            html += '<td>' + share.views + (share.max_views ? '/' + share.max_views : '/∞') + '</td>';
-            html += '<td>' + share.created_at + '</td>';
-            html += '<td>' + (share.expires_at || '<em class="text-muted">Never</em>') + '</td>';
-            html += '<td>' + (share.allow_download ? '<span class="glyphicon glyphicon-ok text-success"></span>' : '<span class="glyphicon glyphicon-remove text-muted"></span>') + '</td>';
-            html += '<td>';
-            html += '<button class="btn btn-xs btn-danger" onclick="revokeShare(' + share.id + ')"><span class="glyphicon glyphicon-ban-circle"></span> Revoke</button> ';
-            html += '<button class="btn btn-xs btn-default" onclick="copyShareUrl(\'' + share.url + '\')"><span class="glyphicon glyphicon-copy"></span></button>';
-            html += '</td>';
-            html += '</tr>';
-          });
-          html += '</tbody></table>';
-        } else {
-          html = '<p class="text-muted"><em>No active shares for this photo.</em></p>';
+          var badge = document.getElementById('shareCountBadge');
+          badge.textContent = data.shares.length;
+          badge.style.display = 'inline';
+
+          // Make badge clickable to go to admin shares page
+          badge.style.cursor = 'pointer';
+          badge.onclick = function(e) {
+            e.stopPropagation(); // Don't trigger the modal
+            window.location.href = '{{SITEURL}}/admin/shares?search={{ photo.id }}';
+          };
         }
-        document.getElementById('sharesList').innerHTML = html;
       })
       .catch(error => {
-        document.getElementById('sharesList').innerHTML = '<p class="text-danger">Error loading shares.</p>';
-        console.error('Error:', error);
+        console.error('Error loading share count:', error);
       });
   }
 
-  function revokeShare(shareId) {
-    if (confirm('Revoke this share link? It will no longer work.')) {
-      fetch('{{SITEURL}}/shares/' + shareId + '/revoke', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            loadShares(); // Reload the list
-          } else {
-            alert('Error: ' + (data.error || 'Failed to revoke share'));
-          }
-        })
-        .catch(error => {
-          alert('Error revoking share');
-          console.error('Error:', error);
-        });
-    }
-  }
+  // Load count on page load
+  {% if current_user.is_authenticated %}
+  loadShareCount();
+  {% endif %}
 
-  function copyShareUrl(url) {
-    navigator.clipboard.writeText(url).then(function() {
-      alert('Share URL copied to clipboard!');
-    }).catch(function() {
-      prompt('Copy this URL:', url);
-    });
-  }
-
-  // Keyboard navigation for prev/next photos
+  // Keyboard shortcuts for photo page
   document.addEventListener('keydown', function(e) {
     // Ignore if user is typing in an input field
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
       return;
     }
 
+    // Ignore if modifier keys are pressed (Alt/Cmd/Ctrl for browser navigation)
+    if (e.altKey || e.metaKey || e.ctrlKey) {
+      return;
+    }
+
+    // Arrow key navigation (left/right for photos, up for back)
     if (e.key === 'ArrowLeft') {
       var prevBtn = document.getElementById('prevPhotoBtn');
       if (prevBtn) {
@@ -421,7 +405,50 @@
         e.preventDefault();
         window.location.href = nextBtn.href;
       }
+    } else if (e.key === 'ArrowUp') {
+      // Back to context (works for all users)
+      var backBtn = document.querySelector('a.btn-primary[href="{{ context_url }}"]');
+      if (backBtn) {
+        e.preventDefault();
+        window.location.href = backBtn.href;
+      }
+    }
+    {% if current_user.is_authenticated and can_edit %}
+    // Edit shortcuts (logged in users only)
+    else if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      $('#tagsModal').modal('show');
+    } else if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault();
+      $('#privacyModal').modal('show');
+    } else if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      $('#shareModal').modal('show');
+    } else if (e.key === 'o' || e.key === 'O') {
+      e.preventDefault();
+      window.open('{{SITEURL}}/photos/{{ photo.id }}/original', '_blank');
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      deletePhoto({{ photo.id }});
+    }
+    {% endif %}
+    else if (e.key === '?') {
+      e.preventDefault();
+      $('#keyboardHelpModal').modal('show');
+    } else if (e.key === 'Escape') {
+      // Close any open modals
+      $('.modal').modal('hide');
     }
   });
+
+  // Auto-focus inputs when modals open
+  {% if current_user.is_authenticated and can_edit %}
+  $('#tagsModal').on('shown.bs.modal', function() {
+    $('#tags').focus();
+  });
+  $('#privacyModal').on('shown.bs.modal', function() {
+    $('#privacy').focus();
+  });
+  {% endif %}
   </script>
 {% endblock %}

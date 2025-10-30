@@ -38,21 +38,33 @@
     {% if photoset.description %}
     <p class="lead">{{photoset.description}}</p>
     {% endif %}
+    {% if date_range %}
+    <p class="text-muted" style="font-size: 16px; margin-top: -10px; margin-bottom: 5px;">
+      <span class="glyphicon glyphicon-calendar"></span> {{ date_range }}
+    </p>
+    {% endif %}
   </div>
   <div class="col-md-4 text-right">
-    <p class="text-muted">{{ photoset.ts.strftime('%Y-%m-%d') }}</p>
+    {% if unique_tags %}
+    <p class="text-muted">
+      {% for tag in unique_tags %}
+      <a href="{{SITEURL}}/tags/{{ tag.name }}" class="label label-default">{{ tag.name }}</a>
+      {% endfor %}
+    </p>
+    {% endif %}
     {% if can_manage %}
     <div class="btn-group btn-group-sm">
       <button type="button" class="btn btn-link" data-toggle="modal" data-target="#editPhotosetModal">
         <span class="glyphicon glyphicon-pencil"></span> edit
       </button>
-      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#sharePhotosetModal">
+      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#sharePhotosetModal" id="sharePhotosetBtn">
         <span class="glyphicon glyphicon-share"></span> share
+        <span class="badge" id="shareCountBadge" style="display: none; background-color: #d9534f;"></span>
       </button>
       <button type="button" class="btn btn-link" onclick="toggleSelectMode()">
         <span class="glyphicon glyphicon-check"></span> select
       </button>
-      <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
+      <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link" id="bulkEditBtn">
         <span class="glyphicon glyphicon-th"></span> bulk edit
       </a>
     </div>
@@ -95,25 +107,6 @@
 
   <!-- Pagination -->
   {{ render_pagination(pagination, baseurl) }}
-
-  {% if can_manage %}
-  <!-- Share Management Section -->
-  <div style="margin-top: 30px;">
-    <div class="panel panel-default">
-      <div class="panel-heading" style="cursor: pointer;" onclick="togglePhotosetShares()">
-        <h4 class="panel-title">
-          <span class="glyphicon glyphicon-link"></span> Active Shares
-          <span class="glyphicon glyphicon-chevron-down pull-right" id="photosetSharesChevron"></span>
-        </h4>
-      </div>
-      <div class="panel-body" id="photosetSharesPanel" style="display: none;">
-        <div id="photosetSharesList">
-          <p class="text-muted"><em>Loading shares...</em></p>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 </div>
 
 {% if can_manage %}
@@ -188,6 +181,9 @@
           </div>
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-danger pull-left" onclick="deletePhotoset()">
+            <span class="glyphicon glyphicon-trash"></span> Delete Photoset
+          </button>
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
@@ -198,6 +194,62 @@
 
 <script>
 var selectMode = false;
+
+// Load share count on page load
+{% if can_manage %}
+function loadShareCount() {
+  fetch('{{SITEURL}}/photosets/{{ photoset.id }}/shares')
+    .then(response => response.json())
+    .then(data => {
+      if (data.shares && data.shares.length > 0) {
+        var badge = document.getElementById('shareCountBadge');
+        badge.textContent = data.shares.length;
+        badge.style.display = 'inline';
+
+        // Make badge clickable to go to admin shares page
+        badge.style.cursor = 'pointer';
+        badge.onclick = function(e) {
+          e.stopPropagation(); // Don't trigger the modal
+          window.location.href = '{{SITEURL}}/admin/shares?search={{ photoset.id }}';
+        };
+      }
+    })
+    .catch(error => {
+      console.error('Error loading share count:', error);
+    });
+}
+
+loadShareCount();
+{% endif %}
+
+// Keyboard shortcuts for photoset page
+{% if can_manage %}
+document.addEventListener('keydown', function(e) {
+  // Ignore if user is typing in an input field
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    return;
+  }
+
+  // Ignore if modifier keys are pressed
+  if (e.altKey || e.metaKey || e.ctrlKey) {
+    return;
+  }
+
+  if (e.key === 's' || e.key === 'S') {
+    e.preventDefault();
+    document.getElementById('sharePhotosetBtn').click();
+  } else if (e.key === 'e' || e.key === 'E') {
+    e.preventDefault();
+    window.location.href = document.getElementById('bulkEditBtn').href;
+  }
+});
+{% endif %}
+
+function deletePhotoset() {
+  if (confirm('Delete this photoset? This will NOT delete the photos, only remove the photoset.')) {
+    window.location.href = '{{SITEURL}}/photosets/{{ photoset.id }}/delete';
+  }
+}
 
 function toggleSelectMode() {
   selectMode = !selectMode;
@@ -244,80 +296,6 @@ function removeSelected() {
 
   document.body.appendChild(form);
   form.submit();
-}
-
-function togglePhotosetShares() {
-  var panel = document.getElementById('photosetSharesPanel');
-  var chevron = document.getElementById('photosetSharesChevron');
-
-  if (panel.style.display === 'none') {
-    panel.style.display = 'block';
-    chevron.className = 'glyphicon glyphicon-chevron-up pull-right';
-    loadPhotosetShares();
-  } else {
-    panel.style.display = 'none';
-    chevron.className = 'glyphicon glyphicon-chevron-down pull-right';
-  }
-}
-
-function loadPhotosetShares() {
-  fetch('{{SITEURL}}/photosets/{{ photoset.id }}/shares')
-    .then(response => response.json())
-    .then(data => {
-      var html = '';
-      if (data.shares && data.shares.length > 0) {
-        html += '<table class="table table-condensed table-striped">';
-        html += '<thead><tr><th>Comment</th><th>Views</th><th>Created</th><th>Expires</th><th>Download</th><th>Actions</th></tr></thead>';
-        html += '<tbody>';
-        data.shares.forEach(function(share) {
-          html += '<tr>';
-          html += '<td>' + (share.comment || '<em class="text-muted">No comment</em>') + '</td>';
-          html += '<td>' + share.views + (share.max_views ? '/' + share.max_views : '/∞') + '</td>';
-          html += '<td>' + share.created_at + '</td>';
-          html += '<td>' + (share.expires_at || '<em class="text-muted">Never</em>') + '</td>';
-          html += '<td>' + (share.allow_download ? '<span class="glyphicon glyphicon-ok text-success"></span>' : '<span class="glyphicon glyphicon-remove text-muted"></span>') + '</td>';
-          html += '<td>';
-          html += '<button class="btn btn-xs btn-danger" onclick="revokeShare(' + share.id + ')"><span class="glyphicon glyphicon-ban-circle"></span> Revoke</button> ';
-          html += '<button class="btn btn-xs btn-default" onclick="copyShareUrl(\'' + share.url + '\')"><span class="glyphicon glyphicon-copy"></span></button>';
-          html += '</td>';
-          html += '</tr>';
-        });
-        html += '</tbody></table>';
-      } else {
-        html = '<p class="text-muted"><em>No active shares for this photoset.</em></p>';
-      }
-      document.getElementById('photosetSharesList').innerHTML = html;
-    })
-    .catch(error => {
-      document.getElementById('photosetSharesList').innerHTML = '<p class="text-danger">Error loading shares.</p>';
-      console.error('Error:', error);
-    });
-}
-
-function revokeShare(shareId) {
-  if (confirm('Revoke this share link? It will no longer work.')) {
-    fetch('{{SITEURL}}/shares/' + shareId + '/revoke', { method: 'POST' })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          loadPhotosetShares(); // Reload the list
-        } else {
-          alert('Error: ' + (data.error || 'Failed to revoke share'));
-        }
-      })
-      .catch(error => {
-        alert('Error revoking share');
-        console.error('Error:', error);
-      });
-  }
-}
-
-function copyShareUrl(url) {
-  navigator.clipboard.writeText(url).then(function() {
-    alert('Share URL copied to clipboard!');
-  }).catch(function() {
-    prompt('Copy this URL:', url);
-  });
 }
 
 function copyShareLink() {

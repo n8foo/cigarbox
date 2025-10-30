@@ -213,7 +213,9 @@ def show_photo(photo_id):
   if context.startswith('photoset:'):
     # Navigating within a photoset (ordered by datetaken)
     photoset_id = int(context.split(':')[1])
-    context_name = f"Photoset"
+    # Get photoset name for breadcrumb
+    photoset = Photoset.select().where(Photoset.id == photoset_id).first()
+    context_name = photoset.title if photoset else "Photoset"
     context_url = f"{get_base_url()}/photosets/{photoset_id}"
 
     # Base query for photos in this photoset
@@ -323,10 +325,16 @@ def show_photo(photo_id):
                   .limit(1)
                   .first())
 
+  # Extract context photoset ID if in photoset context
+  context_photoset_id = None
+  if context.startswith('photoset:'):
+    context_photoset_id = int(context.split(':')[1])
+
   return render_template('photos.html', photo=photo, tags=tags,
                         photo_photosets=photo_photosets, can_edit=can_edit,
                         context=context, context_name=context_name, context_url=context_url,
-                        prev_photo=prev_photo, next_photo=next_photo)
+                        prev_photo=prev_photo, next_photo=next_photo,
+                        context_photoset_id=context_photoset_id)
 
 
 @app.route('/photos/<int:photo_id>/update', methods=['POST'])
@@ -859,7 +867,8 @@ def show_date_photos(date,page):
 
   return render_template('photostream.html', photos=photos, pagination=pagination,
                         baseurl=baseurl, page_title=f'Photos from {date}',
-                        photo_count=photo_count, photo_ids=photo_ids_str)
+                        photo_count=photo_count, photo_ids=photo_ids_str,
+                        context=f'date:{date}')
 
 @app.route('/tags/<string:tag>/delete')
 @login_required
@@ -1023,9 +1032,37 @@ def show_photoset(photoset_id,page):
   all_photo_ids = [str(p.id) for p in photos_query]
   photo_ids_str = ','.join(all_photo_ids)
 
+  # Get date range for photos in this photoset
+  date_range_query = (Photo.select(fn.MIN(Photo.datetaken).alias('min_date'),
+                                    fn.MAX(Photo.datetaken).alias('max_date'))
+                      .join(PhotoPhotoset)
+                      .where(PhotoPhotoset.photoset == photoset_id))
+  date_range_result = date_range_query.first()
+  date_range = None
+  if date_range_result and date_range_result.min_date:
+    min_date = date_range_result.min_date
+    max_date = date_range_result.max_date
+    # Compare only date parts, not time
+    min_date_str = min_date.strftime('%Y-%m-%d')
+    max_date_str = max_date.strftime('%Y-%m-%d')
+    if min_date_str == max_date_str:
+      date_range = min_date_str
+    else:
+      date_range = f"{min_date_str} to {max_date_str}"
+
+  # Get unique tags for photos in this photoset
+  unique_tags = (Tag.select(Tag)
+                 .join(PhotoTag)
+                 .join(Photo)
+                 .join(PhotoPhotoset)
+                 .where(PhotoPhotoset.photoset == photoset_id)
+                 .group_by(Tag.id)
+                 .order_by(Tag.name))
+
   return render_template('photoset.html', photos=photos, photoset=photoset,
                         pagination=pagination, baseurl=baseurl, can_manage=can_manage,
-                        photo_ids=photo_ids_str)
+                        photo_ids=photo_ids_str, date_range=date_range,
+                        unique_tags=unique_tags)
 
 
 @app.route('/photosets/<int:photoset_id>/update', methods=['POST'])
@@ -2049,24 +2086,28 @@ def download_shared_photoset_photo(token, photo_id):
 @app.route('/admin/shares/page/<int:page>')
 @roles_required('admin')
 def admin_shares(page=1):
-  """Manage share links"""
+  """Manage share links (photos and photosets)"""
   per_page = app.config['PER_PAGE']
 
   # Optional search filter
   search = request.args.get('search', '')
 
   if search:
-    # Search by photo ID or token
+    # Search by photo/photoset ID or token
+    # Need to handle both photo and photoset shares
     shares_query = (ShareToken
-             .select(ShareToken, Photo)
-             .join(Photo)
+             .select(ShareToken, Photo, Photoset)
+             .join(Photo, JOIN.LEFT_OUTER, on=(ShareToken.photo == Photo.id))
+             .join(Photoset, JOIN.LEFT_OUTER, on=(ShareToken.photoset == Photoset.id))
              .where((ShareToken.token.contains(search)) |
-                   (Photo.id == search))
+                   (Photo.id == search) |
+                   (Photoset.id == search))
              .order_by(ShareToken.created_at.desc()))
   else:
     shares_query = (ShareToken
-             .select(ShareToken, Photo)
-             .join(Photo)
+             .select(ShareToken, Photo, Photoset)
+             .join(Photo, JOIN.LEFT_OUTER, on=(ShareToken.photo == Photo.id))
+             .join(Photoset, JOIN.LEFT_OUTER, on=(ShareToken.photoset == Photoset.id))
              .order_by(ShareToken.created_at.desc()))
 
   # Calculate pagination
@@ -2075,10 +2116,11 @@ def admin_shares(page=1):
   # Get paginated results
   shares = shares_query.paginate(page, per_page)
 
-  # Add photo URIs and check expiration
+  # Add photo/photoset URIs and check expiration
   for share in shares:
-    (sha1Path, filename) = getSha1Path(share.photo.sha1)
-    share.photo.uri = sha1Path + '/' + filename
+    if share.share_type == 'photo' and share.photo:
+      (sha1Path, filename) = getSha1Path(share.photo.sha1)
+      share.photo.uri = sha1Path + '/' + filename
     share.is_expired = share.expires_at and share.expires_at < datetime.datetime.now()
 
   return render_template('admin/shares.html',

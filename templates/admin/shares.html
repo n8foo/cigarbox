@@ -16,7 +16,7 @@
   <div class="col-md-12">
     <form method="GET" action="{{SITEURL}}/admin/shares" class="form-inline">
       <div class="form-group">
-        <input type="text" name="search" class="form-control" placeholder="Search by photo ID or token" value="{{ search }}">
+        <input type="text" name="search" class="form-control" placeholder="Search by photo/photoset ID or token" value="{{ search }}">
       </div>
       <button type="submit" class="btn btn-primary">Search</button>
       {% if search %}
@@ -37,7 +37,9 @@
       <table class="table table-striped table-hover">
         <thead>
           <tr>
-            <th>Photo</th>
+            <th>Type</th>
+            <th>Item</th>
+            <th>Comment</th>
             <th>Created</th>
             <th>Expires</th>
             <th>Views</th>
@@ -49,10 +51,32 @@
           {% for share in shares %}
           <tr {% if share.is_expired %}class="danger"{% endif %}>
             <td>
+              {% if share.share_type == 'photo' %}
+              <span class="label label-info">Photo</span>
+              {% elif share.share_type == 'photoset' %}
+              <span class="label label-primary">Photoset</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if share.share_type == 'photo' and share.photo %}
               <a href="{{SITEURL}}/photos/{{ share.photo.id }}">
                 <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ share.photo.uri }}_t.jpg" alt="Photo {{ share.photo.id }}" style="max-width: 50px;">
               </a>
               <a href="{{SITEURL}}/photos/{{ share.photo.id }}">Photo #{{ share.photo.id }}</a>
+              {% elif share.share_type == 'photoset' and share.photoset %}
+              <a href="{{SITEURL}}/photosets/{{ share.photoset.id }}">
+                <span class="glyphicon glyphicon-folder-open"></span> {{ share.photoset.title }}
+              </a>
+              {% else %}
+              <span class="text-muted">Unknown</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if share.comment %}
+              {{ share.comment }}
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
             </td>
             <td>{{ share.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
             <td>
@@ -71,10 +95,19 @@
               {% endif %}
             </td>
             <td>
-              <a href="{{SITEURL}}/shared/{{ share.token }}" class="btn btn-xs btn-info" target="_blank">View</a>
-              <button type="button" class="btn btn-xs btn-primary" onclick="copyToClipboard('{{SITEURL}}/shared/{{ share.token }}')">Copy Link</button>
+              {% if share.share_type == 'photo' %}
+              <button type="button" class="btn btn-xs btn-default" onclick="copyToClipboard('{{SITEURL}}/shared/{{ share.token }}')" title="Copy Link">
+                <span class="glyphicon glyphicon-copy"></span>
+              </button>
+              {% elif share.share_type == 'photoset' %}
+              <button type="button" class="btn btn-xs btn-default" onclick="copyToClipboard('{{SITEURL}}/shared/photoset/{{ share.token }}')" title="Copy Link">
+                <span class="glyphicon glyphicon-copy"></span>
+              </button>
+              {% endif %}
               <form method="POST" action="{{SITEURL}}/admin/shares/{{ share.id }}/revoke" style="display: inline;">
-                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Revoke this share link?');">Revoke</button>
+                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Revoke this share link?');" title="Revoke">
+                  <span class="glyphicon glyphicon-ban-circle"></span>
+                </button>
               </form>
             </td>
           </tr>

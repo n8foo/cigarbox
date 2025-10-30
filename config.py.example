@@ -50,6 +50,12 @@ API_KEY='your-api-key-here'
 # Can also be set via CIGARBOX_API_URL environment variable
 # API_URL='http://localhost:9601/api'
 
+# Nginx Configuration (for production deployments)
+# Used by fabric tasks to find nginx logs
+# Set NGINX_DOMAIN to your domain name (e.g., 'example.com')
+# Logs will be checked at /var/log/nginx/{domain}-access.log and {domain}-error.log
+NGINX_DOMAIN = None  # e.g., 'example.com' or None to skip domain-specific logs
+
 # Flask-Security-Too Configuration
 # IMPORTANT: Change SECURITY_PASSWORD_SALT to a random string in production!
 # Generate with: python -c 'import secrets; print(secrets.token_hex(32))'

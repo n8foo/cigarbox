@@ -103,6 +103,11 @@
 <script>
 // Keyboard navigation for prev/next photos
 document.addEventListener('keydown', function(e) {
+  // Ignore if modifier keys are pressed (Alt/Cmd/Ctrl + arrows for browser navigation)
+  if (e.altKey || e.metaKey || e.ctrlKey) {
+    return;
+  }
+
   if (e.key === 'ArrowLeft') {
     {% if prev_photo %}
     e.preventDefault();
