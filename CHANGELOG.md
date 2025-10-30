@@ -3,6 +3,32 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-29] - Navigation Performance Optimization
+
+### Performance
+- **Optimized photo navigation queries** (387x faster for photostream)
+  - Replaced memory-loading approach with SQL adjacent lookups
+  - Before: Load all 42K photos into list, linear search (839ms)
+  - After: Two indexed SQL queries with LIMIT 1 (2.16ms)
+  - Affects all contexts: photostream, photosets, tags, dates
+  - Also optimized shared photoset navigation
+
+- **Added database index on privacy column**
+  - Created `idx_photo_privacy` index on `photo(privacy)`
+  - Speeds up all privacy-filtered queries
+  - Migration: `scripts/migrate_2025_10_29_add_privacy_index.py`
+
+### Added
+- **Performance testing suite** in `perf/` directory
+  - `perf_test_navigation.py` - Measure query execution times
+  - `analyze_privacy_query.py` - Analyze query plans and index usage
+
+### Changed
+- `web.py` - Replaced list materialization with SQL lookups in:
+  - `show_photo()` function (lines 213-324)
+  - `view_shared_photoset_photo()` function (lines 1956-1997)
+
+---
 ## [2025-10-29] - Photo Sharing System & Navigation
 
 ### Added

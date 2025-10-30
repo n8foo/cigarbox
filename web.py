@@ -211,82 +211,117 @@ def show_photo(photo_id):
   visible_levels = get_visible_privacy_levels(current_user)
 
   if context.startswith('photoset:'):
-    # Navigating within a photoset
+    # Navigating within a photoset (ordered by datetaken)
     photoset_id = int(context.split(':')[1])
     context_name = f"Photoset"
     context_url = f"{get_base_url()}/photosets/{photoset_id}"
 
-    photos_query = (Photo.select()
-                    .join(PhotoPhotoset)
-                    .where((PhotoPhotoset.photoset == photoset_id) &
-                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
-                    .order_by(Photo.datetaken.asc()))
+    # Base query for photos in this photoset
+    base_query = (Photo.select()
+                  .join(PhotoPhotoset)
+                  .where((PhotoPhotoset.photoset == photoset_id) &
+                         ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
 
-    all_photos = list(photos_query)
-    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
-    if current_index is not None:
-      if current_index > 0:
-        prev_photo = all_photos[current_index - 1]
-      if current_index < len(all_photos) - 1:
-        next_photo = all_photos[current_index + 1]
+    # Get current photo's datetaken for comparison
+    current_datetaken = photo.datetaken
+
+    # Next photo: later date, or same date but higher ID
+    next_photo = (base_query
+                  .where((Photo.datetaken > current_datetaken) |
+                         ((Photo.datetaken == current_datetaken) & (Photo.id > photo_id)))
+                  .order_by(Photo.datetaken.asc(), Photo.id.asc())
+                  .limit(1)
+                  .first())
+
+    # Previous photo: earlier date, or same date but lower ID
+    prev_photo = (base_query
+                  .where((Photo.datetaken < current_datetaken) |
+                         ((Photo.datetaken == current_datetaken) & (Photo.id < photo_id)))
+                  .order_by(Photo.datetaken.desc(), Photo.id.desc())
+                  .limit(1)
+                  .first())
 
   elif context.startswith('tag:'):
-    # Navigating within a tag
+    # Navigating within a tag (ordered by ID desc)
     tag_name = context.split(':', 1)[1]
     context_name = f"Tag: {tag_name}"
     context_url = f"{get_base_url()}/tags/{tag_name}"
 
-    photos_query = (Photo.select()
-                    .join(PhotoTag)
-                    .join(Tag)
-                    .where((Tag.name == tag_name) &
-                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
-                    .order_by(Photo.id.desc()))
+    # Base query for photos with this tag
+    base_query = (Photo.select()
+                  .join(PhotoTag)
+                  .join(Tag)
+                  .where((Tag.name == tag_name) &
+                         ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
 
-    all_photos = list(photos_query)
-    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
-    if current_index is not None:
-      if current_index > 0:
-        prev_photo = all_photos[current_index - 1]
-      if current_index < len(all_photos) - 1:
-        next_photo = all_photos[current_index + 1]
+    # Next photo: lower ID (because order is DESC)
+    next_photo = (base_query
+                  .where(Photo.id < photo_id)
+                  .order_by(Photo.id.desc())
+                  .limit(1)
+                  .first())
+
+    # Previous photo: higher ID (because order is DESC)
+    prev_photo = (base_query
+                  .where(Photo.id > photo_id)
+                  .order_by(Photo.id.asc())
+                  .limit(1)
+                  .first())
 
   elif context.startswith('date:'):
-    # Navigating within a date
+    # Navigating within a specific date (ordered by datetaken)
     date_str = context.split(':', 1)[1]
     context_name = f"Date: {date_str}"
     context_url = f"{get_base_url()}/date/{date_str}"
 
-    photos_query = (Photo.select()
-                    .where((Photo.datetaken >= date_str) &
-                           (Photo.datetaken < date_str + ' 23:59:59') &
-                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
-                    .order_by(Photo.datetaken.asc()))
+    # Base query for photos on this date
+    base_query = (Photo.select()
+                  .where((Photo.datetaken >= date_str) &
+                         (Photo.datetaken < date_str + ' 23:59:59') &
+                         ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
 
-    all_photos = list(photos_query)
-    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
-    if current_index is not None:
-      if current_index > 0:
-        prev_photo = all_photos[current_index - 1]
-      if current_index < len(all_photos) - 1:
-        next_photo = all_photos[current_index + 1]
+    # Get current photo's datetaken for comparison
+    current_datetaken = photo.datetaken
+
+    # Next photo: later time, or same time but higher ID
+    next_photo = (base_query
+                  .where((Photo.datetaken > current_datetaken) |
+                         ((Photo.datetaken == current_datetaken) & (Photo.id > photo_id)))
+                  .order_by(Photo.datetaken.asc(), Photo.id.asc())
+                  .limit(1)
+                  .first())
+
+    # Previous photo: earlier time, or same time but lower ID
+    prev_photo = (base_query
+                  .where((Photo.datetaken < current_datetaken) |
+                         ((Photo.datetaken == current_datetaken) & (Photo.id < photo_id)))
+                  .order_by(Photo.datetaken.desc(), Photo.id.desc())
+                  .limit(1)
+                  .first())
 
   elif context == 'photostream' or not context:
-    # Default: photostream navigation
+    # Default: photostream navigation (ordered by ID desc)
     context_name = "Photostream"
     context_url = f"{get_base_url()}/photostream"
 
-    photos_query = Photo.select().where(
+    # Base query for all visible photos
+    base_query = Photo.select().where(
       (Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))
-    ).order_by(Photo.id.desc())
+    )
 
-    all_photos = list(photos_query)
-    current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
-    if current_index is not None:
-      if current_index > 0:
-        prev_photo = all_photos[current_index - 1]
-      if current_index < len(all_photos) - 1:
-        next_photo = all_photos[current_index + 1]
+    # Next photo: lower ID (because order is DESC)
+    next_photo = (base_query
+                  .where(Photo.id < photo_id)
+                  .order_by(Photo.id.desc())
+                  .limit(1)
+                  .first())
+
+    # Previous photo: higher ID (because order is DESC)
+    prev_photo = (base_query
+                  .where(Photo.id > photo_id)
+                  .order_by(Photo.id.asc())
+                  .limit(1)
+                  .first())
 
   return render_template('photos.html', photo=photo, tags=tags,
                         photo_photosets=photo_photosets, can_edit=can_edit,
@@ -1918,16 +1953,36 @@ def view_shared_photoset_photo(token, photo_id):
   (sha1Path, filename) = getSha1Path(photo.sha1)
   photo.uri = f"{sha1Path}/{filename}"
 
-  # Get all photos in photoset for navigation
-  all_photos = list(Photo.select()
-                    .join(PhotoPhotoset)
-                    .where(PhotoPhotoset.photoset == share_token.photoset)
-                    .order_by(Photo.datetaken.asc()))
+  # Base query for photos in this photoset (ordered by datetaken)
+  base_query = (Photo.select()
+                .join(PhotoPhotoset)
+                .where(PhotoPhotoset.photoset == share_token.photoset))
 
-  # Find current position and prev/next
-  current_index = next((i for i, p in enumerate(all_photos) if p.id == photo_id), None)
-  prev_photo = all_photos[current_index - 1] if current_index and current_index > 0 else None
-  next_photo = all_photos[current_index + 1] if current_index is not None and current_index < len(all_photos) - 1 else None
+  # Get current photo's datetaken for comparison
+  current_datetaken = photo.datetaken
+
+  # Next photo: later date, or same date but higher ID
+  next_photo = (base_query
+                .where((Photo.datetaken > current_datetaken) |
+                       ((Photo.datetaken == current_datetaken) & (Photo.id > photo_id)))
+                .order_by(Photo.datetaken.asc(), Photo.id.asc())
+                .limit(1)
+                .first())
+
+  # Previous photo: earlier date, or same date but lower ID
+  prev_photo = (base_query
+                .where((Photo.datetaken < current_datetaken) |
+                       ((Photo.datetaken == current_datetaken) & (Photo.id < photo_id)))
+                .order_by(Photo.datetaken.desc(), Photo.id.desc())
+                .limit(1)
+                .first())
+
+  # Get total photos count and current position for display
+  total_photos = base_query.count()
+  current_pos = (base_query
+                 .where((Photo.datetaken < current_datetaken) |
+                        ((Photo.datetaken == current_datetaken) & (Photo.id <= photo_id)))
+                 .count())
 
   # Get tags for this photo
   tags = Tag.select().join(PhotoTag).where(PhotoTag.photo == photo.id)
@@ -1938,8 +1993,8 @@ def view_shared_photoset_photo(token, photo_id):
                         photoset=share_token.photoset,
                         prev_photo=prev_photo,
                         next_photo=next_photo,
-                        current_pos=current_index + 1 if current_index is not None else 1,
-                        total_photos=len(all_photos))
+                        current_pos=current_pos,
+                        total_photos=total_photos)
 
 
 @app.route('/shared/photoset/<string:token>/photo/<int:photo_id>/download')
