@@ -4,11 +4,36 @@
 
 <div class="row">
   <div class="col-md-8">
-    <h1>Tag: <span class="badge bg-primary" style="font-size: inherit;">{{ tag.name }}</span></h1>
+    <h1>
+      {% if tags|length == 1 %}
+      Tag:
+      {% else %}
+      Tags:
+      {% endif %}
+      {% for tag in tags %}
+      {% if tags|length > 1 %}
+      {# Multi-tag view: badge is clickable and has X to remove #}
+      {% set other_tags = tags_str.split(',') | reject('equalto', tag.name) | list | join(',') %}
+      <span class="tag-badge-removable">
+        <a href="{{SITEURL}}/tags/{{ tag.name }}" class="badge bg-primary text-decoration-none" style="font-size: inherit;">
+          {{ tag.name }}
+        </a>
+        {% if other_tags %}
+        <a href="{{SITEURL}}/tags/{{ other_tags }}" class="badge-remove" title="Remove {{ tag.name }} from filter">×</a>
+        {% else %}
+        <a href="{{SITEURL}}/tags" class="badge-remove" title="Remove {{ tag.name }} from filter">×</a>
+        {% endif %}
+      </span>
+      {% else %}
+      {# Single tag view: just a static badge #}
+      <span class="badge bg-primary" style="font-size: inherit;">{{ tag.name }}</span>
+      {% endif %}
+      {% endfor %}
+    </h1>
     <p class="lead">{{ photo_count }} photo(s)</p>
   </div>
   <div class="col-md-4 text-end">
-    {% if can_manage %}
+    {% if can_manage and tags|length == 1 %}
     <div class="btn-group btn-group-sm">
       <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#renameTagModal">
         <span class="bi bi-pencil-fill"></span> rename
@@ -19,14 +44,48 @@
       <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
         <span class="bi bi-grid-3x3-gap"></span> bulk edit
       </a>
-      <a href="{{SITEURL}}/tags/{{ tag.name }}/delete" class="btn btn-link text-danger"
-         onclick="return confirm('Delete tag &quot;{{ tag.name }}&quot;? This will remove it from {{ photo_count }} photos.');">
+      <a href="{{SITEURL}}/tags/{{ tags[0].name }}/delete" class="btn btn-link text-danger"
+         onclick="return confirm('Delete tag &quot;{{ tags[0].name }}&quot;? This will remove it from {{ photo_count }} photos.');">
         <span class="bi bi-trash-fill"></span> delete
+      </a>
+    </div>
+    {% elif can_manage %}
+    <div class="btn-group btn-group-sm">
+      <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
+        <span class="bi bi-grid-3x3-gap"></span> bulk edit
       </a>
     </div>
     {% endif %}
   </div>
 </div>
+
+<!-- Related Tags -->
+{% if related_tags %}
+<div class="row mt-3">
+  <div class="col-md-12">
+    <h6 class="text-muted">
+      <span class="bi bi-tags"></span> Related Tags
+    </h6>
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;">
+      {% for related_tag in related_tags %}
+      <div class="related-tag-pill">
+        <a href="{{SITEURL}}/tags/{{ related_tag.name }}"
+           class="tag-name-link text-decoration-none"
+           title="View photos tagged with {{ related_tag.name }}">
+          <span class="tag-name">{{ related_tag.name }}</span>
+        </a>
+        <a href="{{SITEURL}}/tags/{{ tags_str }},{{ related_tag.name }}"
+           class="tag-count-link text-decoration-none"
+           title="View {{ related_tag.co_occurrence }} photo{{ 's' if related_tag.co_occurrence != 1 else '' }} with ALL these tags">
+          <span class="tag-count">{{ related_tag.co_occurrence }}</span>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <hr>
 
 
@@ -47,6 +106,112 @@
 
 <!-- Pagination -->
 {{ render_pagination(pagination, baseurl) }}
+
+<style>
+/* Interactive tag badges in header */
+.tag-badge-removable {
+  position: relative;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.tag-badge-removable .badge {
+  padding-right: 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-badge-removable .badge:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.tag-badge-removable .badge-remove {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: bold;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  padding: 0 0.25rem;
+}
+
+.tag-badge-removable .badge-remove:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.2);
+  color: #dc3545;
+}
+
+/* Related tag pills with split clickable zones */
+.related-tag-pill {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.related-tag-pill .tag-name-link,
+.related-tag-pill .tag-count-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.related-tag-pill .tag-name-link {
+  font-weight: 600;
+}
+
+.related-tag-pill .tag-count-link {
+  padding-left: 0.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.related-tag-pill .tag-count {
+  opacity: 0.9;
+}
+
+/* Hover states - different for each zone */
+.related-tag-pill .tag-name-link:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.related-tag-pill .tag-count-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+.related-tag-pill:hover {
+  box-shadow: 0 0.25rem 0.75rem rgba(108, 117, 125, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Dark mode */
+[data-bs-theme="dark"] .related-tag-pill {
+  background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+}
+
+[data-bs-theme="dark"] .related-tag-pill .tag-count-link {
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-bs-theme="dark"] .related-tag-pill:hover {
+  box-shadow: 0 0.25rem 0.75rem rgba(108, 117, 125, 0.6);
+}
+</style>
 
 <script>
 // Lazy load images
@@ -80,12 +245,12 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 
-{% if can_manage %}
+{% if can_manage and tags|length == 1 %}
 <!-- Rename Tag Modal -->
 <div class="modal fade" id="renameTagModal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
-      <form method="POST" action="{{SITEURL}}/tags/{{ tag.name }}/rename">
+      <form method="POST" action="{{SITEURL}}/tags/{{ tags[0].name }}/rename">
         <div class="modal-header">
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Rename Tag</h4>
@@ -93,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="modal-body">
           <div class="form-group">
             <label for="new_name">New Name</label>
-            <input type="text" name="new_name" id="new_name" class="form-control" value="{{ tag.name }}" required autofocus>
+            <input type="text" name="new_name" id="new_name" class="form-control" value="{{ tags[0].name }}" required autofocus>
           </div>
         </div>
         <div class="modal-footer">
@@ -109,20 +274,20 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="modal fade" id="mergeTagModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
-      <form method="POST" action="{{SITEURL}}/tags/{{ tag.name }}/merge">
+      <form method="POST" action="{{SITEURL}}/tags/{{ tags[0].name }}/merge">
         <div class="modal-header">
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Merge Tag</h4>
         </div>
         <div class="modal-body">
-          <p>Merge all photos tagged with <strong>{{ tag.name }}</strong> into another tag:</p>
+          <p>Merge all photos tagged with <strong>{{ tags[0].name }}</strong> into another tag:</p>
           <div class="form-group">
             <label for="target_tag">Target Tag Name</label>
             <input type="text" name="target_tag" id="target_tag" class="form-control" required>
             <p class="help-block">The tag to merge into (will be created if it doesn't exist)</p>
           </div>
           <div class="alert alert-warning">
-            <strong>Warning:</strong> This will delete the "{{ tag.name }}" tag and move all {{ photo_count }} photos to the target tag. This action cannot be undone.
+            <strong>Warning:</strong> This will delete the "{{ tags[0].name }}" tag and move all {{ photo_count }} photos to the target tag. This action cannot be undone.
           </div>
         </div>
         <div class="modal-footer">

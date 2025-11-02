@@ -3,6 +3,35 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-02] - Tag Cloud Redesign and Multi-Tag Filtering
+
+### Added
+- **Flowing pill layout for tag cloud** - Replaced Bootstrap grid with flexbox-wrapped pills
+  - Pills sized by photo count using square root scaling (0.8x to 2.5x)
+  - Organic flow without grid alignment
+  - Responsive scale caps: 2.5x (desktop), 1.8x (tablet), 1.4x (mobile)
+- **Related tags with co-occurrence counts** - Shows top 15 tags that appear on same photos
+  - Split-pill design: tag name (left) navigates to single tag, count (right) adds to filter
+  - Efficient SQL self-join with privacy filtering
+  - Visual separator and distinct hover states
+- **Multi-tag intersection filtering** - Progressive tag filtering via comma-separated URLs
+  - URL format: `/tags/motorsports,fiat_spider,rx8` (unlimited depth)
+  - GROUP BY + HAVING query for photo intersection (photos with ALL tags)
+  - Interactive tag badges with clickable names and removal buttons
+  - Badges link to single tag view, X button removes from filter
+  - Related tags recalculate for current intersection
+- **Blank tag cleanup script** - `scripts/cleanup_blank_tag.py` removes legacy blank tags
+- **Validation for blank tags and photosets** - Prevents empty names at creation
+- Management buttons (rename/merge/delete) only shown for single-tag views
+
+### Changed
+- Tag cloud now displays as flowing pills instead of card grid
+
+### Fixed
+  - Tag cloud stats now accurate (was counting photos multiple times)
+  - Admin tags page counts also fixed
+
+---
 ## [2025-11-01] - Tag Autocomplete and Pill UI
 
 ### Added

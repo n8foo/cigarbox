@@ -495,9 +495,13 @@ def bulk_edit_photos(page):
         new_photoset_title = request.form.get('new_photoset_title', '').strip()
 
         if photoset_id == '__new__' and new_photoset_title:
-          # Create new photoset
+          # Create new photoset (validate title is not blank)
+          title = new_photoset_title.strip()
+          if not title:
+            flash('Photoset title cannot be blank')
+            return redirect(url_for('bulk_edit_photos'))
           photoset = Photoset.create(
-            title=new_photoset_title,
+            title=title,
             description='',
             primary_photo_id=photo_ids[0] if photo_ids and photo_ids[0] else None
           )
@@ -759,23 +763,52 @@ def show_tags():
   # Filter tags to only show counts for photos user can see (treat NULL as public)
   visible_levels = get_visible_privacy_levels(current_user)
   tags = (Tag
-         .select(Tag, fn.Count(Photo.id).alias('count'))
+         .select(Tag, fn.COUNT(fn.DISTINCT(Photo.id)).alias('count'))
          .join(PhotoTag)
          .join(Photo)
          .where((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
          .group_by(Tag))
-  return render_template('tag_cloud.html', tags=tags)
+
+  # Get total unique photo count (not sum of tag counts)
+  total_photos = (Photo
+                 .select()
+                 .join(PhotoTag)
+                 .where((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
+                 .distinct()
+                 .count())
+
+  return render_template('tag_cloud.html', tags=tags, total_photos=total_photos)
 
 @app.route('/tags/<string:tag>', defaults={'page': 1})
 @app.route('/tags/<string:tag>/page/<int:page>')
 def show_taged_photos(tag,page):
+  # Parse comma-separated tags for multi-tag filtering
+  tags_list = [t.strip() for t in tag.split(',') if t.strip()]
+  if not tags_list:
+    abort(404)
+
   baseurl = '%s/tags/%s' % (get_base_url(),tag)
   visible_levels = get_visible_privacy_levels(current_user)
-  photos_query = (Photo.select()
-                  .join(PhotoTag)
-                  .join(Tag)
-                  .where((Tag.name == tag) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
-                  .order_by(Photo.id.desc()))
+
+  # Build query for photos with ALL specified tags (intersection)
+  if len(tags_list) == 1:
+    # Single tag: simple query
+    photos_query = (Photo.select()
+                    .join(PhotoTag)
+                    .join(Tag)
+                    .where((Tag.name == tags_list[0]) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .order_by(Photo.id.desc()))
+  else:
+    # Multiple tags: intersection using GROUP BY + HAVING
+    photos_query = (Photo.select()
+                    .join(PhotoTag)
+                    .join(Tag)
+                    .where((Tag.name.in_(tags_list)) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .group_by(Photo.id)
+                    .having(fn.COUNT(fn.DISTINCT(Tag.id)) == len(tags_list))
+                    .order_by(Photo.id.desc()))
 
   # Get pagination metadata
   pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
@@ -786,12 +819,12 @@ def show_taged_photos(tag,page):
     (sha1Path,filename) = getSha1Path(photo.sha1)
     photo.uri = sha1Path + '/' + filename
 
-  # Get tag object
-  tag_obj = Tag.select().where(Tag.name == tag).first()
-  if not tag_obj:
+  # Verify all tags exist
+  tag_objs = list(Tag.select().where(Tag.name.in_(tags_list)))
+  if len(tag_objs) != len(tags_list):
     abort(404)
 
-  # Get total photo count for this tag
+  # Get total photo count
   photo_count = photos_query.count()
   can_manage = can_manage_tags(current_user)
 
@@ -799,12 +832,26 @@ def show_taged_photos(tag,page):
   all_photo_ids = [str(p.id) for p in photos_query]
   photo_ids_str = ','.join(all_photo_ids)
 
+  # Get related tags (other tags on photos that have ALL current tags)
+  photo_ids_subquery = photos_query.select(Photo.id)
+
+  # Exclude current tags from related tags
+  current_tag_ids = [t.id for t in tag_objs]
+  related_tags = (Tag
+    .select(Tag.name, fn.COUNT(PhotoTag.id).alias('co_occurrence'))
+    .join(PhotoTag)
+    .where((PhotoTag.photo.in_(photo_ids_subquery)) & (~Tag.id.in_(current_tag_ids)))
+    .group_by(Tag.id, Tag.name)
+    .order_by(fn.COUNT(PhotoTag.id).desc())
+    .limit(15))
+
   # Include page number in context for breadcrumb navigation
-  context = f'tag:{tag}:page:{page}' if page > 1 else f'tag:{tag}'
-  return render_template('tag.html', photos=photos, tag=tag_obj,
-                        photo_count=photo_count, pagination=pagination,
-                        baseurl=baseurl, can_manage=can_manage,
-                        photo_ids=photo_ids_str, context=context)
+  context = f'tags:{tag}:page:{page}' if page > 1 else f'tags:{tag}'
+  return render_template('tag.html', photos=photos, tags=tag_objs,
+                        tags_str=tag, photo_count=photo_count,
+                        pagination=pagination, baseurl=baseurl,
+                        can_manage=can_manage, photo_ids=photo_ids_str,
+                        context=context, related_tags=related_tags)
 
 
 @app.route('/tags/<string:tag>/rename', methods=['POST'])
@@ -1529,19 +1576,19 @@ def admin_tags(page=1):
   if search:
     # Search by tag name
     tags_query = (Tag
-           .select(Tag, fn.Count(Photo.id).alias('count'))
+           .select(Tag, fn.COUNT(fn.DISTINCT(Photo.id)).alias('count'))
            .join(PhotoTag, JOIN.LEFT_OUTER)
            .join(Photo, JOIN.LEFT_OUTER)
            .where(Tag.name.contains(search))
            .group_by(Tag)
-           .order_by(fn.Count(Photo.id).desc()))
+           .order_by(fn.COUNT(fn.DISTINCT(Photo.id)).desc()))
   else:
     tags_query = (Tag
-           .select(Tag, fn.Count(Photo.id).alias('count'))
+           .select(Tag, fn.COUNT(fn.DISTINCT(Photo.id)).alias('count'))
            .join(PhotoTag, JOIN.LEFT_OUTER)
            .join(Photo, JOIN.LEFT_OUTER)
            .group_by(Tag)
-           .order_by(fn.Count(Photo.id).desc()))
+           .order_by(fn.COUNT(fn.DISTINCT(Photo.id)).desc()))
 
   # Calculate pagination
   pagination = get_pagination_data(tags_query, page, per_page)
@@ -1677,6 +1724,12 @@ def admin_create_photoset():
 
     if not title:
       flash('Title is required')
+      return render_template('admin/create_photoset.html')
+
+    # Validate title is not blank
+    title = title.strip()
+    if not title:
+      flash('Photoset title cannot be blank')
       return render_template('admin/create_photoset.html')
 
     try:
