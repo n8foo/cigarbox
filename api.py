@@ -28,6 +28,7 @@ import process
 #standard libs
 
 import os
+import re
 
 app = Flask(__name__)
 
@@ -146,7 +147,8 @@ def apiupload():
 
   # check for tags and populate array and response
   if 'tags' in request.form:
-    tags = request.form['tags'].split(',')
+    # Split on both comma and space to support CLI and web UI
+    tags = [t.strip() for t in re.split(r'[,\s]+', request.form['tags']) if t.strip()]
     response['tags'] = tags
     # add tags for each photo
     for tag in tags:
@@ -197,7 +199,8 @@ def apiphotosAddTags():
     tags = data['tags']
     logger.info('list tags: {}'.format(tags))
   else:
-    tags = data['tags'].split(',')
+    # Split on both comma and space to support CLI and web UI
+    tags = [t.strip() for t in re.split(r'[,\s]+', data['tags']) if t.strip()]
     logger.info('split tags: {}'.format(tags))
 
   for tag in tags:
@@ -227,7 +230,8 @@ def apiphotosRemoveTags():
     tags = data['tags']
     logger.info('list tags: {}'.format(tags))
   else:
-    tags = data['tags'].split(',')
+    # Split on both comma and space to support CLI and web UI
+    tags = [t.strip() for t in re.split(r'[,\s]+', data['tags']) if t.strip()]
     logger.info('split tags: {}'.format(tags))
 
   for tag in tags:

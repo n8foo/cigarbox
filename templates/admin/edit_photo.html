@@ -76,8 +76,8 @@
             <label for="tags">Tags</label>
             <input type="text" name="tags" id="tags" class="form-control"
                    value="{{ tag_names }}"
-                   placeholder="tag1, tag2, tag3">
-            <p class="help-block">Comma-separated list of tags</p>
+                   placeholder="tag1 tag2 tag3">
+            <p class="help-block">Space-separated list of tags</p>
           </div>
 
           <div class="form-group">
@@ -91,5 +91,13 @@
     </div>
   </div>
 </div>
+
+<!-- Tag autocomplete -->
+<script src="{{SITEURL}}/static/js/tag-autocomplete.js"></script>
+<script>
+// Initialize tag autocomplete
+var allTags = [{% for tag in all_tags %}'{{ tag.name|replace("'", "\\'") }}'{% if not loop.last %}, {% endif %}{% endfor %}];
+initTagAutocomplete('#tags', allTags);
+</script>
 
 {% endblock %}

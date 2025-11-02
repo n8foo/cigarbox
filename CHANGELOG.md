@@ -3,6 +3,37 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-01] - Tag Autocomplete and Pill UI
+
+### Added
+- **Tag autocomplete with pill UI** - Reusable component for all tag input fields
+  - Visual pill badges with X buttons for tag deletion
+  - Inline autocomplete dropdown with Tab-to-accept behavior
+  - Space or comma creates tag from typed text (ignores suggestions)
+  - Backspace removes last pill when input empty
+  - Paste support (splits on comma/space and creates multiple pills)
+  - Automatic lowercase conversion for tag consistency
+  - Focus management (cursor positioning in modals)
+  - Bootstrap 5 badge styling with hover effects
+
+### Changed
+- **Tag separator changed from comma to space** throughout codebase
+  - Backend: All tag parsing now uses `re.split(r'[,\s]+')` to accept both comma and space
+  - Display: Tags shown space-separated in all templates
+  - UI text updated from "comma-separated" to "space-separated"
+  - CLI compatibility: Backend still accepts comma separator for cli/upload.py
+- **Tag input behavior**
+  - Tab key accepts autocomplete suggestion (opt-in)
+  - Space/comma keys accept typed text (ignores suggestions)
+  - Enter key accepts current input and submits form
+- **Bulk editor layout** - Reduced from 6 columns to 4 columns max for better tag pill display
+
+### Fixed
+- Tag pill initialization order (wrapper must be in container before pills can be inserted)
+- Auto-focus cycling through all fields (removed on-init focus)
+- Flex layout conflicts in pill container (changed wrapper to proper flex display)
+
+---
 ## [2025-10-31] - Bootstrap 5 Upgrade and UI Modernization
 
 ### Added
@@ -16,7 +47,7 @@ All notable changes to this project are documented here.
 - **Modal keyboard shortcuts** - Enter key submits forms, shortcuts don't fire inside modals
 - **Admin navigation** - Fixed nav-pills Bootstrap 5 markup (nav-item/nav-link classes)
 - **Photo page scaling** - Responsive images with img-fluid and max-height viewport constraint
-- **Thumbnail quality** - Upgraded to 800x800 (_c.jpg) for sharper display
+- **Thumbnail quality** - Upgraded to 800x800 (c.jpg) for sharper display
 
 ---
 ## [2025-10-30] - Pagination Context Preservation and Config Improvements

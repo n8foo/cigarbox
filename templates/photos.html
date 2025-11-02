@@ -136,7 +136,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <img class='img-fluid' style="max-height: 90vh; width: auto; display: block; margin: 0 auto;" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
+        <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
       </div>
     </div>
 
@@ -267,10 +267,10 @@
               </div>
               <div class="modal-body">
                 <div class="form-group">
-                  <label for="tags">Tags (comma-separated)</label>
+                  <label for="tags">Tags (space-separated)</label>
                   <input type="text" name="tags" id="tags" class="form-control"
-                         value="{% for tag in tags %}{{ tag.name }}{% if not loop.last %}, {% endif %}{% endfor %}">
-                  <p class="help-block">Enter tags separated by commas (e.g., vacation, beach, summer)</p>
+                         value="{% for tag in tags %}{{ tag.name }}{% if not loop.last %} {% endif %}{% endfor %}">
+                  <p class="help-block">Enter tags separated by spaces (e.g., vacation beach summer)</p>
                 </div>
               </div>
               <div class="modal-footer">
@@ -476,5 +476,20 @@
     }
   });
   {% endif %}
+  </script>
+
+  <!-- Tag autocomplete -->
+  <script src="{{SITEURL}}/static/js/tag-autocomplete.js"></script>
+  <script>
+  // Initialize tag autocomplete
+  var allTags = [{% for tag in all_tags %}'{{ tag.name|replace("'", "\\'") }}'{% if not loop.last %}, {% endif %}{% endfor %}];
+  var tagAutocomplete = initTagAutocomplete('#tags', allTags);
+
+  // Focus input when tags modal opens
+  $('#tagsModal').on('shown.bs.modal', function() {
+    if (tagAutocomplete && tagAutocomplete.focus) {
+      tagAutocomplete.focus();
+    }
+  });
   </script>
 {% endblock %}

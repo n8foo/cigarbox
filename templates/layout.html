@@ -101,7 +101,12 @@
           const stored = localStorage.getItem('theme');
           if (stored) return stored;
 
-          // Detect OS preference
+          // No override stored - use OS preference
+          return getOSPreference();
+        }
+
+        // Get OS preference
+        function getOSPreference() {
           if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             return 'dark';
           }
@@ -117,7 +122,16 @@
             html.setAttribute('data-bs-theme', 'light');
             icon.className = 'bi bi-moon-fill';
           }
-          localStorage.setItem('theme', theme);
+
+          // Smart storage: only save if overriding OS preference
+          const osPreference = getOSPreference();
+          if (theme === osPreference) {
+            // Theme matches OS - remove override, go back to auto
+            localStorage.removeItem('theme');
+          } else {
+            // Theme differs from OS - save override
+            localStorage.setItem('theme', theme);
+          }
         }
 
         // Toggle theme
@@ -136,9 +150,10 @@
         // Listen for OS theme changes
         if (window.matchMedia) {
           window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-            // Only auto-switch if user hasn't manually set a preference
+            const newOSTheme = e.matches ? 'dark' : 'light';
+            // Auto-switch if no override is stored (localStorage is empty)
             if (!localStorage.getItem('theme')) {
-              setTheme(e.matches ? 'dark' : 'light');
+              setTheme(newOSTheme);
             }
           });
         }

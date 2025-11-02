@@ -12,6 +12,7 @@
 """
 
 import sys
+import re
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
   render_template, flash, send_from_directory, jsonify
@@ -361,11 +362,14 @@ def show_photo(photo_id):
   if context.startswith('photoset:'):
     context_photoset_id = int(context.split(':')[1])
 
+  # Get all tags for autocomplete
+  all_tags = Tag.select().order_by(Tag.name)
+
   return render_template('photos.html', photo=photo, tags=tags,
                         photo_photosets=photo_photosets, can_edit=can_edit,
                         context=context, context_name=context_name, context_url=context_url,
                         prev_photo=prev_photo, next_photo=next_photo,
-                        context_photoset_id=context_photoset_id)
+                        context_photoset_id=context_photoset_id, all_tags=all_tags)
 
 
 @app.route('/photos/<int:photo_id>/update', methods=['POST'])
@@ -397,7 +401,8 @@ def update_photo_inline(photo_id):
 
     # Add new tags
     if tags_input:
-      tag_names = [t.strip() for t in tags_input.split(',') if t.strip()]
+      # Split on both comma and space to support CLI and web UI
+      tag_names = [t.strip().lower() for t in re.split(r'[,\s]+', tags_input) if t.strip()]
       for tag_name in tag_names:
         tag, created = Tag.get_or_create(name=tag_name)
         PhotoTag.create(photo=photo, tag=tag)
@@ -449,7 +454,8 @@ def bulk_edit_photos(page):
         # Add tags to all photos
         tags_input = request.form.get('bulk_tags', '')
         if tags_input:
-          tag_names = [t.strip() for t in tags_input.split(',') if t.strip()]
+          # Split on both comma and space to support CLI and web UI
+          tag_names = [t.strip().lower() for t in re.split(r'[,\s]+', tags_input) if t.strip()]
           count = 0
           for photo_id in photo_ids:
             if not photo_id:
@@ -546,7 +552,8 @@ def bulk_edit_photos(page):
               # Add new tags
               tags_input = request.form.get(tags_key, '')
               if tags_input:
-                tag_names = [t.strip() for t in tags_input.split(',') if t.strip()]
+                # Split on both comma and space to support CLI and web UI
+                tag_names = [t.strip().lower() for t in re.split(r'[,\s]+', tags_input) if t.strip()]
                 for tag_name in tag_names:
                   tag, created = Tag.get_or_create(name=tag_name)
                   PhotoTag.create(photo=photo, tag=tag)
@@ -571,10 +578,11 @@ def bulk_edit_photos(page):
             # Update tags
             tags_key = f'tags_{photo_id}'
             if tags_key in request.form:
-              PhotoTag.delete().where(PhotoTag.photo == photo).execute()
               tags_input = request.form.get(tags_key, '')
+              PhotoTag.delete().where(PhotoTag.photo == photo).execute()
               if tags_input:
-                tag_names = [t.strip() for t in tags_input.split(',') if t.strip()]
+                # Split on both comma and space to support CLI and web UI
+                tag_names = [t.strip().lower() for t in re.split(r'[,\s]+', tags_input) if t.strip()]
                 for tag_name in tag_names:
                   tag, created = Tag.get_or_create(name=tag_name)
                   PhotoTag.create(photo=photo, tag=tag)
@@ -844,7 +852,7 @@ def merge_tag_inline(tag):
   if not source_tag:
     abort(404)
 
-  target_tag_name = request.form.get('target_tag', '').strip()
+  target_tag_name = request.form.get('target_tag', '').strip().lower()
   if not target_tag_name:
     flash('Target tag name required')
     return redirect(url_for('show_taged_photos', tag=tag, page=1))
@@ -1487,7 +1495,8 @@ def admin_edit_photo(photo_id):
       PhotoTag.delete().where(PhotoTag.photo == photo_id).execute()
 
       # Add new tags
-      tag_names = [t.strip() for t in tags_input.split(',') if t.strip()]
+      # Split on both comma and space to support CLI and web UI
+      tag_names = [t.strip().lower() for t in re.split(r'[,\s]+', tags_input) if t.strip()]
       for tag_name in tag_names:
         tag, created = Tag.get_or_create(name=tag_name)
         PhotoTag.create(photo=photo, tag=tag)
@@ -1499,9 +1508,12 @@ def admin_edit_photo(photo_id):
   (sha1Path, filename) = getSha1Path(photo.sha1)
   photo.uri = sha1Path + '/' + filename
   tags = Tag.select().join(PhotoTag).where(PhotoTag.photo == photo_id)
-  tag_names = ','.join([tag.name for tag in tags])
+  tag_names = ' '.join([tag.name for tag in tags])
 
-  return render_template('admin/edit_photo.html', photo=photo, tag_names=tag_names)
+  # Get all tags for autocomplete
+  all_tags = Tag.select().order_by(Tag.name)
+
+  return render_template('admin/edit_photo.html', photo=photo, tag_names=tag_names, all_tags=all_tags)
 
 
 @app.route('/admin/tags')
@@ -1571,7 +1583,7 @@ def admin_edit_tag(tag_id):
 def admin_merge_tag(tag_id):
   """Merge one tag into another"""
   source_tag = Tag.select().where(Tag.id == tag_id).get()
-  target_tag_name = request.form.get('target_tag')
+  target_tag_name = request.form.get('target_tag', '').strip().lower()
 
   if not target_tag_name:
     flash('Target tag name required')

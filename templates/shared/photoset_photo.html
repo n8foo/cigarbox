@@ -87,7 +87,7 @@
       <p>
         <strong>Tags:</strong>
         {% for tag in tag_list %}
-        {{ tag.name }}{% if not loop.last %}, {% endif %}
+        {{ tag.name }}{% if not loop.last %} {% endif %}
         {% endfor %}
       </p>
       {% endif %}

@@ -23,17 +23,57 @@
   <!-- Pagination Top -->
   {% if pagination.total_pages > 1 %}
   <div class="row">
-    <div class="col-md-12 text-center">
-      <ul class="pagination">
-        <li {% if not pagination.has_prev %}class="disabled"{% endif %}>
-          <a href="{% if pagination.prev_url %}{{ pagination.prev_url }}{% else %}#{% endif %}">&laquo; Prev</a>
-        </li>
-        <li class="disabled"><a href="#">Page {{ pagination.page }} of {{ pagination.total_pages }}</a></li>
-        <li {% if not pagination.has_next %}class="disabled"{% endif %}>
-          <a href="{% if pagination.next_url %}{{ pagination.next_url }}{% else %}#{% endif %}">Next &raquo;</a>
-        </li>
-      </ul>
-      <p class="text-muted">Showing {{ pagination.per_page * (pagination.page - 1) + 1 }}-{{ [pagination.per_page * pagination.page, pagination.total] | min }} of {{ pagination.total }}</p>
+    <div class="col-md-12">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+          <!-- Previous button -->
+          <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            {% if pagination.has_prev %}
+              <a class="page-link" href="{{ pagination.prev_url }}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            {% else %}
+              <span class="page-link">&laquo;</span>
+            {% endif %}
+          </li>
+
+          <!-- Page numbers -->
+          {% set start_page = [1, pagination.page - 2]|max %}
+          {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
+
+          {% if start_page > 1 %}
+            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/1">1</a></li>
+            {% if start_page > 2 %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+          {% endif %}
+
+          {% for page_num in range(start_page, end_page + 1) %}
+            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ baseurl }}/page/{{ page_num }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
+            </li>
+          {% endfor %}
+
+          {% if end_page < pagination.total_pages %}
+            {% if end_page < pagination.total_pages - 1 %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/{{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+          {% endif %}
+
+          <!-- Next button -->
+          <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            {% if pagination.has_next %}
+              <a class="page-link" href="{{ pagination.next_url }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            {% else %}
+              <span class="page-link">&raquo;</span>
+            {% endif %}
+          </li>
+        </ul>
+      </nav>
+      <p class="text-center text-muted">Showing {{ pagination.per_page * (pagination.page - 1) + 1 }}-{{ [pagination.per_page * pagination.page, pagination.total] | min }} of {{ pagination.total }}</p>
     </div>
   </div>
   {% endif %}
@@ -54,7 +94,7 @@
               <label class="col-sm-2 control-label">Add Tags:</label>
               <div class="col-sm-8">
                 <div class="input-group">
-                  <input type="text" name="bulk_tags" class="form-control tags-input" placeholder="vacation, beach, summer">
+                  <input type="text" name="bulk_tags" class="form-control tags-input" placeholder="vacation beach summer">
                   <span class="input-group-btn">
                     <button type="submit" name="action" value="bulk_tags_add" class="btn btn-primary">
                       <span class="bi bi-tag"></span> Add to All
@@ -144,7 +184,7 @@
     <div class="row">
       {% if photos %}
       {% for photo in photos %}
-      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+      <div class="col-sm-6 col-md-3">
         <div class="thumbnail">
           <a href="{{SITEURL}}/photos/{{ photo.id }}" target="_blank">
             <img class="lazy" data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_m.jpg" alt="Photo {{ photo.id }}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Crect fill='%23eee' width='240' height='240'/%3E%3C/svg%3E">
@@ -169,8 +209,8 @@
                       placeholder="tags"
                       data-photo-id="{{ photo.id }}"
                       data-field="tags"
-                      data-original-value="{% for tag in photo.tag_list %}{{ tag.name }}{% if not loop.last %}, {% endif %}{% endfor %}"
-                      style="margin-top: 5px; height: 60px; resize: vertical;">{% for tag in photo.tag_list %}{{ tag.name }}{% if not loop.last %}, {% endif %}{% endfor %}</textarea>
+                      data-original-value="{% for tag in photo.tag_list %}{{ tag.name }}{% if not loop.last %} {% endif %}{% endfor %}"
+                      style="margin-top: 5px; height: 60px; resize: vertical;">{% for tag in photo.tag_list %}{{ tag.name }}{% if not loop.last %} {% endif %}{% endfor %}</textarea>
             {% else %}
             <p class="text-muted text-center"><small>View only</small></p>
             {% endif %}
@@ -208,16 +248,57 @@
   <!-- Pagination Bottom -->
   {% if pagination.total_pages > 1 %}
   <div class="row">
-    <div class="col-md-12 text-center">
-      <ul class="pagination">
-        <li {% if not pagination.has_prev %}class="disabled"{% endif %}>
-          <a href="{% if pagination.prev_url %}{{ pagination.prev_url }}{% else %}#{% endif %}">&laquo; Prev</a>
-        </li>
-        <li class="disabled"><a href="#">Page {{ pagination.page }} of {{ pagination.total_pages }}</a></li>
-        <li {% if not pagination.has_next %}class="disabled"{% endif %}>
-          <a href="{% if pagination.next_url %}{{ pagination.next_url }}{% else %}#{% endif %}">Next &raquo;</a>
-        </li>
-      </ul>
+    <div class="col-md-12">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+          <!-- Previous button -->
+          <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            {% if pagination.has_prev %}
+              <a class="page-link" href="{{ pagination.prev_url }}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            {% else %}
+              <span class="page-link">&laquo;</span>
+            {% endif %}
+          </li>
+
+          <!-- Page numbers -->
+          {% set start_page = [1, pagination.page - 2]|max %}
+          {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
+
+          {% if start_page > 1 %}
+            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/1">1</a></li>
+            {% if start_page > 2 %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+          {% endif %}
+
+          {% for page_num in range(start_page, end_page + 1) %}
+            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ baseurl }}/page/{{ page_num }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
+            </li>
+          {% endfor %}
+
+          {% if end_page < pagination.total_pages %}
+            {% if end_page < pagination.total_pages - 1 %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/{{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+          {% endif %}
+
+          <!-- Next button -->
+          <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            {% if pagination.has_next %}
+              <a class="page-link" href="{{ pagination.next_url }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            {% else %}
+              <span class="page-link">&raquo;</span>
+            {% endif %}
+          </li>
+        </ul>
+      </nav>
+      <p class="text-center text-muted">Showing {{ pagination.per_page * (pagination.page - 1) + 1 }}-{{ [pagination.per_page * pagination.page, pagination.total] | min }} of {{ pagination.total }}</p>
     </div>
   </div>
   {% endif %}
@@ -240,6 +321,9 @@
 </style>
 
 <div id="alert-container"></div>
+
+<!-- Tag autocomplete -->
+<script src="{{SITEURL}}/static/js/tag-autocomplete.js"></script>
 
 <script>
 // Show alert message
@@ -470,113 +554,70 @@ document.addEventListener('DOMContentLoaded', function() {
   // Tag autocomplete with inline suggestion
   var allTags = [{% for tag in all_tags %}'{{ tag.name|replace("'", "\\'") }}'{% if not loop.last %}, {% endif %}{% endfor %}];
 
-  // Create suggestion containers for each tag input
+  // Initialize autocomplete for all tag input fields
   var tagInputs = document.querySelectorAll('.tags-input');
   console.log('Found', tagInputs.length, 'tag inputs for autocomplete');
 
   tagInputs.forEach(function(input) {
-    // Wrap input in a container for positioning the dropdown
-    var wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    wrapper.style.display = 'block';
-    wrapper.style.width = '100%';
-    input.parentNode.insertBefore(wrapper, input);
-    wrapper.appendChild(input);
+    // Initialize the reusable autocomplete component
+    var autocompleteInstance = initTagAutocomplete(input, allTags);
+  });
 
-    // Create suggestion dropdown
-    var dropdown = document.createElement('div');
-    dropdown.style.position = 'absolute';
-    dropdown.style.top = '100%';
-    dropdown.style.left = '0';
-    dropdown.style.right = '0';
-    dropdown.style.background = '#f9f9f9';
-    dropdown.style.border = '1px solid #ccc';
-    dropdown.style.borderTop = 'none';
-    dropdown.style.maxHeight = '150px';
-    dropdown.style.overflowY = 'auto';
-    dropdown.style.zIndex = '1000';
-    dropdown.style.display = 'none';
-    dropdown.style.fontSize = '12px';
-    wrapper.appendChild(dropdown);
-
-    var currentSuggestion = null;
-
-    function updateSuggestion() {
-      var value = input.value;
-      var lastComma = value.lastIndexOf(',');
-      var currentWord = lastComma >= 0 ? value.substring(lastComma + 1).trim() : value.trim();
-
-      if (currentWord.length > 0) {
-        // Find matching tags
-        var matches = allTags.filter(function(tag) {
-          return tag.toLowerCase().startsWith(currentWord.toLowerCase());
-        });
-
-        if (matches.length > 0) {
-          currentSuggestion = matches[0];
-          // Show first match in dropdown
-          dropdown.innerHTML = '<div style="padding: 4px 8px; color: #666;"><strong>' + currentWord + '</strong>' + matches[0].substring(currentWord.length) + ' <span style="color: #999;">(space to accept)</span></div>';
-          dropdown.style.display = 'block';
-        } else {
-          currentSuggestion = null;
-          dropdown.style.display = 'none';
-        }
-      } else {
-        currentSuggestion = null;
-        dropdown.style.display = 'none';
+  // Prevent default form submission on Enter key in tag fields
+  // This must be done in capture phase to prevent browser default form submit
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      var pillContainer = e.target.closest('.tag-pill-container');
+      if (pillContainer) {
+        e.preventDefault();
+        // Don't stopPropagation - we need event to reach our bubble handler!
       }
     }
+  }, true); // Capture phase - runs before bubble phase
 
-    input.addEventListener('input', updateSuggestion);
-    input.addEventListener('blur', function() {
-      // Hide dropdown after a short delay (allows clicking)
-      setTimeout(function() {
-        dropdown.style.display = 'none';
-      }, 200);
-    });
+  // Track if we're already processing an Enter key to prevent double submissions
+  var enterKeyProcessing = false;
 
-    // Move cursor to end when focusing
-    input.addEventListener('focus', function() {
-      var len = this.value.length;
-      this.setSelectionRange(len, len);
-    });
-
-    input.addEventListener('keydown', function(e) {
-      // Enter key submits (saves both tags and privacy)
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        var form = input.closest('form');
-        if (form) {
-          // Set action to save both
-          var fakeButton = document.createElement('button');
-          fakeButton.name = 'action';
-          fakeButton.value = 'individual_both';
-          fakeButton.style.display = 'none';
-          form.appendChild(fakeButton);
-
-          // Trigger the form submission
-          submitFormAjax(form, e);
-
-          form.removeChild(fakeButton);
+  // Handle Enter key on tag fields using event delegation
+  // Listen at document level for Enter in pill containers (bubble phase after autocomplete processes)
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // Check if the target is inside a tag-pill-container
+      var pillContainer = e.target.closest('.tag-pill-container');
+      if (pillContainer) {
+        if (enterKeyProcessing) {
+          return;
         }
+
+        enterKeyProcessing = true;
+
+        // Small delay to let autocomplete accept current input first
+        setTimeout(function() {
+          // Find the INDIVIDUAL PHOTOS FORM (not the bulk actions form)
+          var form = document.getElementById('individual-photos-form');
+          if (form) {
+            // Create a fake submit event to trigger existing submitFormAjax logic
+            var submitEvent = new Event('submit', {
+              bubbles: true,
+              cancelable: true
+            });
+
+            // Set action to individual_both so it saves all changed photos
+            lastClickedButton = document.createElement('button');
+            lastClickedButton.name = 'action';
+            lastClickedButton.value = 'individual_both';
+
+            form.dispatchEvent(submitEvent);
+          }
+
+          // Reset flag after a short delay to allow for the next Enter
+          setTimeout(function() {
+            enterKeyProcessing = false;
+          }, 500);
+        }, 10); // Small delay to let autocomplete process Enter first
       }
-      // Space accepts the suggestion
-      else if (e.key === ' ' && currentSuggestion) {
-        e.preventDefault();
-        var value = input.value;
-        var lastComma = value.lastIndexOf(',');
-        if (lastComma >= 0) {
-          input.value = value.substring(0, lastComma + 1) + ' ' + currentSuggestion + ', ';
-        } else {
-          input.value = currentSuggestion + ', ';
-        }
-        currentSuggestion = null;
-        dropdown.style.display = 'none';
-        // Trigger change tracking
-        checkFieldChanged(input);
-      }
-    });
-  });
+    }
+  }); // Use bubble phase (after autocomplete handler runs)
 });
 
 // Show/hide new photoset input
