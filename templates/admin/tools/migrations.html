@@ -9,7 +9,7 @@
     <hr>
     <p class="lead">Run database schema migrations and view execution history</p>
     <div class="alert alert-info">
-      <span class="glyphicon glyphicon-info-sign"></span>
+      <span class="bi bi-info-circle"></span>
       <strong>Note:</strong> All migrations are idempotent and safe to run multiple times.
       They check the current schema and skip if already applied.
     </div>
@@ -29,7 +29,7 @@
     <div class="panel panel-default">
       <div class="panel-heading">
         <h3 class="panel-title">
-          <span class="glyphicon glyphicon-file"></span>
+          <span class="bi bi-file-earmark"></span>
           {{ migration.filename }}
         </h3>
       </div>
@@ -46,15 +46,15 @@
         <ul class="list-unstyled">
           {% for run in migration.recent_runs %}
           <li>
-            <span class="glyphicon glyphicon-time"></span>
+            <span class="bi bi-clock"></span>
             <strong>{{ run.timestamp }}</strong>
             {% if run.success %}
-            <span class="label label-success">Success</span>
+            <span class="badge bg-success">Success</span>
             {% else %}
-            <span class="label label-danger">Failed</span>
+            <span class="badge bg-danger">Failed</span>
             {% endif %}
-            <a href="{{SITEURL}}/admin/tools/migrations/log/{{ run.log_file }}" class="btn btn-xs btn-default">
-              <span class="glyphicon glyphicon-eye-open"></span> View Log
+            <a href="{{SITEURL}}/admin/tools/migrations/log/{{ run.log_file }}" class="btn btn-xs btn-secondary">
+              <span class="bi bi-eye"></span> View Log
             </a>
           </li>
           {% endfor %}
@@ -67,13 +67,13 @@
         <form method="POST" action="{{SITEURL}}/admin/tools/migrations/run" style="display: inline;">
           <input type="hidden" name="migration" value="{{ migration.filename }}">
           <button type="submit" class="btn btn-primary" onclick="return confirm('Run migration: {{ migration.filename }}?');">
-            <span class="glyphicon glyphicon-play"></span> Run Migration
+            <span class="bi bi-play-fill"></span> Run Migration
           </button>
         </form>
 
         {% if migration.recent_runs %}
-        <a href="{{SITEURL}}/admin/tools/migrations/history/{{ migration.filename }}" class="btn btn-default">
-          <span class="glyphicon glyphicon-list"></span> View All Logs
+        <a href="{{SITEURL}}/admin/tools/migrations/history/{{ migration.filename }}" class="btn btn-secondary">
+          <span class="bi bi-list"></span> View All Logs
         </a>
         {% endif %}
       </div>
@@ -86,7 +86,7 @@
 <div class="row">
   <div class="col-md-12">
     <div class="alert alert-warning">
-      <span class="glyphicon glyphicon-exclamation-sign"></span>
+      <span class="bi bi-exclamation-triangle"></span>
       No migration scripts found in <code>scripts/</code> directory.
     </div>
   </div>
@@ -95,8 +95,8 @@
 
 <div class="row">
   <div class="col-md-12">
-    <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
-      <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+    <a href="{{SITEURL}}/admin/tools" class="btn btn-secondary">
+      <span class="bi bi-arrow-left"></span> Back to Tools
     </a>
   </div>
 </div>

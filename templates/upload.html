@@ -13,7 +13,7 @@
     <div class="col-md-12">
       <!-- Upload Zone -->
       <div id="uploadZone" class="well text-center" style="padding: 40px; border: 2px dashed #ccc; background: #f9f9f9; cursor: pointer;">
-        <span class="glyphicon glyphicon-cloud-upload" style="font-size: 48px; color: #999;"></span>
+        <span class="bi bi-cloud-upload" style="font-size: 48px; color: #999;"></span>
         <h3>Drop photos here or click to browse</h3>
         <p class="text-muted">Supports: JPG, PNG, GIF, MOV, MP4, M4V (max 16MB each)</p>
         <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
@@ -36,10 +36,10 @@
       <!-- Upload Button -->
       <div id="uploadActions" style="display: none; margin-top: 20px;">
         <button id="uploadBtn" class="btn btn-primary btn-lg">
-          <span class="glyphicon glyphicon-upload"></span> Upload <span id="fileCount">0</span> Photos
+          <span class="bi bi-upload"></span> Upload <span id="fileCount">0</span> Photos
         </button>
-        <button id="clearBtn" class="btn btn-default">
-          <span class="glyphicon glyphicon-remove"></span> Clear
+        <button id="clearBtn" class="btn btn-secondary">
+          <span class="bi bi-x-lg"></span> Clear
         </button>
       </div>
     </div>
@@ -131,7 +131,7 @@
     previewGrid.innerHTML = '';
     selectedFiles.forEach((file, index) => {
       const col = document.createElement('div');
-      col.className = 'col-xs-6 col-sm-4 col-md-3';
+      col.className = 'col-6 col-sm-4 col-md-3';
 
       const previewItem = document.createElement('div');
       previewItem.className = 'preview-item';

@@ -24,7 +24,7 @@
       </ol>
 
       <div class="alert alert-info">
-        <span class="glyphicon glyphicon-info-sign"></span>
+        <span class="bi bi-info-sign"></span>
         You're viewing a shared photoset.
         {% if share_token.comment %}
         <br><strong>{{ share_token.comment }}</strong>
@@ -41,7 +41,7 @@
         {% if share_token.allow_download %}
         <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}/download"
            style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">
-          <span class="glyphicon glyphicon-download-alt"></span> Download Original
+          <span class="bi bi-download"></span> Download Original
         </a>
         {% endif %}
       </div>
@@ -53,26 +53,26 @@
     <div class="col-md-12 text-center">
       <div class="btn-group" role="group">
         {% if prev_photo %}
-        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ prev_photo.id }}" class="btn btn-default">
-          <span class="glyphicon glyphicon-chevron-left"></span> Previous
+        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ prev_photo.id }}" class="btn btn-secondary">
+          <span class="bi bi-chevron-left"></span> Previous
         </a>
         {% else %}
-        <button class="btn btn-default" disabled>
-          <span class="glyphicon glyphicon-chevron-left"></span> Previous
+        <button class="btn btn-secondary" disabled>
+          <span class="bi bi-chevron-left"></span> Previous
         </button>
         {% endif %}
 
         <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}" class="btn btn-primary">
-          <span class="glyphicon glyphicon-th"></span> Back to Photoset
+          <span class="bi bi-grid-3x3-gap"></span> Back to Photoset
         </a>
 
         {% if next_photo %}
-        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ next_photo.id }}" class="btn btn-default">
-          Next <span class="glyphicon glyphicon-chevron-right"></span>
+        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ next_photo.id }}" class="btn btn-secondary">
+          Next <span class="bi bi-chevron-right"></span>
         </a>
         {% else %}
-        <button class="btn btn-default" disabled>
-          Next <span class="glyphicon glyphicon-chevron-right"></span>
+        <button class="btn btn-secondary" disabled>
+          Next <span class="bi bi-chevron-right"></span>
         </button>
         {% endif %}
       </div>

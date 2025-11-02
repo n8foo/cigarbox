@@ -5,13 +5,13 @@
 <div class="row">
   <div class="col-md-12">
     <ul class="nav nav-pills">
-      <li {% if active_page == 'dashboard' %}class="active"{% endif %}><a href="{{SITEURL}}/admin">Dashboard</a></li>
-      <li {% if active_page == 'photos' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/photos">Photos</a></li>
-      <li {% if active_page == 'tags' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/tags">Tags</a></li>
-      <li {% if active_page == 'photosets' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/photosets">Photosets</a></li>
-      <li {% if active_page == 'users' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/users">Users</a></li>
-      <li {% if active_page == 'shares' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/shares">Shares</a></li>
-      <li {% if active_page == 'tools' %}class="active"{% endif %}><a href="{{SITEURL}}/admin/tools">Tools</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{SITEURL}}/admin">Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'photos' %}active{% endif %}" href="{{SITEURL}}/admin/photos">Photos</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'tags' %}active{% endif %}" href="{{SITEURL}}/admin/tags">Tags</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'photosets' %}active{% endif %}" href="{{SITEURL}}/admin/photosets">Photosets</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="{{SITEURL}}/admin/users">Users</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'shares' %}active{% endif %}" href="{{SITEURL}}/admin/shares">Shares</a></li>
+      <li class="nav-item"><a class="nav-link {% if active_page == 'tools' %}active{% endif %}" href="{{SITEURL}}/admin/tools">Tools</a></li>
     </ul>
     <br>
   </div>

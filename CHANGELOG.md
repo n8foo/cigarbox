@@ -3,6 +3,22 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-10-31] - Bootstrap 5 Upgrade and UI Modernization
+
+### Added
+- **Bootstrap 5.3.2 upgrade** - Migrated from Bootstrap 3.3.6, replaced Glyphicons with Bootstrap Icons 1.11.3
+- **Dark mode** - Toggle in navbar with localStorage persistence and OS preference detection
+- **Compact UI theme** - Reduced spacing throughout (14px base font, tighter padding/margins)
+- **CSS Grid gallery** - Simplified responsive photo layout (300px min columns, 4:3 aspect ratio)
+
+### Fixed
+- **Modal context preservation** - Privacy/tags/share modals now preserve navigation context on save
+- **Modal keyboard shortcuts** - Enter key submits forms, shortcuts don't fire inside modals
+- **Admin navigation** - Fixed nav-pills Bootstrap 5 markup (nav-item/nav-link classes)
+- **Photo page scaling** - Responsive images with img-fluid and max-height viewport constraint
+- **Thumbnail quality** - Upgraded to 800x800 (_c.jpg) for sharper display
+
+---
 ## [2025-10-30] - Pagination Context Preservation and Config Improvements
 
 ### Added

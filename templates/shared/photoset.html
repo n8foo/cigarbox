@@ -11,7 +11,7 @@
   <div class="row">
     <div class="col-md-12">
       <div class="alert alert-info">
-        <span class="glyphicon glyphicon-info-sign"></span>
+        <span class="bi bi-info-sign"></span>
         You're viewing a shared photoset.
         {% if share_token.comment %}
         <br><strong>{{ share_token.comment }}</strong>
@@ -34,7 +34,7 @@
   {% for row in photos|batch(4) %}
   <div class="row">
     {% for photo in row %}
-    <div class="col-xs-6 col-md-3">
+    <div class="col-6 col-md-3">
       <div class="thumbnail">
         <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}">
           <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg" alt="Photo" class="img-responsive">

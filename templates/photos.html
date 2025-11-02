@@ -19,14 +19,14 @@
     <div class="row">
       <div class="col-md-12">
         <div class="alert alert-success alert-dismissible" role="alert">
-          <button type="button" class="close" data-dismiss="alert">&times;</button>
-          <h4><span class="glyphicon glyphicon-ok-circle"></span> Share Link Created!</h4>
+          <button type="button" class="close" data-bs-dismiss="alert">&times;</button>
+          <h4><i class="bi bi-check-circle"></i> Share Link Created!</h4>
           <p>Copy this link to share this photo:</p>
           <div class="input-group">
             <input type="text" class="form-control" value="{{ session.share_link }}" id="shareUrlInput" readonly>
             <span class="input-group-btn">
               <button class="btn btn-primary" type="button" onclick="copyShareLink()">
-                <span class="glyphicon glyphicon-copy"></span> Copy
+                <i class="bi bi-clipboard"></i> Copy
               </button>
             </span>
           </div>
@@ -45,33 +45,33 @@
     {% endif %}
 
     <!-- Header with Navigation and Actions -->
-    <div class="row">
+    <div class="row" style="margin-bottom: 15px;">
       <div class="col-md-6">
         {% if context_name %}
-        <ol class="breadcrumb">
-          <li><a href="{{ context_url }}">{{ context_name }}</a></li>
-          <li class="active">
-            Photo #{{ photo.id }}
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb" style="background-color: var(--bs-secondary-bg); padding: 12px 15px; border-radius: 4px;">
+            <li class="breadcrumb-item"><a href="{{ context_url }}">{{ context_name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Photo #{{ photo.id }}</li>
             {% if photo.datetaken %}
-            <span style="margin-left: 15px;">
+            <li class="breadcrumb-item">
               <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">
-                <span class="glyphicon glyphicon-calendar"></span> {{ photo.datetaken | format_datetime }}
+                {{ photo.datetaken | format_datetime }}
               </a>
-            </span>
+            </li>
             {% endif %}
-          </li>
-        </ol>
+          </ol>
+        </nav>
         {% else %}
-        <h3>
+        <h3 style="margin-bottom: 10px;">
           Photo #{{ photo.id }}
-          {% if photo.datetaken %}
-          <small class="text-muted">
-            <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}">
-              <span class="glyphicon glyphicon-calendar"></span> {{ photo.datetaken | format_datetime }}
-            </a>
-          </small>
-          {% endif %}
         </h3>
+        {% if photo.datetaken %}
+        <p class="text-muted" style="font-size: 14px;">
+          <a href="{{SITEURL}}/date/{{ photo.datetaken | format_datetime('%Y-%m-%d') }}" class="text-decoration-none">
+            <i class="bi bi-calendar"></i> {{ photo.datetaken | format_datetime }}
+          </a>
+        </p>
+        {% endif %}
         {% endif %}
         {% if photo_photosets and photo_photosets.count() > 0 %}
           {% set other_photosets = [] %}
@@ -81,28 +81,30 @@
             {% endif %}
           {% endfor %}
           {% if other_photosets|length > 0 %}
-        <p class="text-muted" style="font-size: 14px; margin-top: 3px; margin-bottom: 0;">
-          <span class="glyphicon glyphicon-folder-open"></span>
+        <p class="text-muted" style="font-size: 14px; margin-top: 8px; margin-left: 15px;">
+          <i class="bi bi-folder2-open"></i> <strong>In photosets:</strong>
           {% for pp in other_photosets %}
-          <a href="{{SITEURL}}/photosets/{{ pp.photoset.id }}" class="label label-primary">{{ pp.photoset.title }}</a>
+          <a href="{{SITEURL}}/photosets/{{ pp.photoset.id }}" class="badge bg-primary text-decoration-none" style="margin-left: 5px; margin-bottom: 3px;">{{ pp.photoset.title }}</a>
           {% endfor %}
         </p>
           {% endif %}
         {% endif %}
       </div>
-      <div class="col-md-6 text-right">
+      <div class="col-md-6">
         {% if tags %}
-        <p class="text-muted">
-          <span class="glyphicon glyphicon-tag"></span>
-          {% for tag in tags %}
-          <a href="{{SITEURL}}/tags/{{ tag.name }}" class="label label-default">{{ tag.name }}</a>
-          {% endfor %}
-        </p>
+        <div style="padding: 12px 15px; background-color: var(--bs-secondary-bg); border-radius: 4px; margin-bottom: 10px;">
+          <p class="text-muted" style="margin: 0; font-size: 14px;">
+            <i class="bi bi-tag"></i> <strong>Tags:</strong>
+            {% for tag in tags %}
+            <a href="{{SITEURL}}/tags/{{ tag.name }}" class="badge bg-secondary text-decoration-none" style="margin-left: 5px; margin-bottom: 3px;">{{ tag.name }}</a>
+            {% endfor %}
+          </p>
+        </div>
         {% endif %}
         {% if current_user.is_authenticated and can_edit %}
         <div class="btn-group btn-group-sm">
-          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#privacyModal" title="Privacy">
-            <span class="glyphicon glyphicon-lock"></span>
+          <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#privacyModal" title="Privacy">
+            <i class="bi bi-lock"></i>
             {% if photo.privacy == 0 or photo.privacy is none %}
             <span class="text-success">public</span>
             {% elif photo.privacy == 1 %}
@@ -113,18 +115,18 @@
             <span class="text-danger">private</span>
             {% endif %}
           </button>
-          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#tagsModal" title="Edit Tags">
-            <span class="glyphicon glyphicon-tag"></span> edit
+          <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#tagsModal" title="Edit Tags">
+            <i class="bi bi-tag"></i> edit
           </button>
           <a href="{{SITEURL}}/photos/{{ photo.id }}/original" class="btn btn-link" target="_blank" title="View Original">
-            <span class="glyphicon glyphicon-picture"></span> original
+            <i class="bi bi-image"></i> original
           </a>
-          <button type="button" class="btn btn-link" data-toggle="modal" data-target="#shareModal" title="Share">
-            <span class="glyphicon glyphicon-share"></span> share
+          <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#shareModal" title="Share">
+            <i class="bi bi-share"></i> share
             <span class="badge" id="shareCountBadge" style="display: none; background-color: #d9534f;"></span>
           </button>
           <button type="button" class="btn btn-link text-danger" onclick="deletePhoto({{ photo.id }})" title="Delete">
-            <span class="glyphicon glyphicon-trash"></span> delete
+            <i class="bi bi-trash"></i> delete
           </button>
         </div>
         {% endif %}
@@ -134,7 +136,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
+        <img class='img-fluid' style="max-height: 90vh; width: auto; display: block; margin: 0 auto;" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
       </div>
     </div>
 
@@ -144,26 +146,26 @@
       <div class="col-md-12 text-center">
         <div class="btn-group" role="group">
           {% if prev_photo %}
-          <a href="{{SITEURL}}/photos/{{ prev_photo.id }}?context={{ context }}" class="btn btn-default" id="prevPhotoBtn">
-            <span class="glyphicon glyphicon-chevron-left"></span> Previous
+          <a href="{{SITEURL}}/photos/{{ prev_photo.id }}?context={{ context }}" class="btn btn-secondary" id="prevPhotoBtn">
+            <i class="bi bi-chevron-left"></i> Previous
           </a>
           {% else %}
-          <button class="btn btn-default" disabled>
-            <span class="glyphicon glyphicon-chevron-left"></span> Previous
+          <button class="btn btn-secondary" disabled>
+            <i class="bi bi-chevron-left"></i> Previous
           </button>
           {% endif %}
 
           <a href="{{ context_url }}" class="btn btn-primary">
-            <span class="glyphicon glyphicon-th"></span> Back to {{ context_name }}
+            <i class="bi bi-grid-3x3-gap"></i> Back to {{ context_name }}
           </a>
 
           {% if next_photo %}
-          <a href="{{SITEURL}}/photos/{{ next_photo.id }}?context={{ context }}" class="btn btn-default" id="nextPhotoBtn">
-            Next <span class="glyphicon glyphicon-chevron-right"></span>
+          <a href="{{SITEURL}}/photos/{{ next_photo.id }}?context={{ context }}" class="btn btn-secondary" id="nextPhotoBtn">
+            Next <i class="bi bi-chevron-right"></i>
           </a>
           {% else %}
-          <button class="btn btn-default" disabled>
-            Next <span class="glyphicon glyphicon-chevron-right"></span>
+          <button class="btn btn-secondary" disabled>
+            Next <i class="bi bi-chevron-right"></i>
           </button>
           {% endif %}
         </div>
@@ -175,9 +177,9 @@
       <div class="modal fade" id="shareModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/share">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/share?context={{ context }}">
               <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title">Create Share Link</h4>
               </div>
               <div class="modal-body">
@@ -214,7 +216,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-primary">Create Link</button>
               </div>
             </form>
@@ -227,10 +229,10 @@
       <div class="modal fade" id="privacyModal" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-sm" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?context={{ context }}">
               <input type="hidden" name="action" value="privacy">
               <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title">Change Privacy</h4>
               </div>
               <div class="modal-body">
@@ -245,7 +247,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
               </div>
             </form>
@@ -257,10 +259,10 @@
       <div class="modal fade" id="tagsModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?context={{ context }}">
               <input type="hidden" name="action" value="tags">
               <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title">Edit Tags</h4>
               </div>
               <div class="modal-body">
@@ -272,7 +274,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
               </div>
             </form>
@@ -286,8 +288,8 @@
         <div class="modal-dialog" role="document">
           <div class="modal-content">
             <div class="modal-header">
-              <button type="button" class="close" data-dismiss="modal">&times;</button>
-              <h4 class="modal-title"><span class="glyphicon glyphicon-keyboard"></span> Keyboard Shortcuts</h4>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <h4 class="modal-title"><i class="bi bi-keyboard"></i> Keyboard Shortcuts</h4>
             </div>
             <div class="modal-body">
               <h5>Navigation</h5>
@@ -317,7 +319,7 @@
               <p class="text-muted"><small><em>Tip: Hold Alt/Cmd/Ctrl with arrow keys for browser navigation</em></small></p>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
           </div>
         </div>
@@ -337,7 +339,7 @@
       document.execCommand('copy');
       var btn = event.target.closest('button');
       var originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="glyphicon glyphicon-ok"></span> Copied!';
+      btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
       setTimeout(function() {
         btn.innerHTML = originalText;
       }, 2000);
@@ -385,6 +387,14 @@
     // Ignore if user is typing in an input field
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
       return;
+    }
+
+    // Ignore if any modal is currently open (except for Escape key to close)
+    if (e.key !== 'Escape') {
+      var modalOpen = document.querySelector('.modal.show') !== null;
+      if (modalOpen) {
+        return;
+      }
     }
 
     // Ignore if modifier keys are pressed (Alt/Cmd/Ctrl for browser navigation)
@@ -448,6 +458,22 @@
   });
   $('#privacyModal').on('shown.bs.modal', function() {
     $('#privacy').focus();
+  });
+
+  // Submit modal forms with Enter key
+  $('#tagsModal input, #privacyModal select').on('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $(this).closest('form').submit();
+    }
+  });
+
+  // For share modal, only submit on Enter in text fields, not in selects
+  $('#shareModal input[type="text"], #shareModal input[type="number"], #shareModal textarea').on('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      $(this).closest('form').submit();
+    }
   });
   {% endif %}
   </script>

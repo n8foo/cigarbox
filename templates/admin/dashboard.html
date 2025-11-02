@@ -96,7 +96,7 @@
       <div class="panel-body">
         <div class="row">
           {% for photo in stats.recent_photos %}
-          <div class="col-xs-6 col-md-4">
+          <div class="col-6 col-md-4">
             <a href="{{SITEURL}}/photos/{{ photo.id }}" class="thumbnail">
               <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_t.jpg" alt="Photo {{ photo.id }}">
             </a>

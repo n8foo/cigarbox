@@ -404,6 +404,10 @@ def update_photo_inline(photo_id):
 
     flash('Tags updated')
 
+  # Preserve context parameter if present
+  context = request.args.get('context') or request.form.get('context')
+  if context:
+    return redirect(url_for('show_photo', photo_id=photo_id, context=context))
   return redirect(url_for('show_photo', photo_id=photo_id))
 
 @app.route('/photos/<int:photo_id>/original')
@@ -1807,6 +1811,11 @@ def create_share_link(photo_id):
   session['share_expires'] = days
 
   flash(f'Share link created! Valid for {days} days.' if days > 0 else 'Share link created (no expiration).')
+
+  # Preserve context parameter if present
+  context = request.args.get('context')
+  if context:
+    return redirect(url_for('show_photo', photo_id=photo_id, context=context))
   return redirect(url_for('show_photo', photo_id=photo_id))
 
 

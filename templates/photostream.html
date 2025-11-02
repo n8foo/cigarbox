@@ -10,10 +10,10 @@
     <p class="lead">{{ photo_count }} photo(s)</p>
     {% endif %}
   </div>
-  <div class="col-md-4 text-right">
+  <div class="col-md-4 text-end">
     {% if photo_ids and current_user.is_authenticated %}
     <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
-      <span class="glyphicon glyphicon-th"></span> bulk edit
+      <span class="bi bi-grid-3x3-gap"></span> bulk edit
     </a>
     {% endif %}
   </div>
@@ -21,27 +21,23 @@
 <hr>
 {% endif %}
 
-<div>
-  {% for row in photos|batch(4) %}
-  <div class="row">
-    {%- for photo in row %}
-    <div class="col-xs-6 col-md-3">
-      <a href="{{SITEURL}}/photos/{{ photo.id }}{% if context %}?context={{ context }}{% endif %}" class='thumbnail'>
-        <img class="lazy"
-             data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
-             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
-             alt="Photo {{ photo.id }}">
-      </a>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-    No photo?
-  {% endfor %}
 
-  <!-- Pagination -->
-  {{ render_pagination(pagination, baseurl) }}
+<div class="justified-gallery" id="photo-grid">
+  {% for photo in photos %}
+  <a href="{{SITEURL}}/photos/{{ photo.id }}{% if context %}?context={{ context }}{% endif %}" class="jg-item">
+    <img class="lazy jg-photo"
+         data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+         alt="Photo {{ photo.id }}">
+  </a>
+  {% else %}
+  <p class="text-muted">No photos found.</p>
+  {% endfor %}
 </div>
+
+
+<!-- Pagination -->
+{{ render_pagination(pagination, baseurl) }}
 
 <script>
 // Lazy load images
@@ -73,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+
 
 <br><br>
 {% endblock %}

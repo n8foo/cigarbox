@@ -20,7 +20,7 @@
       </div>
       <button type="submit" class="btn btn-primary">Search</button>
       {% if search %}
-      <a href="{{SITEURL}}/admin/shares" class="btn btn-default">Clear</a>
+      <a href="{{SITEURL}}/admin/shares" class="btn btn-secondary">Clear</a>
       {% endif %}
     </form>
     <br>
@@ -52,9 +52,9 @@
           <tr {% if share.is_expired %}class="danger"{% endif %}>
             <td>
               {% if share.share_type == 'photo' %}
-              <span class="label label-info">Photo</span>
+              <span class="badge bg-info">Photo</span>
               {% elif share.share_type == 'photoset' %}
-              <span class="label label-primary">Photoset</span>
+              <span class="badge bg-primary">Photoset</span>
               {% endif %}
             </td>
             <td>
@@ -65,7 +65,7 @@
               <a href="{{SITEURL}}/photos/{{ share.photo.id }}">Photo #{{ share.photo.id }}</a>
               {% elif share.share_type == 'photoset' and share.photoset %}
               <a href="{{SITEURL}}/photosets/{{ share.photoset.id }}">
-                <span class="glyphicon glyphicon-folder-open"></span> {{ share.photoset.title }}
+                <span class="bi bi-folder-open"></span> {{ share.photoset.title }}
               </a>
               {% else %}
               <span class="text-muted">Unknown</span>
@@ -89,24 +89,24 @@
             <td>{{ share.views }}</td>
             <td>
               {% if share.is_expired %}
-              <span class="label label-danger">Expired</span>
+              <span class="badge bg-danger">Expired</span>
               {% else %}
-              <span class="label label-success">Active</span>
+              <span class="badge bg-success">Active</span>
               {% endif %}
             </td>
             <td>
               {% if share.share_type == 'photo' %}
-              <button type="button" class="btn btn-xs btn-default" onclick="copyToClipboard('{{SITEURL}}/shared/{{ share.token }}')" title="Copy Link">
-                <span class="glyphicon glyphicon-copy"></span>
+              <button type="button" class="btn btn-xs btn-secondary" onclick="copyToClipboard('{{SITEURL}}/shared/{{ share.token }}')" title="Copy Link">
+                <span class="bi bi-clipboard"></span>
               </button>
               {% elif share.share_type == 'photoset' %}
-              <button type="button" class="btn btn-xs btn-default" onclick="copyToClipboard('{{SITEURL}}/shared/photoset/{{ share.token }}')" title="Copy Link">
-                <span class="glyphicon glyphicon-copy"></span>
+              <button type="button" class="btn btn-xs btn-secondary" onclick="copyToClipboard('{{SITEURL}}/shared/photoset/{{ share.token }}')" title="Copy Link">
+                <span class="bi bi-clipboard"></span>
               </button>
               {% endif %}
               <form method="POST" action="{{SITEURL}}/admin/shares/{{ share.id }}/revoke" style="display: inline;">
                 <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Revoke this share link?');" title="Revoke">
-                  <span class="glyphicon glyphicon-ban-circle"></span>
+                  <span class="bi bi-x-circle"></span>
                 </button>
               </form>
             </td>

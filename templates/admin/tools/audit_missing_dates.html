@@ -16,7 +16,7 @@
 <div class="row">
   <div class="col-md-12">
     <div class="alert alert-info">
-      <span class="glyphicon glyphicon-info-sign"></span>
+      <span class="bi bi-info-circle"></span>
       Found <strong>{{ total_count }}</strong> photos with missing dates (showing {{ photos|length }} on this page). Select photos to fix and click "Fix Selected" below.
     </div>
   </div>
@@ -84,10 +84,10 @@
   <div class="row">
     <div class="col-md-12">
       <button type="submit" class="btn btn-primary" onclick="return confirm('Fix selected photos on this page? This will update their datetaken field.');">
-        <span class="glyphicon glyphicon-ok"></span> Fix Selected Photos
+        <span class="bi bi-check"></span> Fix Selected Photos
       </button>
-      <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
-        <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+      <a href="{{SITEURL}}/admin/tools" class="btn btn-secondary">
+        <span class="bi bi-arrow-left"></span> Back to Tools
       </a>
     </div>
   </div>
@@ -137,7 +137,7 @@ document.getElementById('select-all').addEventListener('change', function() {
 <div class="row">
   <div class="col-md-12">
     <div class="alert alert-success">
-      <span class="glyphicon glyphicon-ok"></span>
+      <span class="bi bi-check"></span>
       <strong>All photos have dates!</strong> No photos found with missing <code>datetaken</code> field.
     </div>
   </div>
@@ -145,8 +145,8 @@ document.getElementById('select-all').addEventListener('change', function() {
 
 <div class="row">
   <div class="col-md-12">
-    <a href="{{SITEURL}}/admin/tools" class="btn btn-default">
-      <span class="glyphicon glyphicon-arrow-left"></span> Back to Tools
+    <a href="{{SITEURL}}/admin/tools" class="btn btn-secondary">
+      <span class="bi bi-arrow-left"></span> Back to Tools
     </a>
   </div>
 </div>

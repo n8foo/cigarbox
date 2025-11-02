@@ -7,14 +7,14 @@
 <div class="row">
   <div class="col-md-12">
     <div class="alert alert-success alert-dismissible" role="alert">
-      <button type="button" class="close" data-dismiss="alert">&times;</button>
-      <h4><span class="glyphicon glyphicon-ok-circle"></span> Photoset Share Link Created!</h4>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <h4><span class="bi bi-check-circle"></span> Photoset Share Link Created!</h4>
       <p>Copy this link to share this photoset:</p>
       <div class="input-group">
         <input type="text" class="form-control" value="{{ session.share_link }}" id="shareUrlInput" readonly>
         <span class="input-group-btn">
           <button class="btn btn-primary" type="button" onclick="copyShareLink()">
-            <span class="glyphicon glyphicon-copy"></span> Copy
+            <span class="bi bi-clipboard"></span> Copy
           </button>
         </span>
       </div>
@@ -40,39 +40,39 @@
     {% endif %}
     {% if date_range %}
     <p class="text-muted" style="font-size: 16px; margin-top: -10px; margin-bottom: 5px;">
-      <span class="glyphicon glyphicon-calendar"></span> {{ date_range }}
+      <span class="bi bi-calendar"></span> {{ date_range }}
     </p>
     {% endif %}
   </div>
-  <div class="col-md-4 text-right">
+  <div class="col-md-4 text-end">
     {% if unique_tags %}
     <p class="text-muted">
       {% for tag in unique_tags %}
-      <a href="{{SITEURL}}/tags/{{ tag.name }}" class="label label-default">{{ tag.name }}</a>
+      <a href="{{SITEURL}}/tags/{{ tag.name }}" class="badge bg-secondary">{{ tag.name }}</a>
       {% endfor %}
     </p>
     {% endif %}
     {% if can_manage %}
     <div class="btn-group btn-group-sm">
-      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#editPhotosetModal">
-        <span class="glyphicon glyphicon-pencil"></span> edit
+      <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#editPhotosetModal">
+        <span class="bi bi-pencil-fill"></span> edit
       </button>
-      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#sharePhotosetModal" id="sharePhotosetBtn">
-        <span class="glyphicon glyphicon-share"></span> share
+      <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#sharePhotosetModal" id="sharePhotosetBtn">
+        <span class="bi bi-share"></span> share
         <span class="badge" id="shareCountBadge" style="display: none; background-color: #d9534f;"></span>
       </button>
       <button type="button" class="btn btn-link" onclick="toggleSelectMode()">
-        <span class="glyphicon glyphicon-check"></span> select
+        <span class="bi bi-check2-square"></span> select
       </button>
       <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link" id="bulkEditBtn">
-        <span class="glyphicon glyphicon-th"></span> bulk edit
+        <span class="bi bi-grid-3x3-gap"></span> bulk edit
       </a>
     </div>
     <div id="selectionControls" style="display: none;">
       <button type="button" class="btn btn-sm btn-danger" onclick="removeSelected()">
-        <span class="glyphicon glyphicon-remove"></span> Remove Selected
+        <span class="bi bi-x-lg"></span> Remove Selected
       </button>
-      <button type="button" class="btn btn-sm btn-default" onclick="toggleSelectMode()">
+      <button type="button" class="btn btn-sm btn-secondary" onclick="toggleSelectMode()">
         Cancel
       </button>
     </div>
@@ -80,34 +80,31 @@
   </div>
 </div>
 <hr>
-<div>
-  {% for row in photos|batch(4) %}
-  <div class="row">
-    {%- for photo in row %}
-    <div class="col-xs-6 col-md-3">
-      <div class="thumbnail">
-        {% if can_manage %}
-        <div class="photo-checkbox" style="display: none; position: absolute; top: 10px; left: 10px; z-index: 10;">
-          <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
-        </div>
-        {% endif %}
-        <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}">
-          <img class="lazy"
-               data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
-               src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
-               alt="Photo {{ photo.id }}">
-        </a>
-      </div>
+
+
+<div class="justified-gallery" id="photo-grid">
+  {% for photo in photos %}
+  <div class="jg-item-wrapper" style="display: inline-block; position: relative;">
+    {% if can_manage %}
+    <div class="photo-checkbox" style="display: none; position: absolute; top: 10px; left: 10px; z-index: 10;">
+      <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
     </div>
-    {% endfor %}
+    {% endif %}
+    <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}" class="jg-item">
+      <img class="lazy jg-photo"
+           data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+           src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+           alt="Photo {{ photo.id }}">
+    </a>
   </div>
   {% else %}
-    You should really take more photos.
+  <p class="text-muted">You should really take more photos.</p>
   {% endfor %}
-
-  <!-- Pagination -->
-  {{ render_pagination(pagination, baseurl) }}
 </div>
+
+
+<!-- Pagination -->
+{{ render_pagination(pagination, baseurl) }}
 
 {% if can_manage %}
 <!-- Share Photoset Modal -->
@@ -116,7 +113,7 @@
     <div class="modal-content">
       <form method="POST" action="{{SITEURL}}/photosets/{{ photoset.id }}/share">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Create Photoset Share Link</h4>
         </div>
         <div class="modal-body">
@@ -153,7 +150,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Create Link</button>
         </div>
       </form>
@@ -167,7 +164,7 @@
     <div class="modal-content">
       <form method="POST" action="{{SITEURL}}/photosets/{{ photoset.id }}/update">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Edit Photoset</h4>
         </div>
         <div class="modal-body">
@@ -181,10 +178,10 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-danger pull-left" onclick="deletePhotoset()">
-            <span class="glyphicon glyphicon-trash"></span> Delete Photoset
+          <button type="button" class="btn btn-danger float-start" onclick="deletePhotoset()">
+            <span class="bi bi-trash-fill"></span> Delete Photoset
           </button>
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </form>
@@ -307,7 +304,7 @@ function copyShareLink() {
     document.execCommand('copy');
     var btn = event.target.closest('button');
     var originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="glyphicon glyphicon-ok"></span> Copied!';
+    btn.innerHTML = '<span class="bi bi-check"></span> Copied!';
     setTimeout(function() {
       btn.innerHTML = originalText;
     }, 2000);
@@ -348,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+
 
 <br><br>
 {% endblock %}

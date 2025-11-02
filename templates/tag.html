@@ -4,24 +4,24 @@
 
 <div class="row">
   <div class="col-md-8">
-    <h1>Tag: <span class="label label-primary" style="font-size: inherit;">{{ tag.name }}</span></h1>
+    <h1>Tag: <span class="badge bg-primary" style="font-size: inherit;">{{ tag.name }}</span></h1>
     <p class="lead">{{ photo_count }} photo(s)</p>
   </div>
-  <div class="col-md-4 text-right">
+  <div class="col-md-4 text-end">
     {% if can_manage %}
     <div class="btn-group btn-group-sm">
-      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#renameTagModal">
-        <span class="glyphicon glyphicon-pencil"></span> rename
+      <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#renameTagModal">
+        <span class="bi bi-pencil-fill"></span> rename
       </button>
-      <button type="button" class="btn btn-link" data-toggle="modal" data-target="#mergeTagModal">
-        <span class="glyphicon glyphicon-random"></span> merge
+      <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#mergeTagModal">
+        <span class="bi bi-shuffle"></span> merge
       </button>
       <a href="{{SITEURL}}/photos/bulk-edit?ids={{ photo_ids }}" class="btn btn-link">
-        <span class="glyphicon glyphicon-th"></span> bulk edit
+        <span class="bi bi-grid-3x3-gap"></span> bulk edit
       </a>
       <a href="{{SITEURL}}/tags/{{ tag.name }}/delete" class="btn btn-link text-danger"
          onclick="return confirm('Delete tag &quot;{{ tag.name }}&quot;? This will remove it from {{ photo_count }} photos.');">
-        <span class="glyphicon glyphicon-trash"></span> delete
+        <span class="bi bi-trash-fill"></span> delete
       </a>
     </div>
     {% endif %}
@@ -29,28 +29,24 @@
 </div>
 <hr>
 
-<!-- Photo Grid -->
-<div>
-  {% for row in photos|batch(4) %}
-  <div class="row">
-    {%- for photo in row %}
-    <div class="col-xs-6 col-md-3">
-      <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}" class='thumbnail'>
-        <img class="lazy"
-             data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg"
-             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
-             alt="Photo {{ photo.id }}">
-      </a>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-    <p class="text-muted">No photos with this tag.</p>
-  {% endfor %}
 
-  <!-- Pagination -->
-  {{ render_pagination(pagination, baseurl) }}
+<!-- Photo Grid -->
+<div class="justified-gallery" id="photo-grid">
+  {% for photo in photos %}
+  <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}" class="jg-item">
+    <img class="lazy jg-photo"
+         data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+         alt="Photo {{ photo.id }}">
+  </a>
+  {% else %}
+  <p class="text-muted">No photos with this tag.</p>
+  {% endfor %}
 </div>
+
+
+<!-- Pagination -->
+{{ render_pagination(pagination, baseurl) }}
 
 <script>
 // Lazy load images
@@ -83,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
 {% if can_manage %}
 <!-- Rename Tag Modal -->
 <div class="modal fade" id="renameTagModal" tabindex="-1" role="dialog">
@@ -90,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal-content">
       <form method="POST" action="{{SITEURL}}/tags/{{ tag.name }}/rename">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Rename Tag</h4>
         </div>
         <div class="modal-body">
@@ -100,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Rename</button>
         </div>
       </form>
@@ -114,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal-content">
       <form method="POST" action="{{SITEURL}}/tags/{{ tag.name }}/merge">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Merge Tag</h4>
         </div>
         <div class="modal-body">
@@ -129,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-warning">Merge Tags</button>
         </div>
       </form>

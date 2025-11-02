@@ -6,7 +6,7 @@
     <div class="col-md-6">
       <h2>Bulk Photo Editor <small>{{ total_photos }} photos, {{ all_tags|length }} tags loaded</small></h2>
     </div>
-    <div class="col-md-6 text-right">
+    <div class="col-md-6 text-end">
       <form method="GET" action="{{SITEURL}}/photos/bulk-edit" class="form-inline">
         <input type="hidden" name="ids" value="{{ request.args.get('ids', '') }}">
         <div class="form-group">
@@ -57,7 +57,7 @@
                   <input type="text" name="bulk_tags" class="form-control tags-input" placeholder="vacation, beach, summer">
                   <span class="input-group-btn">
                     <button type="submit" name="action" value="bulk_tags_add" class="btn btn-primary">
-                      <span class="glyphicon glyphicon-tag"></span> Add to All
+                      <span class="bi bi-tag"></span> Add to All
                     </button>
                   </span>
                 </div>
@@ -78,7 +78,7 @@
                   </select>
                   <span class="input-group-btn">
                     <button type="submit" name="action" value="bulk_photoset" class="btn btn-primary">
-                      <span class="glyphicon glyphicon-folder-open"></span> Add to Set
+                      <span class="bi bi-folder-open"></span> Add to Set
                     </button>
                   </span>
                 </div>
@@ -100,7 +100,7 @@
                   </select>
                   <span class="input-group-btn">
                     <button type="submit" name="action" value="bulk_privacy" class="btn btn-primary">
-                      <span class="glyphicon glyphicon-lock"></span> Apply to All
+                      <span class="bi bi-lock"></span> Apply to All
                     </button>
                   </span>
                 </div>
@@ -122,7 +122,7 @@
     <div class="row">
       <div class="col-md-10">
         <h4>
-          <span class="glyphicon glyphicon-calendar"></span>
+          <span class="bi bi-calendar"></span>
           {% if group_by == 'date_taken' %}
           Date Taken: {{ date_label }}
           {% else %}
@@ -131,11 +131,11 @@
           <small class="text-muted">({{ photos|length }} photos)</small>
         </h4>
       </div>
-      <div class="col-md-2 text-right">
+      <div class="col-md-2 text-end">
         <a href="{{SITEURL}}/photos/bulk-edit?ids={% for photo in photos %}{{ photo.id }}{% if not loop.last %},{% endif %}{% endfor %}&group_by={{ group_by }}"
            class="btn btn-sm btn-link"
            style="margin-top: 10px;">
-          <span class="glyphicon glyphicon-edit"></span> Just this group
+          <span class="bi bi-pencil"></span> Just this group
         </a>
       </div>
     </div>
@@ -144,7 +144,7 @@
     <div class="row">
       {% if photos %}
       {% for photo in photos %}
-      <div class="col-xs-6 col-sm-4 col-md-3 col-lg-2">
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
         <div class="thumbnail">
           <a href="{{SITEURL}}/photos/{{ photo.id }}" target="_blank">
             <img class="lazy" data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_m.jpg" alt="Photo {{ photo.id }}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Crect fill='%23eee' width='240' height='240'/%3E%3C/svg%3E">
@@ -192,13 +192,13 @@
       <div class="col-md-12">
         <div class="well">
           <button type="submit" name="action" value="individual_privacy" class="btn btn-lg btn-primary">
-            <span class="glyphicon glyphicon-lock"></span> Save Privacy Changes
+            <span class="bi bi-lock"></span> Save Privacy Changes
           </button>
           <button type="submit" name="action" value="individual_tags" class="btn btn-lg btn-success">
-            <span class="glyphicon glyphicon-tag"></span> Save Tag Changes
+            <span class="bi bi-tag"></span> Save Tag Changes
           </button>
-          <a href="{{SITEURL}}/photostream" class="btn btn-lg btn-default">
-            <span class="glyphicon glyphicon-remove"></span> Cancel
+          <a href="{{SITEURL}}/photostream" class="btn btn-lg btn-secondary">
+            <span class="bi bi-x-lg"></span> Cancel
           </a>
         </div>
       </div>
@@ -248,7 +248,7 @@ function showAlert(message, type) {
   var alertContainer = document.getElementById('alert-container');
   var alertDiv = document.createElement('div');
   alertDiv.className = 'alert alert-' + type + ' alert-dismissible alert-fixed';
-  alertDiv.innerHTML = '<button type="button" class="close" data-dismiss="alert">&times;</button>' + message;
+  alertDiv.innerHTML = '<button type="button" class="close" data-bs-dismiss="alert">&times;</button>' + message;
   alertContainer.appendChild(alertDiv);
 
   // Auto-dismiss after 5 seconds
