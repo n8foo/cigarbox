@@ -146,7 +146,7 @@
       <div class="col-md-12 text-center">
         <div class="btn-group" role="group">
           {% if prev_photo %}
-          <a href="{{SITEURL}}/photos/{{ prev_photo.id }}?context={{ context }}" class="btn btn-secondary" id="prevPhotoBtn">
+          <a href="{{SITEURL}}/photos/{{ prev_photo.id }}?in={{ in_context }}" class="btn btn-secondary" id="prevPhotoBtn">
             <i class="bi bi-chevron-left"></i> Previous
           </a>
           {% else %}
@@ -160,7 +160,7 @@
           </a>
 
           {% if next_photo %}
-          <a href="{{SITEURL}}/photos/{{ next_photo.id }}?context={{ context }}" class="btn btn-secondary" id="nextPhotoBtn">
+          <a href="{{SITEURL}}/photos/{{ next_photo.id }}?in={{ in_context }}" class="btn btn-secondary" id="nextPhotoBtn">
             Next <i class="bi bi-chevron-right"></i>
           </a>
           {% else %}
@@ -177,7 +177,7 @@
       <div class="modal fade" id="shareModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/share?context={{ context }}">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/share?in={{ in_context }}">
               <div class="modal-header">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title">Create Share Link</h4>
@@ -229,7 +229,7 @@
       <div class="modal fade" id="privacyModal" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-sm" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?context={{ context }}">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?in={{ in_context }}">
               <input type="hidden" name="action" value="privacy">
               <div class="modal-header">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -259,7 +259,7 @@
       <div class="modal fade" id="tagsModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
-            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?context={{ context }}">
+            <form method="POST" action="{{SITEURL}}/photos/{{ photo.id }}/update?in={{ in_context }}">
               <input type="hidden" name="action" value="tags">
               <div class="modal-header">
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -403,19 +403,20 @@
     }
 
     // Arrow key navigation (left/right for photos, up for back)
-    if (e.key === 'ArrowLeft') {
+    // Also supports vim-style: j=prev, l=next, i=up
+    if (e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
       var prevBtn = document.getElementById('prevPhotoBtn');
       if (prevBtn) {
         e.preventDefault();
         window.location.href = prevBtn.href;
       }
-    } else if (e.key === 'ArrowRight') {
+    } else if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
       var nextBtn = document.getElementById('nextPhotoBtn');
       if (nextBtn) {
         e.preventDefault();
         window.location.href = nextBtn.href;
       }
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' || e.key === 'i' || e.key === 'I') {
       // Back to context (works for all users)
       var backBtn = document.querySelector('a.btn-primary[href="{{ context_url }}"]');
       if (backBtn) {

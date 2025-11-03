@@ -34,7 +34,12 @@
 
 <div class="row">
   <div class="col-md-8">
-    <h1>{{ photoset.title }}</h1>
+    <h1>
+      {{ photoset.title }}
+      {% if privacy_label %}
+      <span class="badge bg-info" style="font-size: 0.5em; vertical-align: middle;">{{ privacy_label }}</span>
+      {% endif %}
+    </h1>
     {% if photoset.description %}
     <p class="lead">{{photoset.description}}</p>
     {% endif %}
@@ -90,12 +95,17 @@
       <input type="checkbox" name="photo_ids" value="{{ photo.id }}" style="transform: scale(2);">
     </div>
     {% endif %}
-    <a href="{{SITEURL}}/photos/{{ photo.id }}?context={{ context }}" class="jg-item">
+    <a href="{{SITEURL}}/photos/{{ photo.id }}?in={{ in_context }}" class="jg-item">
       <img class="lazy jg-photo"
            data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
            alt="Photo {{ photo.id }}">
     </a>
+    {% if current_user.is_authenticated and photo.privacy and photo.privacy > 0 %}
+    <span class="privacy-corner-badge" title="{% if photo.privacy == 1 %}Friends only{% elif photo.privacy == 2 %}Family{% elif photo.privacy == 3 %}Private{% endif %}">
+      {% if photo.privacy == 1 %}👥{% elif photo.privacy == 2 %}👨‍👩‍👧{% elif photo.privacy == 3 %}🔒{% endif %}
+    </span>
+    {% endif %}
   </div>
   {% else %}
   <p class="text-muted">You should really take more photos.</p>
@@ -188,6 +198,24 @@
     </div>
   </div>
 </div>
+
+<style>
+/* Privacy corner badges */
+.privacy-corner-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+[data-bs-theme="dark"] .privacy-corner-badge {
+  background: rgba(0, 0, 0, 0.7);
+}
+</style>
 
 <script>
 var selectMode = false;

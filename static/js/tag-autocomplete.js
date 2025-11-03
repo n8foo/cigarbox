@@ -147,11 +147,23 @@ function initTagAutocomplete(inputSelector, allTags) {
 
       if (matches.length > 0) {
         currentSuggestion = matches[0];
-        dropdown.innerHTML = '<div class="dropdown-item" style="padding: 4px 8px;"><strong>' +
+        dropdown.innerHTML = '<div class="dropdown-item" style="padding: 4px 8px; cursor: pointer;"><strong>' +
                              value + '</strong>' +
                              matches[0].substring(value.length) +
-                             ' <span class="text-muted">(tab to accept)</span></div>';
+                             ' <span class="text-muted">(tap or space)</span></div>';
         dropdown.style.display = 'block';
+
+        // Make dropdown clickable for mobile
+        var dropdownItem = dropdown.querySelector('.dropdown-item');
+        dropdownItem.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          addPill(currentSuggestion);
+          inlineInput.value = '';
+          currentSuggestion = null;
+          dropdown.style.display = 'none';
+          inlineInput.focus();
+        };
       } else {
         currentSuggestion = null;
         dropdown.style.display = 'none';
@@ -214,11 +226,14 @@ function initTagAutocomplete(inputSelector, allTags) {
         removePill(tags[tags.length - 1]);
       }
     }
-    // Enter accepts current input (don't prevent default - let form submit)
+    // Enter accepts current input and prevents form submit (mobile-friendly)
+    // If input is empty, let Enter submit the form
     else if (e.key === 'Enter') {
       if (inlineInput.value.trim()) {
+        e.preventDefault();
         acceptCurrentInput();
       }
+      // If input empty, let Enter submit form (don't prevent default)
     }
   });
 

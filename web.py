@@ -183,8 +183,8 @@ def photostream(page):
     photo.uri = sha1Path + '/' + filename
 
   # Include page number in context for breadcrumb navigation
-  context = f'photostream:page:{page}' if page > 1 else 'photostream'
-  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, context=context)
+  in_context = f'photostream:page:{page}' if page > 1 else 'photostream'
+  return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, in_context=in_context)
 
 @app.route('/photos/<int:photo_id>')
 def show_photo(photo_id):
@@ -206,17 +206,17 @@ def show_photo(photo_id):
   can_edit = can_edit_photo(current_user, photo)
 
   # Detect navigation context from referrer or query params
-  context = request.args.get('context', '')
+  in_context = request.args.get('in', '')
   context_name = None
   context_url = None
   prev_photo = None
   next_photo = None
   visible_levels = get_visible_privacy_levels(current_user)
 
-  if context.startswith('photoset:'):
+  if in_context.startswith('photoset:'):
     # Navigating within a photoset (ordered by datetaken)
     # Context format: photoset:id or photoset:id:page:N
-    parts = context.split(':')
+    parts = in_context.split(':')
     photoset_id = int(parts[1])
     # Get photoset name for breadcrumb
     photoset = Photoset.select().where(Photoset.id == photoset_id).first()
@@ -254,26 +254,44 @@ def show_photo(photo_id):
                   .limit(1)
                   .first())
 
-  elif context.startswith('tag:'):
-    # Navigating within a tag (ordered by ID desc)
-    # Context format: tag:name or tag:name:page:N
-    parts = context.split(':')
-    tag_name = parts[1]
-    context_name = f"Tag: {tag_name}"
-    context_url = f"{get_base_url()}/tags/{tag_name}"
+  elif in_context.startswith('tags:'):
+    # Navigating within tag(s) (ordered by ID desc)
+    # Context format: tags:name or tags:name,name2 or tags:name:page:N
+    parts = in_context.split(':')
+    tags_str = parts[1]
+    tags_list = [t.strip() for t in tags_str.split(',') if t.strip()]
+
+    # Display name
+    if len(tags_list) == 1:
+      context_name = f"Tag: {tags_list[0]}"
+    else:
+      context_name = f"Tags: {', '.join(tags_list)}"
+
+    context_url = f"{get_base_url()}/tags/{tags_str}"
 
     # Check if there's a page number in the context
     if len(parts) == 4 and parts[2] == 'page':
       page_num = parts[3]
-      context_url = f"{get_base_url()}/tags/{tag_name}/page/{page_num}"
-      context_name = f"Tag: {tag_name} : {page_num}"
+      context_url = f"{get_base_url()}/tags/{tags_str}/page/{page_num}"
+      context_name = f"{context_name} : {page_num}"
 
-    # Base query for photos with this tag
-    base_query = (Photo.select()
-                  .join(PhotoTag)
-                  .join(Tag)
-                  .where((Tag.name == tag_name) &
-                         ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
+    # Base query for photos with these tag(s)
+    if len(tags_list) == 1:
+      # Single tag: simple query
+      base_query = (Photo.select()
+                    .join(PhotoTag)
+                    .join(Tag)
+                    .where((Tag.name == tags_list[0]) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))))
+    else:
+      # Multiple tags: intersection query
+      base_query = (Photo.select()
+                    .join(PhotoTag)
+                    .join(Tag)
+                    .where((Tag.name.in_(tags_list)) &
+                           ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                    .group_by(Photo.id)
+                    .having(fn.COUNT(fn.DISTINCT(Tag.id)) == len(tags_list)))
 
     # Next photo: lower ID (because order is DESC)
     next_photo = (base_query
@@ -289,10 +307,10 @@ def show_photo(photo_id):
                   .limit(1)
                   .first())
 
-  elif context.startswith('date:'):
+  elif in_context.startswith('date:'):
     # Navigating within a specific date (ordered by datetaken DESC - newest first)
     # Context format: date:YYYY-MM-DD or date:YYYY-MM-DD:page:N
-    parts = context.split(':')
+    parts = in_context.split(':')
     date_str = parts[1]
     context_name = f"Date: {date_str}"
     context_url = f"{get_base_url()}/date/{date_str}"
@@ -327,14 +345,14 @@ def show_photo(photo_id):
                   .limit(1)
                   .first())
 
-  elif context.startswith('photostream') or not context:
+  elif in_context.startswith('photostream') or not in_context:
     # Default: photostream navigation (ordered by ID desc)
     context_name = "Photostream"
     context_url = f"{get_base_url()}/photostream"
 
     # Check if there's a page number in the context
-    if context.startswith('photostream:page:'):
-      page_num = context.split(':')[-1]
+    if in_context.startswith('photostream:page:'):
+      page_num = in_context.split(':')[-1]
       context_url = f"{get_base_url()}/photostream/page/{page_num}"
       context_name = f"Photostream : {page_num}"
 
@@ -359,15 +377,15 @@ def show_photo(photo_id):
 
   # Extract context photoset ID if in photoset context
   context_photoset_id = None
-  if context.startswith('photoset:'):
-    context_photoset_id = int(context.split(':')[1])
+  if in_context.startswith('photoset:'):
+    context_photoset_id = int(in_context.split(':')[1])
 
   # Get all tags for autocomplete
   all_tags = Tag.select().order_by(Tag.name)
 
   return render_template('photos.html', photo=photo, tags=tags,
                         photo_photosets=photo_photosets, can_edit=can_edit,
-                        context=context, context_name=context_name, context_url=context_url,
+                        in_context=in_context, context_name=context_name, context_url=context_url,
                         prev_photo=prev_photo, next_photo=next_photo,
                         context_photoset_id=context_photoset_id, all_tags=all_tags)
 
@@ -409,10 +427,10 @@ def update_photo_inline(photo_id):
 
     flash('Tags updated')
 
-  # Preserve context parameter if present
-  context = request.args.get('context') or request.form.get('context')
-  if context:
-    return redirect(url_for('show_photo', photo_id=photo_id, context=context))
+  # Preserve in parameter if present
+  in_context = request.args.get('in') or request.form.get('in')
+  if in_context:
+    return redirect(url_for('show_photo', photo_id=photo_id, **{'in': in_context}))
   return redirect(url_for('show_photo', photo_id=photo_id))
 
 @app.route('/photos/<int:photo_id>/original')
@@ -591,7 +609,7 @@ def bulk_edit_photos(page):
                   tag, created = Tag.get_or_create(name=tag_name)
                   PhotoTag.create(photo=photo, tag=tag)
             count += 1
-        message = f'Updated {count} photo{"s" if count != 1 else ""}'
+        message = f'Saved changes to {count} photo{"s" if count != 1 else ""}'
 
     except Exception as e:
       message = f'Error: {str(e)}'
@@ -727,6 +745,15 @@ def bulk_edit_photos(page):
     total_pages = (total_photos + per_page - 1) // per_page
     # Build pagination URLs correctly (query params separate from path)
     query_params = f'ids={ids}&group_by={group_by}'
+
+    # Build URLs for all pages
+    page_urls = {}
+    for p in range(1, total_pages + 1):
+      if p == 1:
+        page_urls[p] = f'{get_base_url()}/photos/bulk-edit?{query_params}'
+      else:
+        page_urls[p] = f'{get_base_url()}/photos/bulk-edit/page/{p}?{query_params}'
+
     pagination = {
       'page': page,
       'per_page': per_page,
@@ -736,8 +763,9 @@ def bulk_edit_photos(page):
       'has_next': page < total_pages,
       'prev_num': page - 1 if page > 1 else None,
       'next_num': page + 1 if page < total_pages else None,
-      'prev_url': f'{get_base_url()}/photos/bulk-edit/page/{page-1}?{query_params}' if page > 1 else None,
-      'next_url': f'{get_base_url()}/photos/bulk-edit/page/{page+1}?{query_params}' if page < total_pages else None,
+      'prev_url': page_urls[page - 1] if page > 1 else None,
+      'next_url': page_urls[page + 1] if page < total_pages else None,
+      'page_urls': page_urls,
     }
     baseurl = f'{get_base_url()}/photos/bulk-edit?{query_params}'
 
@@ -846,12 +874,12 @@ def show_taged_photos(tag,page):
     .limit(15))
 
   # Include page number in context for breadcrumb navigation
-  context = f'tags:{tag}:page:{page}' if page > 1 else f'tags:{tag}'
+  in_context = f'tags:{tag}:page:{page}' if page > 1 else f'tags:{tag}'
   return render_template('tag.html', photos=photos, tags=tag_objs,
                         tags_str=tag, photo_count=photo_count,
                         pagination=pagination, baseurl=baseurl,
                         can_manage=can_manage, photo_ids=photo_ids_str,
-                        context=context, related_tags=related_tags)
+                        in_context=in_context, related_tags=related_tags)
 
 
 @app.route('/tags/<string:tag>/rename', methods=['POST'])
@@ -958,11 +986,55 @@ def show_date_photos(date,page):
   photo_ids_str = ','.join(all_photo_ids)
 
   # Include page number in context for breadcrumb navigation
-  context = f'date:{date}:page:{page}' if page > 1 else f'date:{date}'
+  in_context = f'date:{date}:page:{page}' if page > 1 else f'date:{date}'
   return render_template('photostream.html', photos=photos, pagination=pagination,
                         baseurl=baseurl, page_title=f'Photos from {date}',
                         photo_count=photo_count, photo_ids=photo_ids_str,
-                        context=context)
+                        in_context=in_context)
+
+@app.route('/privacy/<int:level>', defaults={'page': 1})
+@app.route('/privacy/<int:level>/page/<int:page>')
+@roles_required('admin')
+def show_privacy_photos(level, page):
+  """Show photos filtered by privacy level (admin only)"""
+  baseurl = '%s/privacy/%s' % (get_base_url(), level)
+
+  # Define privacy level labels
+  privacy_labels = {0: 'Public', 1: 'Friends Only', 2: 'Family', 3: 'Private'}
+  page_title = f'{privacy_labels.get(level, "Unknown")} Photos'
+
+  # Build query based on privacy level
+  if level == 0:
+    # Public: NULL or 0
+    photos_query = (Photo.select()
+                    .where((Photo.privacy.is_null()) | (Photo.privacy == 0))
+                    .order_by(Photo.id.desc()))
+  else:
+    # Specific privacy level
+    photos_query = (Photo.select()
+                    .where(Photo.privacy == level)
+                    .order_by(Photo.id.desc()))
+
+  # Get pagination metadata
+  pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
+
+  # Get paginated results
+  photos = photos_query.paginate(page, app.config['PER_PAGE'])
+  for photo in photos:
+    (sha1Path, filename) = getSha1Path(photo.sha1)
+    photo.uri = sha1Path + '/' + filename
+
+  # Get photo count and IDs for bulk edit
+  photo_count = photos_query.count()
+  all_photo_ids = [str(p.id) for p in photos_query]
+  photo_ids_str = ','.join(all_photo_ids)
+
+  # Include page number in context for breadcrumb navigation
+  in_context = f'privacy:{level}:page:{page}' if page > 1 else f'privacy:{level}'
+  return render_template('photostream.html', photos=photos, pagination=pagination,
+                        baseurl=baseurl, page_title=page_title,
+                        photo_count=photo_count, photo_ids=photo_ids_str,
+                        in_context=in_context)
 
 @app.route('/tags/<string:tag>/delete')
 @login_required
@@ -1090,25 +1162,70 @@ def show_photosets(page):
         thumbs_by_photoset[photoset_id] = []
       if len(thumbs_by_photoset[photoset_id]) < thumbCount:
         (sha1Path, filename) = getSha1Path(thumb.sha1)
-        thumb.uri = '%s/%s_t.jpg' % (sha1Path, filename)
+        thumb.uri = '%s/%s_m.jpg' % (sha1Path, filename)
         thumbs_by_photoset[photoset_id].append(thumb)
 
     # Attach thumbnails to photosets
     for photoset in photosets:
       photoset.thumbs = thumbs_by_photoset.get(photoset.id, [])
 
-  return render_template('photosets.html', photosets=photosets, pagination=pagination, baseurl=baseurl)
+    # Get privacy counts for each photoset (admin only)
+    privacy_counts = {}
+    if current_user.is_authenticated and can_manage_photosets(current_user):
+      # Query all photos in visible photosets with their privacy levels
+      privacy_query = (
+        Photo.select(
+          PhotoPhotoset.photoset,
+          fn.COALESCE(Photo.privacy, 0).alias('privacy_level'),
+          fn.COUNT(Photo.id).alias('count')
+        )
+        .join(PhotoPhotoset)
+        .where(PhotoPhotoset.photoset.in_(photoset_ids))
+        .group_by(PhotoPhotoset.photoset, fn.COALESCE(Photo.privacy, 0))
+      )
+
+      # Build dict: {photoset_id: {0: count, 1: count, ...}}
+      for row in privacy_query:
+        photoset_id = row.photophotoset.photoset_id
+        privacy_level = row.privacy_level
+        count = row.count
+        if photoset_id not in privacy_counts:
+          privacy_counts[photoset_id] = {}
+        privacy_counts[photoset_id][privacy_level] = count
+
+  return render_template('photosets.html', photosets=photosets, pagination=pagination,
+                         baseurl=baseurl, privacy_counts=privacy_counts)
 
 @app.route('/photosets/<int:photoset_id>', defaults={'page': 1})
 @app.route('/photosets/<int:photoset_id>/page/<int:page>')
 def show_photoset(photoset_id,page):
   baseurl = '%s/photosets/%s' % (get_base_url(), photoset_id)
   visible_levels = get_visible_privacy_levels(current_user)
+
+  # Check for privacy filter (admin only)
+  privacy_filter = request.args.get('p', type=int)
+  privacy_label = None
+  if privacy_filter is not None and current_user.is_authenticated and can_manage_photosets(current_user):
+    privacy_labels = {0: 'Public', 1: 'Friends Only', 2: 'Family', 3: 'Private'}
+    privacy_label = privacy_labels.get(privacy_filter, 'Unknown')
+    baseurl += f'?p={privacy_filter}'
+
   photos_query = (Photo.select()
                   .join(PhotoPhotoset)
                   .join(Photoset)
-                  .where((Photoset.id == photoset_id) & ((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels))))
+                  .where(Photoset.id == photoset_id)
                   .order_by(Photo.datetaken.asc()))
+
+  # Apply privacy filtering
+  if privacy_filter is not None and current_user.is_authenticated and can_manage_photosets(current_user):
+    # Admin filtering by specific privacy level
+    if privacy_filter == 0:
+      photos_query = photos_query.where(Photo.privacy.is_null() | (Photo.privacy == 0))
+    else:
+      photos_query = photos_query.where(Photo.privacy == privacy_filter)
+  else:
+    # Normal visibility filtering
+    photos_query = photos_query.where((Photo.privacy.is_null()) | (Photo.privacy.in_(visible_levels)))
 
   # Get pagination metadata
   pagination = get_pagination_data(photos_query, page, app.config['PER_PAGE'])
@@ -1154,11 +1271,12 @@ def show_photoset(photoset_id,page):
                  .order_by(Tag.name))
 
   # Include page number in context for breadcrumb navigation
-  context = f'photoset:{photoset_id}:page:{page}' if page > 1 else f'photoset:{photoset_id}'
+  in_context = f'photoset:{photoset_id}:page:{page}' if page > 1 else f'photoset:{photoset_id}'
   return render_template('photoset.html', photos=photos, photoset=photoset,
                         pagination=pagination, baseurl=baseurl, can_manage=can_manage,
                         photo_ids=photo_ids_str, date_range=date_range,
-                        unique_tags=unique_tags, context=context)
+                        unique_tags=unique_tags, in_context=in_context,
+                        privacy_label=privacy_label)
 
 
 @app.route('/photosets/<int:photoset_id>/update', methods=['POST'])

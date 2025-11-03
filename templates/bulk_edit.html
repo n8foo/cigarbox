@@ -42,7 +42,7 @@
           {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
 
           {% if start_page > 1 %}
-            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/1">1</a></li>
+            <li class="page-item"><a class="page-link" href="{{ pagination.page_urls[1] }}">1</a></li>
             {% if start_page > 2 %}
               <li class="page-item disabled"><span class="page-link">...</span></li>
             {% endif %}
@@ -50,7 +50,7 @@
 
           {% for page_num in range(start_page, end_page + 1) %}
             <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-              <a class="page-link" href="{{ baseurl }}/page/{{ page_num }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
+              <a class="page-link" href="{{ pagination.page_urls[page_num] }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
             </li>
           {% endfor %}
 
@@ -58,7 +58,7 @@
             {% if end_page < pagination.total_pages - 1 %}
               <li class="page-item disabled"><span class="page-link">...</span></li>
             {% endif %}
-            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/{{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+            <li class="page-item"><a class="page-link" href="{{ pagination.page_urls[pagination.total_pages] }}">{{ pagination.total_pages }}</a></li>
           {% endif %}
 
           <!-- Next button -->
@@ -231,11 +231,8 @@
     <div class="row">
       <div class="col-md-12">
         <div class="well">
-          <button type="submit" name="action" value="individual_privacy" class="btn btn-lg btn-primary">
-            <span class="bi bi-lock"></span> Save Privacy Changes
-          </button>
-          <button type="submit" name="action" value="individual_tags" class="btn btn-lg btn-success">
-            <span class="bi bi-tag"></span> Save Tag Changes
+          <button type="submit" name="action" value="individual_both" class="btn btn-lg btn-primary">
+            <span class="bi bi-save"></span> Save All Changes
           </button>
           <a href="{{SITEURL}}/photostream" class="btn btn-lg btn-secondary">
             <span class="bi bi-x-lg"></span> Cancel
@@ -267,7 +264,7 @@
           {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
 
           {% if start_page > 1 %}
-            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/1">1</a></li>
+            <li class="page-item"><a class="page-link" href="{{ pagination.page_urls[1] }}">1</a></li>
             {% if start_page > 2 %}
               <li class="page-item disabled"><span class="page-link">...</span></li>
             {% endif %}
@@ -275,7 +272,7 @@
 
           {% for page_num in range(start_page, end_page + 1) %}
             <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-              <a class="page-link" href="{{ baseurl }}/page/{{ page_num }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
+              <a class="page-link" href="{{ pagination.page_urls[page_num] }}">{{ page_num }} {% if page_num == pagination.page %}<span class="visually-hidden">(current)</span>{% endif %}</a>
             </li>
           {% endfor %}
 
@@ -283,7 +280,7 @@
             {% if end_page < pagination.total_pages - 1 %}
               <li class="page-item disabled"><span class="page-link">...</span></li>
             {% endif %}
-            <li class="page-item"><a class="page-link" href="{{ baseurl }}/page/{{ pagination.total_pages }}">{{ pagination.total_pages }}</a></li>
+            <li class="page-item"><a class="page-link" href="{{ pagination.page_urls[pagination.total_pages] }}">{{ pagination.total_pages }}</a></li>
           {% endif %}
 
           <!-- Next button -->
@@ -379,7 +376,7 @@ function submitFormAjax(form, event) {
   console.log('Submit triggered, action:', action);
 
   // For individual photo updates, only send changed photos
-  if (action === 'individual_privacy' || action === 'individual_tags' || action === 'individual_both') {
+  if (action === 'individual_both') {
     if (changedPhotos.size === 0) {
       showAlert('No changes to save', 'info');
       return false;
@@ -392,28 +389,15 @@ function submitFormAjax(form, event) {
     var changedIds = Array.from(changedPhotos).join(',');
     formData.set('photo_ids', changedIds);
 
-    // Only include fields for changed photos
+    // Include both privacy and tags for changed photos
     changedPhotos.forEach(function(photoId) {
-      if (action === 'individual_privacy') {
-        var privacyField = form.querySelector('[name="privacy_' + photoId + '"]');
-        if (privacyField) {
-          formData.set('privacy_' + photoId, privacyField.value);
-        }
-      } else if (action === 'individual_tags') {
-        var tagsField = form.querySelector('[name="tags_' + photoId + '"]');
-        if (tagsField) {
-          formData.set('tags_' + photoId, tagsField.value);
-        }
-      } else if (action === 'individual_both') {
-        // Save both privacy and tags
-        var privacyField = form.querySelector('[name="privacy_' + photoId + '"]');
-        if (privacyField) {
-          formData.set('privacy_' + photoId, privacyField.value);
-        }
-        var tagsField = form.querySelector('[name="tags_' + photoId + '"]');
-        if (tagsField) {
-          formData.set('tags_' + photoId, tagsField.value);
-        }
+      var privacyField = form.querySelector('[name="privacy_' + photoId + '"]');
+      if (privacyField) {
+        formData.set('privacy_' + photoId, privacyField.value);
+      }
+      var tagsField = form.querySelector('[name="tags_' + photoId + '"]');
+      if (tagsField) {
+        formData.set('tags_' + photoId, tagsField.value);
       }
     });
 
@@ -449,8 +433,8 @@ function submitFormAjax(form, event) {
       showAlert(data.message || 'Changes saved successfully', 'success');
 
       // Clear changed photos on successful save
-      if (action === 'individual_privacy' || action === 'individual_tags' || action === 'individual_both') {
-        // Update original values for saved photos
+      if (action === 'individual_both') {
+        // Update original values for all saved photos
         changedPhotos.forEach(function(photoId) {
           var privacyField = form.querySelector('[name="privacy_' + photoId + '"]');
           if (privacyField) {
@@ -462,7 +446,7 @@ function submitFormAjax(form, event) {
           }
         });
         changedPhotos.clear();
-        console.log('Changes saved and cleared');
+        console.log('All changes saved and cleared');
       }
     } else {
       showAlert(data.message || 'Error processing request', 'danger');

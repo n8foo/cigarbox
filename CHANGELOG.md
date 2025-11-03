@@ -3,6 +3,43 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-02] - Privacy Indicators and Mobile Tag Editing
+
+### Added
+- **Privacy indicators on photoset list** - Clickable icon badges showing photo counts by privacy level
+  - Icons: 🌍 Public, 👥 Friends, 👨‍👩‍👧 Family, 🔒 Private
+  - Each badge links to filtered view: `/photosets/{id}?p={level}`
+- **Privacy filtering in photoset views** - Click badges to filter photos by privacy level
+  - Query parameter `?p=N` filters to specific privacy level
+  - Shows privacy badge in title (e.g., "Photoset Title [Private]")
+  - Pagination preserves filter parameter
+- **Corner privacy badges on photo grids** - Subtle indicators for non-public photos
+  - Small icon badges (10px) in top-right corner of thumbnails
+  - Only shown for privacy levels 1, 2, 3 (public photos have no badge)
+  - Dark mode aware: white background in light mode, dark in dark mode
+  - Applied to tag pages, photoset pages, and date/privacy search results
+- **Privacy search routes** - Admin-only search by privacy level
+  - Routes: `/privacy/0` (public), `/privacy/1` (friends), `/privacy/2` (family), `/privacy/3` (private)
+  - Reuses photostream template with full pagination support
+  - Handles NULL vs 0 correctly for public photos
+  - Privacy breakdown on admin dashboard now links to search pages
+- **Mobile-friendly tag autocomplete** - Enhanced for touch devices
+  - Tap suggestion dropdown to accept (not just Tab key)
+  - Enter key adds tag without submitting form (when text present)
+  - Empty input + Enter submits form (intuitive workflow)
+  - Help text updated: "(tap or space)" instead of "(tab to accept)"
+- **Vim-style keyboard shortcuts** - j (previous), l (next), i (up to index) in addition to arrow keys
+- **Responsive photoset grid** - Larger thumbnails (240px scaled to 150px) with adaptive columns (2-6 based on viewport width)
+
+### Changed
+- **Bulk edit save buttons** - Replaced separate "Save Privacy" and "Save Tags" with single "Save All Changes" button
+
+### Fixed
+- **Context parameter lost on tag edit** - Navigation context preserved when editing photo tags
+- **Dark mode privacy badges too bright** - CSS theme-aware styling
+- **Bulk edit pagination broken** - Fixed malformed URLs in upload_date sort mode
+
+---
 ## [2025-11-02] - Tag Cloud Redesign and Multi-Tag Filtering
 
 ### Added

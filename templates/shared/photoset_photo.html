@@ -108,12 +108,13 @@ document.addEventListener('keydown', function(e) {
     return;
   }
 
-  if (e.key === 'ArrowLeft') {
+  // Arrow keys and vim-style navigation: j=prev, l=next
+  if (e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
     {% if prev_photo %}
     e.preventDefault();
     window.location.href = '{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ prev_photo.id }}';
     {% endif %}
-  } else if (e.key === 'ArrowRight') {
+  } else if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
     {% if next_photo %}
     e.preventDefault();
     window.location.href = '{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ next_photo.id }}';
