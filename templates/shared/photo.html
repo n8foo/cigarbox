@@ -16,10 +16,11 @@
 {% block body %}
 
 <div class="container">
+  <!-- Share Notice -->
   <div class="row">
     <div class="col-md-12">
       <div class="alert alert-info">
-        <span class="bi bi-info-sign"></span>
+        <span class="bi bi-info-circle"></span>
         You're viewing a shared photo.
         {% if share_token.comment %}
         <br><strong>{{ share_token.comment }}</strong>
@@ -28,32 +29,48 @@
     </div>
   </div>
 
+  <!-- Header -->
+  <div class="row" style="margin-bottom: 15px;">
+    <div class="col-md-12">
+      <h3 style="margin-bottom: 10px;">Shared Photo</h3>
+      {% if photo.datetaken %}
+      <p class="text-muted" style="font-size: 14px;">
+        <span class="bi bi-calendar"></span> {{ photo.datetaken | format_datetime }}
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tags -->
+  {% if tag_list %}
   <div class="row">
     <div class="col-md-12">
-      <div style="position: relative; display: inline-block;">
-        <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Shared photo">
+      <div style="padding: 12px 15px; background-color: var(--bs-secondary-bg); border-radius: 4px; margin-bottom: 10px;">
+        <p class="text-muted" style="margin: 0; font-size: 14px;">
+          <span class="bi bi-tag"></span> <strong>Tags:</strong>
+          {% for tag in tag_list %}
+          <span class="badge bg-secondary" style="margin-left: 5px; margin-bottom: 3px;">{{ tag.name }}</span>
+          {% endfor %}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <hr>
+
+  <!-- Photo Display -->
+  <div class="row">
+    <div class="col-md-12">
+      <div style="position: relative; text-align: center;">
+        <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;"
+             src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Shared photo">
         {% if share_token.allow_download %}
-        <a href="{{SITEURL}}/shared/{{ share_token.token }}/download" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">
+        <a href="{{SITEURL}}/shared/{{ share_token.token }}/download"
+           style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">
           <span class="bi bi-download"></span> Download Original
         </a>
         {% endif %}
       </div>
-    </div>
-
-    <div class="col-md-12" align="left">
-      <br>
-      {% if tag_list %}
-      <p>
-        <strong>Tags:</strong>
-        {% for tag in tag_list %}
-        {{ tag.name }}{% if not loop.last %} {% endif %}
-        {% endfor %}
-      </p>
-      {% endif %}
-
-      {% if photo.datetaken %}
-      <p><strong>Date Taken:</strong> {{ photo.datetaken | format_datetime }}</p>
-      {% endif %}
     </div>
   </div>
 </div>

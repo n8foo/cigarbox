@@ -15,16 +15,11 @@
 {% block body %}
 
 <div class="container">
-  <!-- Breadcrumb and Info -->
+  <!-- Share Notice -->
   <div class="row">
     <div class="col-md-12">
-      <ol class="breadcrumb">
-        <li><a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}">{{ photoset.title }}</a></li>
-        <li class="active">Photo {{ current_pos }} of {{ total_photos }}</li>
-      </ol>
-
       <div class="alert alert-info">
-        <span class="bi bi-info-sign"></span>
+        <span class="bi bi-info-circle"></span>
         You're viewing a shared photoset.
         {% if share_token.comment %}
         <br><strong>{{ share_token.comment }}</strong>
@@ -33,11 +28,42 @@
     </div>
   </div>
 
+  <!-- Breadcrumb -->
+  <div class="row">
+    <div class="col-md-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="background-color: var(--bs-secondary-bg); padding: 12px 15px; border-radius: 4px;">
+          <li class="breadcrumb-item"><a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}">{{ photoset.title }}</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Photo {{ current_pos }} of {{ total_photos }}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Tags -->
+  {% set tag_list = tags | list %}
+  {% if tag_list %}
+  <div class="row">
+    <div class="col-md-12">
+      <div style="padding: 12px 15px; background-color: var(--bs-secondary-bg); border-radius: 4px; margin-bottom: 10px;">
+        <p class="text-muted" style="margin: 0; font-size: 14px;">
+          <span class="bi bi-tag"></span> <strong>Tags:</strong>
+          {% for tag in tag_list %}
+          <span class="badge bg-secondary" style="margin-left: 5px; margin-bottom: 3px;">{{ tag.name }}</span>
+          {% endfor %}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <hr>
+
   <!-- Photo Display -->
   <div class="row">
-    <div class="col-md-12 text-center">
-      <div style="position: relative; display: inline-block; max-width: 100%;">
-        <img class='img-responsive' src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Photo" style="max-width: 100%; height: auto;">
+    <div class="col-md-12">
+      <div style="position: relative; text-align: center;">
+        <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;"
+             src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Photo">
         {% if share_token.allow_download %}
         <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}/download"
            style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">
@@ -49,7 +75,7 @@
   </div>
 
   <!-- Navigation -->
-  <div class="row" style="margin-top: 20px;">
+  <div class="row" style="margin-top: 15px;">
     <div class="col-md-12 text-center">
       <div class="btn-group" role="group">
         {% if prev_photo %}
@@ -82,18 +108,8 @@
   <!-- Photo Details -->
   <div class="row" style="margin-top: 20px;">
     <div class="col-md-12">
-      {% set tag_list = tags | list %}
-      {% if tag_list %}
-      <p>
-        <strong>Tags:</strong>
-        {% for tag in tag_list %}
-        {{ tag.name }}{% if not loop.last %} {% endif %}
-        {% endfor %}
-      </p>
-      {% endif %}
-
       {% if photo.datetaken %}
-      <p><strong>Date Taken:</strong> {{ photo.datetaken | format_datetime }}</p>
+      <p class="text-muted"><strong>Date Taken:</strong> {{ photo.datetaken | format_datetime }}</p>
       {% endif %}
     </div>
   </div>

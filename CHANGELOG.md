@@ -3,6 +3,35 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-03] - Tag Copy/Paste, Privacy Fixes, and Shared View Modernization
+
+### Added
+- **Tag pill copy/paste support** - Select and copy tags between photos
+  - Pills are now selectable (text cursor on hover)
+  - Copy tags (Ctrl+C/Cmd+C) formats as space-separated text
+  - Paste into any tag field automatically creates pills
+  - Works in bulk edit and individual photo tag fields
+- **Shared photoset date range display** - Shows date range in shared photoset headers
+- **Justified gallery for shared photosets** - Modern photo grid layout matches regular photosets
+- **Lazy loading in shared views** - Optimized image loading with IntersectionObserver
+
+### Changed
+- **Modernized all shared view templates** - Bootstrap 5 and modern styling
+  - Updated `shared/photoset.html` - justified gallery, lazy loading, date range
+  - Updated `shared/photoset_photo.html` - badge pills for tags, modern breadcrumbs
+  - Updated `shared/photo.html` - badge pills for tags, img-fluid, clean layout
+  - All shared views now match quality of regular views while remaining read-only
+
+### Fixed
+- **Tag privacy leak in photosets** - Tags from private photos no longer visible to logged-out users
+  - Photoset unique tags now filtered by photo privacy levels
+  - Only shows tags from photos the user can actually view
+  - Matches privacy filtering already used in tag cloud and related tags
+- **Tag selection cleared on mouse release** - Copy/paste now works correctly
+  - Click handler checks for active selection before stealing focus
+  - Allows users to select, copy, and paste pills between fields
+
+---
 ## [2025-11-02] - Privacy Indicators and Mobile Tag Editing
 
 ### Added

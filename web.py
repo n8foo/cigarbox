@@ -1261,12 +1261,11 @@ def show_photoset(photoset_id,page):
     else:
       date_range = f"{min_date_str} to {max_date_str}"
 
-  # Get unique tags for photos in this photoset
+  # Get unique tags for photos in this photoset (respecting privacy)
+  photo_ids_subquery = photos_query.select(Photo.id)
   unique_tags = (Tag.select(Tag)
                  .join(PhotoTag)
-                 .join(Photo)
-                 .join(PhotoPhotoset)
-                 .where(PhotoPhotoset.photoset == photoset_id)
+                 .where(PhotoTag.photo.in_(photo_ids_subquery))
                  .group_by(Tag.id)
                  .order_by(Tag.name))
 
@@ -2181,8 +2180,25 @@ def view_shared_photoset(token):
     (sha1Path, filename) = getSha1Path(photo.sha1)
     photo.uri = f"{sha1Path}/{filename}"
 
+  # Get date range for photos in this photoset
+  date_range_query = (Photo.select(fn.MIN(Photo.datetaken).alias('min_date'),
+                                    fn.MAX(Photo.datetaken).alias('max_date'))
+                      .join(PhotoPhotoset)
+                      .where(PhotoPhotoset.photoset == photoset))
+  date_range_result = date_range_query.first()
+  date_range = None
+  if date_range_result and date_range_result.min_date:
+    min_date = date_range_result.min_date
+    max_date = date_range_result.max_date
+    min_date_str = min_date.strftime('%Y-%m-%d')
+    max_date_str = max_date.strftime('%Y-%m-%d')
+    if min_date_str == max_date_str:
+      date_range = min_date_str
+    else:
+      date_range = f"{min_date_str} to {max_date_str}"
+
   return render_template('shared/photoset.html', photoset=photoset, photos=photos,
-                        share_token=share_token)
+                        share_token=share_token, date_range=date_range)
 
 
 @app.route('/shared/photoset/<string:token>/photo/<int:photo_id>')

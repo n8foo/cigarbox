@@ -61,7 +61,7 @@ function initTagAutocomplete(inputSelector, allTags) {
   function createPill(tag) {
     var pill = document.createElement('span');
     pill.className = 'badge bg-secondary tag-pill';
-    pill.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; cursor: default; user-select: none;';
+    pill.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; cursor: text;';
     pill.dataset.tag = tag;
 
     var tagText = document.createElement('span');
@@ -263,8 +263,39 @@ function initTagAutocomplete(inputSelector, allTags) {
     }, 200);
   });
 
+  // Copy event - format pills as space-separated text
+  pillContainer.addEventListener('copy', function(e) {
+    var selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      var range = selection.getRangeAt(0);
+
+      // Get all pill elements
+      var pills = pillContainer.querySelectorAll('.tag-pill');
+      var selectedTags = [];
+
+      // Check which pills are in the selection
+      for (var i = 0; i < pills.length; i++) {
+        if (selection.containsNode(pills[i], true)) {
+          selectedTags.push(pills[i].dataset.tag);
+        }
+      }
+
+      // If we have selected pills, format as space-separated text
+      if (selectedTags.length > 0) {
+        e.preventDefault();
+        var textToCopy = selectedTags.join(' ');
+        e.clipboardData.setData('text/plain', textToCopy);
+      }
+    }
+  });
+
   // Click on container focuses inline input
   pillContainer.addEventListener('click', function() {
+    // Don't focus if user has text selected (allow copy/paste)
+    var selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      return; // User has selected text, don't interfere
+    }
     inlineInput.focus();
   });
 

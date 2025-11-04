@@ -7,44 +7,112 @@
 
 {% block body %}
 
-<div class="container">
-  <div class="row">
-    <div class="col-md-12">
-      <div class="alert alert-info">
-        <span class="bi bi-info-sign"></span>
-        You're viewing a shared photoset.
-        {% if share_token.comment %}
-        <br><strong>{{ share_token.comment }}</strong>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-12">
-      <h2>{{ photoset.title }}</h2>
-      {% if photoset.description %}
-      <p class="text-muted">{{ photoset.description }}</p>
+<div class="row">
+  <div class="col-md-12">
+    <div class="alert alert-info">
+      <span class="bi bi-info-circle"></span>
+      You're viewing a shared photoset.
+      {% if share_token.comment %}
+      <br><strong>{{ share_token.comment }}</strong>
       {% endif %}
-      <hr>
     </div>
   </div>
+</div>
 
-  <!-- Photo Grid -->
-  {% for row in photos|batch(4) %}
-  <div class="row">
-    {% for photo in row %}
-    <div class="col-6 col-md-3">
-      <div class="thumbnail">
-        <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}">
-          <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_n.jpg" alt="Photo" class="img-responsive">
-        </a>
-      </div>
-    </div>
-    {% endfor %}
+<div class="row">
+  <div class="col-md-12">
+    <h1>{{ photoset.title }}</h1>
+    {% if photoset.description %}
+    <p class="lead">{{photoset.description}}</p>
+    {% endif %}
+    {% if date_range %}
+    <p class="text-muted" style="font-size: 16px; margin-top: -10px; margin-bottom: 5px;">
+      <span class="bi bi-calendar"></span> {{ date_range }}
+    </p>
+    {% endif %}
   </div>
+</div>
+<hr>
+
+<div class="justified-gallery" id="photo-grid">
+  {% for photo in photos %}
+  <div class="jg-item-wrapper" style="display: inline-block; position: relative;">
+    <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}" class="jg-item">
+      <img class="lazy jg-photo"
+           data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+           src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
+           alt="Photo {{ photo.id }}">
+    </a>
+  </div>
+  {% else %}
+  <p class="text-muted">No photos in this photoset.</p>
   {% endfor %}
 </div>
-<br><br>
+
+<style>
+/* Justified gallery styles */
+.justified-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.jg-item-wrapper {
+  flex: 1 1 auto;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.jg-item {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.jg-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+
+.jg-photo:hover {
+  transform: scale(1.05);
+}
+</style>
+
+<script>
+// Lazy load images
+document.addEventListener('DOMContentLoaded', function() {
+  var lazyImages = document.querySelectorAll('img.lazy');
+
+  if ('IntersectionObserver' in window) {
+    var imageObserver = new IntersectionObserver(function(entries, observer) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove('lazy');
+          imageObserver.unobserve(img);
+        }
+      });
+    }, {
+      rootMargin: '200px'
+    });
+
+    lazyImages.forEach(function(img) {
+      imageObserver.observe(img);
+    });
+  } else {
+    // Fallback for older browsers
+    lazyImages.forEach(function(img) {
+      img.src = img.dataset.src;
+    });
+  }
+});
+</script>
 
 {% endblock %}
