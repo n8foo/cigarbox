@@ -12,7 +12,6 @@ A smokin' fast personal photostream
 * Proof-of-work bot defense against AI scrapers
 * Dual Flask apps: web UI + RESTful API
 * SQLite + Peewee ORM (lightweight, fast)
-* Volume-mounted code for 10-second deployments
 * #simplify
 
 # quick start
