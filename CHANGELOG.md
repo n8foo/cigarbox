@@ -3,6 +3,26 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-09] - thumbnail fix and reprocessing script
+
+### Changes
+- util.py: thumbnail size 320x230 -> 320x320
+
+### Added
+- Photo Reprocessing
+Examples:
+```bash
+python scripts/reprocess_thumbnails.py --source b --all --force --cleanup --workers 4
+python scripts/reprocess_thumbnails.py --source original --ids 1-100 --quality 95
+````
+- s3 acl updater 
+Example:
+```bash
+python scripts/update_s3_acls.py --dry-run --ids 1-20
+````
+
+
+---
 ## [2025-11-03] - Tag Copy/Paste, Privacy Fixes, and Shared View Modernization
 
 ### Added

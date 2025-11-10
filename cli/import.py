@@ -87,7 +87,11 @@ def main():
     if args.S3 == True:
       if checkImportStatusS3(photo_id) == False:
         for thumbFilename in thumbFilenames:
-          S3success = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy='public-read')
+          # Make large sizes private (AI training protection)
+          # _k (500px), _c (800px), _b (1024px) are valuable for AI training - keep private
+          # _n (320px), _m (240px), _t (100px) are too small for quality training - keep public
+          policy = 'private' if ('_b.jpg' in thumbFilename or '_c.jpg' in thumbFilename or '_k.jpg' in thumbFilename) else 'public-read'
+          S3success = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=args.regen,policy=policy)
 
     # save import meta
     saveImportMeta(photo_id,filename,importSource=args.importsource,S3=S3success)

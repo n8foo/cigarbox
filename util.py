@@ -63,7 +63,7 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
     'q': (150,150), #should be square eventually
     't': (100,100),
     'm': (240,240),
-    'n': (320,230),
+    'n': (320,320),
     'k': (500,500),
     'c': (800,800),
     'b': (1024,1024)}
@@ -108,9 +108,23 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
         img = img.convert('RGB')
 
       icc_profile = img.info.get('icc_profile')
-      img.thumbnail(size,Image.Resampling.LANCZOS)
+
+      # Scale so smallest dimension equals target (not largest)
+      # This ensures portrait photos aren't too narrow
+      width, height = img.size
+      target_width, target_height = size
+
+      # Use the smaller target dimension as the goal
+      target_size = min(target_width, target_height)
+
+      # Calculate scale factor based on smallest dimension
+      scale = target_size / min(width, height)
+      new_size = (int(width * scale), int(height * scale))
+
+      # Resize image (not thumbnail() which fits inside box)
+      img = img.resize(new_size, Image.Resampling.LANCZOS)
       final_size = img.size
-      logger.info('Thumbnail Generation: Resized to %s', final_size)
+      logger.info('Thumbnail Generation: Resized to %s (min-dimension scaling)', final_size)
 
       img.save(thumbFullPath, 'JPEG', icc_profile=icc_profile, quality=95)
       thumb_file_size = os.path.getsize(thumbFullPath)
@@ -130,7 +144,7 @@ def genThumbnails(sha1,fileType,config,regen=False):
 
   logger.info('Thumbnail Batch START: sha1=%s filetype=%s source=%s', sha1, fileType, relativeFilename)
 
-  thumbnailTypes = ['t','m','n','c','b']
+  thumbnailTypes = ['t','m','n','k','c','b']
   thumbnailFilenames = []
   success_count = 0
   fail_count = 0
