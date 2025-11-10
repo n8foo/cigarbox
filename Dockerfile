@@ -35,7 +35,7 @@ COPY static/ ./static/
 RUN mkdir -p /app/logs /app/static/cigarbox /tmp/cigarbox
 
 # Create non-root user
-RUN useradd -m -u 1000 cigarbox && \
+RUN useradd -m -u 1001 cigarbox && \
     chown -R cigarbox:cigarbox /app && \
     chown -R cigarbox:cigarbox /tmp/cigarbox
 

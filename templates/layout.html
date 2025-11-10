@@ -10,7 +10,7 @@
     <meta property="og:title" content="{{ og_title | default('Photo') }}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="{{ og_url | default(request.url) }}" />
-    <meta property="og:image" content="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ og_image }}_b.jpg" />
+    <meta property="og:image" content="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ og_image }}_{{ config['OPENGRAPH_IMAGE_SIZE'] }}.jpg" />
     <meta property="og:site_name" content="CigarBox" />
     {% if og_description is defined %}
     <meta property="og:description" content="{{ og_description }}" />
@@ -28,14 +28,16 @@
     <base href="{{SITEURL}}">
     <!-- Custom theme for dark mode -->
     <link rel="stylesheet" href="{{SITEURL}}/static/css/theme.css">  </head>
-  <body>
+  <body {% if session.get('pow_required') and config.get('POW_ENABLED') %}data-pow-required="true"{% endif %}>
     <div class=page>
 
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
       <!-- Bootstrap 5 JavaScript Bundle (includes Popper) -->
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-      <script src="http://unmx.com/analytics/a.js"></script>
-      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      {% if config.get('ANALYTICS_SCRIPT_URL') %}
+      <script src="{{ config['ANALYTICS_SCRIPT_URL'] }}"></script>
+      {% endif %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
           <a class="navbar-brand" href="">Cigarbox</a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -159,5 +161,14 @@
         }
       })();
     </script>
+
+    <!-- Proof-of-Work verification (loads only if needed) -->
+    {% if config.get('POW_ENABLED') and not current_user.is_authenticated and not request.path.startswith('/shared') %}
+    <script>
+      // Inject SITEURL for PoW script (handles subpath deployment)
+      window.CIGARBOX_SITEURL = "{{SITEURL}}";
+    </script>
+    <script src="{{SITEURL}}/static/js/pow.js"></script>
+    {% endif %}
   </body>
 </html>

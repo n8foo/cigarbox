@@ -119,3 +119,18 @@ class UserRoles(BaseModel):
   name         = property(lambda self: self.role.name)
   description  = property(lambda self: self.role.description)
 
+class PowChallenge(BaseModel):
+  """Proof-of-Work challenges - active puzzles awaiting solution"""
+  challenge    = CharField(unique=True, index=True)  # Random hex string
+  created_at   = DateTimeField(default=lambda: datetime.datetime.now())
+  expires_at   = DateTimeField(index=True)  # Typically 5 minutes from creation
+
+class PowToken(BaseModel):
+  """Proof-of-Work tokens - verified solutions with request/time limits"""
+  token            = CharField(unique=True, index=True)  # Random token for cookie
+  ip_address       = CharField(null=True)  # Track IP for binding
+  created_at       = DateTimeField(default=lambda: datetime.datetime.now())
+  expires_at       = DateTimeField(index=True)  # Time-based expiry
+  request_count    = IntegerField(default=0)  # Count photo views (limit: 50)
+  last_request_at  = DateTimeField(null=True)  # Last usage timestamp
+

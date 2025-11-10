@@ -97,7 +97,7 @@
     {% endif %}
     <a href="{{SITEURL}}/photos/{{ photo.id }}?in={{ in_context }}" class="jg-item">
       <img class="lazy jg-photo"
-           data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+           data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_{{ gallery_thumbnail_size }}.jpg"
            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
            alt="Photo {{ photo.id }}">
     </a>

@@ -80,7 +80,37 @@ SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
+# Bot Protection - Require login to view photos
+# Set to True to block public access (temporary until PoW is implemented)
+# Set to False to allow public viewing (with privacy levels)
+REQUIRE_AUTH_FOR_PHOTOS = False
+
+# Proof-of-Work (PoW) Bot Protection
+POW_ENABLED = False  # Enable PoW CAPTCHA for unauthenticated users
+POW_DIFFICULTY = 4  # Leading zeros in hex (4 = ~2 sec, 5 = ~30 sec, 6 = ~8 min)
+POW_CHALLENGE_EXPIRY = 300  # Challenge expires after 5 minutes (seconds)
+POW_TOKEN_EXPIRY_DAYS = 30  # DEPRECATED - Not used anymore (use POW_TOKEN_EXPIRY_MINUTES)
+POW_TOKEN_EXPIRY_MINUTES = 15  # Token expires after N minutes (time-based expiry)
+POW_TOKEN_MAX_REQUESTS = 5  # Max page views per token (set low for testing, 50+ for production)
+POW_BIND_TO_IP = True  # Invalidate token if IP changes (breaks mobile switching networks)
+POW_SKIP_AUTHENTICATED = True  # Skip PoW for logged-in users
+POW_ALLOW_PRIVACY_PROXIES = True  # Exempt privacy proxies (iCloud Private Relay, etc) from IP binding
+POW_PRIVACY_PROXY_RANGES = [
+    '104.28.',  # Cloudflare (used by iCloud Private Relay)
+    '104.29.',  # Cloudflare (used by iCloud Private Relay)
+    '172.225.', # Akamai (used by iCloud Private Relay)
+]  # IP prefixes that are exempt from IP binding when POW_ALLOW_PRIVACY_PROXIES=True
+
 PRIVACYFLAGS = {'public':0, 'friends':1, 'family':2, 'private':8, 'disabled':9}
+
+# Thumbnail sizes for different uses
+# Options: t=100px, m=240px, n=320px, k=500px, c=800px, b=1024px
+# Privacy strategy: t,m,n are public (too small for AI), k,c,b are private (protected)
+GALLERY_THUMBNAIL_SIZE = 'n'   # Gallery grid thumbnails (n=320px, public, AI-safe)
+OPENGRAPH_IMAGE_SIZE = 'n'     # Social media preview images (n=320px, too small for AI)
+
+# S3 signed URL expiry
+S3_SIGNED_URL_EXPIRY = 300  # 5 minutes (300 seconds) - balance security vs user experience
 
 PER_PAGE=100
 
@@ -102,6 +132,11 @@ CSRF_SESSION_KEY = 'secret'
 
 # Secret key for signing cookies
 SECRET_KEY = 'secret'
+
+# Optional: Analytics script URL
+# Set to None to disable analytics tracking
+# Example: 'https://your-analytics-domain.com/analytics.js?code=YOUR_CODE'
+ANALYTICS_SCRIPT_URL = None
 
 #  MAX Upload Size
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024

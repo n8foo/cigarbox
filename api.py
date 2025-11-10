@@ -44,6 +44,14 @@ logger = util.setup_custom_logger('cigarbox', service_name='api')
 app.logger.handlers = logger.handlers
 app.logger.setLevel(logger.level)
 
+# Add anti-AI scraping headers to all responses
+@app.after_request
+def add_security_headers(response):
+    """Add headers to prevent AI scraping and training on content"""
+    response.headers['X-Robots-Tag'] = 'noai, noimageai'
+    response.headers['TDM-Reservation'] = '1'
+    return response
+
 # define a few variables for the API
 uploadToS3=True
 
@@ -83,7 +91,11 @@ def processPhoto(filename,localSha1='0',clientfilename=None):
     upload_fail_count = 0
 
     for thumbFilename in thumbFilenames:
-      result = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=True,policy='public-read')
+      # Make large sizes private (AI training protection)
+      # _k (500px), _c (800px), _b (1024px) are valuable for AI training - keep private
+      # _n (320px), _m (240px), _t (100px) are too small for quality training - keep public
+      policy = 'private' if ('_b.jpg' in thumbFilename or '_c.jpg' in thumbFilename or '_k.jpg' in thumbFilename) else 'public-read'
+      result = aws.uploadToS3(localArchivePath+'/'+thumbFilename,thumbFilename,app.config,regen=True,policy=policy)
       if result:
         upload_success_count += 1
       else:

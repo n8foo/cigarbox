@@ -15,19 +15,6 @@
 {% block body %}
 
 <div class="container">
-  <!-- Share Notice -->
-  <div class="row">
-    <div class="col-md-12">
-      <div class="alert alert-info">
-        <span class="bi bi-info-circle"></span>
-        You're viewing a shared photoset.
-        {% if share_token.comment %}
-        <br><strong>{{ share_token.comment }}</strong>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
   <!-- Breadcrumb -->
   <div class="row">
     <div class="col-md-12">
@@ -63,7 +50,7 @@
     <div class="col-md-12">
       <div style="position: relative; text-align: center;">
         <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;"
-             src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg" alt="Photo">
+             src="{{ signed_s3_url(photo.uri, '_b') }}" alt="Photo">
         {% if share_token.allow_download %}
         <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}/download"
            style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none;">

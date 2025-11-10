@@ -3,6 +3,53 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-09] - POW Bot Defense and AI Protection
+
+### Added
+- **Proof-of-Work bot protection** - JavaScript challenge system for rate limiting
+  - Protects all public routes: photostream, tags, photosets, date search, login, individual photos
+  - 15-minute token expiry with 50 request limit and IP binding
+  - Database tables: `powchallenge` (active challenges), `powtoken` (verified tokens with request tracking)
+  - POW challenge page with dark mode support matches site theme
+- **Gallery thumbnail size configuration** - `GALLERY_THUMBNAIL_SIZE` config option (default: 'n' = 320px)
+- **S3 ACL migration script** - `scripts/update_s3_acls.py` for updating existing thumbnail policies
+
+### Changed
+- **S3 ACL policies for AI protection** - _k (500px), _c (800px), _b (1024px) now private on upload
+  - Updated `cli/import.py` and `api.py` upload logic
+  - Gallery thumbnails use _n (320px, public, AI-safe)
+  - Detail views use _b (1024px, private, signed URLs)
+- **Shared photo templates** - Now use signed URLs for _b thumbnails instead of direct S3 URLs
+- **S3 Content-Type detection** - Uses mimetypes library for proper MIME types (prevents download triggers)
+- **Gallery templates inject thumbnail size** - Context processor makes `gallery_thumbnail_size` available to all templates
+
+### Fixed
+- **POW token expiry bug** - Was 30 days instead of 15 minutes
+  - Changed from `POW_TOKEN_EXPIRY_DAYS` to `POW_TOKEN_EXPIRY_MINUTES`
+  - Cookie `max_age` now correctly uses minutes instead of days
+- **POW request counter not saving** - Batching optimization prevented database writes
+  - Removed batch-save logic, now saves on every request
+  - Request limits now properly enforced
+- **S3 original photo double-slash bug** - Caused 404 errors when viewing originals
+  - Fixed in 3 routes: `show_original_photo()`, shared photo download, shared photoset photo download
+  - Removed leading slash since `getSha1Path()` already includes path separators
+
+### Migration Required
+Run both migrations in order (idempotent, safe to re-run):
+```bash
+docker exec -it cigarbox-web python scripts/migrate_2025_11_07_add_pow_tables.py
+docker exec -it cigarbox-web python scripts/migrate_2025_11_08_pow_request_limits.py
+```
+
+Update `config.py`:
+```python
+POW_ENABLED = True  # Enable bot protection
+POW_TOKEN_EXPIRY_MINUTES = 15
+POW_TOKEN_MAX_REQUESTS = 50
+GALLERY_THUMBNAIL_SIZE = 'n'  # 320px for galleries
+```
+
+---
 ## [2025-11-09] - thumbnail fix and reprocessing script
 
 ### Changes

@@ -19,7 +19,7 @@ python-dateutil>=2.8.0
 Pillow>=10.3.0
 
 # AWS/S3
-boto==2.49.0
+boto3>=1.34.0
 
 # HTTP Requests
 requests>=2.32.0

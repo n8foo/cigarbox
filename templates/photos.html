@@ -136,7 +136,7 @@
 
     <div class="row">
       <div class="col-md-12">
-        <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;" src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_b.jpg">
+        <img class='img-fluid' style="width: 100%; max-height: 85vh; object-fit: contain;" src="{{ signed_s3_url(photo.uri, '_b') }}">
       </div>
     </div>
 

@@ -16,7 +16,7 @@
         <h3 class="panel-title">Preview</h3>
       </div>
       <div class="panel-body text-center">
-        <img src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg" alt="Photo {{ photo.id }}" class="img-responsive" style="max-width: 100%;">
+        <img src="{{ signed_s3_url(photo.uri, '_c') }}" alt="Photo {{ photo.id }}" class="img-responsive" style="max-width: 100%;">
         <br>
         <a href="{{SITEURL}}/photos/{{ photo.id }}" class="btn btn-primary">View Full Size</a>
       </div>

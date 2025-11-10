@@ -9,18 +9,6 @@
 
 <div class="row">
   <div class="col-md-12">
-    <div class="alert alert-info">
-      <span class="bi bi-info-circle"></span>
-      You're viewing a shared photoset.
-      {% if share_token.comment %}
-      <br><strong>{{ share_token.comment }}</strong>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="col-md-12">
     <h1>{{ photoset.title }}</h1>
     {% if photoset.description %}
     <p class="lead">{{photoset.description}}</p>
@@ -39,7 +27,7 @@
   <div class="jg-item-wrapper" style="display: inline-block; position: relative;">
     <a href="{{SITEURL}}/shared/photoset/{{ share_token.token }}/photo/{{ photo.id }}" class="jg-item">
       <img class="lazy jg-photo"
-           data-src="http://s3.amazonaws.com/{{ config['S3_BUCKET_NAME'] }}/{{ photo.uri }}_c.jpg"
+           data-src="{{ signed_s3_url(photo.uri, '_c') }}"
            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Crect fill='%23eee' width='320' height='240'/%3E%3C/svg%3E"
            alt="Photo {{ photo.id }}">
     </a>

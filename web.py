@@ -26,6 +26,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import math
 import secrets
 import datetime
+import hashlib
 
 from app import app
 from util import *
@@ -48,6 +49,14 @@ logger = setup_custom_logger('cigarbox', service_name='web')
 app.logger.handlers = logger.handlers
 app.logger.setLevel(logger.level)
 
+# Add anti-AI scraping headers to all responses
+@app.after_request
+def add_security_headers(response):
+    """Add headers to prevent AI scraping and training on content"""
+    response.headers['X-Robots-Tag'] = 'noai, noimageai'
+    response.headers['TDM-Reservation'] = '1'
+    return response
+
 # Setup Flask-Security-Too
 user_datastore = PeeweeUserDatastore(db, User, Role, UserRoles)
 security = Security(app, user_datastore)
@@ -60,6 +69,112 @@ def load_user(user_id):
         return User.get(User.id == int(user_id))
     except User.DoesNotExist:
         return None
+
+
+# Flexible access control decorator
+def require_access(auth=None, pow=None):
+    """
+    Flexible route protection decorator.
+
+    Args:
+        auth: True=require login, False=skip auth check, None=check REQUIRE_AUTH_FOR_PHOTOS config
+        pow: True=require PoW, False=skip PoW check, None=check POW_ENABLED config
+
+    Logic:
+        1. If user is logged in → always allow (bypass PoW)
+        2. If auth required and not logged in → redirect to login
+        3. If PoW required and no valid token → return 403 challenge page
+        4. Otherwise → allow access
+
+    Server-side enforcement: Returns challenge page, never exposes protected content without valid token.
+    """
+    from functools import wraps
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Always allow authenticated users (skip all checks)
+            if current_user.is_authenticated:
+                return f(*args, **kwargs)
+
+            # Determine if auth is required (explicit param or config)
+            auth_required = auth if auth is not None else app.config.get('REQUIRE_AUTH_FOR_PHOTOS', False)
+
+            # If auth required, redirect to login
+            if auth_required:
+                return security.login_manager.unauthorized()
+
+            # Determine if PoW is required (explicit param or config)
+            pow_required = pow if pow is not None else app.config.get('POW_ENABLED', False)
+
+            # If PoW not required, allow access
+            if not pow_required:
+                return f(*args, **kwargs)
+
+            # PoW is required - validate token
+            pow_token = request.cookies.get('pow_token')
+
+            if pow_token:
+                try:
+                    token = PowToken.get(PowToken.token == pow_token)
+
+                    # Validate token hasn't expired (time-based)
+                    if token.expires_at <= datetime.datetime.now():
+                        raise PowToken.DoesNotExist()
+
+                    # Validate IP binding (if enabled)
+                    if app.config.get('POW_BIND_TO_IP', True):
+                        # Check if either IP is a privacy proxy (iCloud Private Relay, etc)
+                        is_privacy_proxy = False
+                        if app.config.get('POW_ALLOW_PRIVACY_PROXIES', True):
+                            proxy_ranges = app.config.get('POW_PRIVACY_PROXY_RANGES', [])
+                            for prefix in proxy_ranges:
+                                if token.ip_address.startswith(prefix) or request.remote_addr.startswith(prefix):
+                                    is_privacy_proxy = True
+                                    break
+
+                        # Only enforce IP binding for non-privacy-proxy IPs
+                        if not is_privacy_proxy and token.ip_address != request.remote_addr:
+                            logger.warning(f'PoW token IP mismatch: expected={token.ip_address} got={request.remote_addr}')
+                            raise PowToken.DoesNotExist()
+
+                    # Validate request count limit
+                    max_requests = app.config.get('POW_TOKEN_MAX_REQUESTS', 50)
+                    if token.request_count >= max_requests:
+                        logger.info(f'PoW token request limit reached: {token.request_count}/{max_requests}')
+                        raise PowToken.DoesNotExist()
+
+                    # Validate time-based expiry (minutes since creation)
+                    expiry_minutes = app.config.get('POW_TOKEN_EXPIRY_MINUTES', 15)
+                    age = datetime.datetime.now() - token.created_at
+                    if age.total_seconds() > (expiry_minutes * 60):
+                        logger.info(f'PoW token time limit exceeded: {age.total_seconds()/60:.1f} min > {expiry_minutes} min')
+                        raise PowToken.DoesNotExist()
+
+                    # Token is valid - increment usage counter
+                    token.request_count += 1
+                    token.last_request_at = datetime.datetime.now()
+                    token.save()
+
+                    # Allow access to protected content
+                    return f(*args, **kwargs)
+
+                except PowToken.DoesNotExist:
+                    # Token invalid, expired, or doesn't exist - fall through to challenge
+                    pass
+
+            # No valid token - return challenge page (server-side enforcement)
+            # Store the requested URL so we can redirect back after solving
+            session['pow_return_url'] = request.url
+            return render_template('pow_challenge.html', return_url=request.url), 403
+
+        return decorated_function
+    return decorator
+
+# Backwards compatibility alias
+def auth_required_if_configured(f):
+    """Backwards compatibility wrapper - uses require_access with config defaults"""
+    return require_access(auth=None, pow=None)(f)
 
 # Ensure database is connected for each request
 @app.before_request
@@ -74,6 +189,60 @@ def teardown_request(exception):
     if not db.is_closed():
         db.close()
 
+# POW protection for login page (brute-force prevention)
+@app.before_request
+def protect_login_with_pow():
+    """Require POW for login page to prevent brute-force attacks"""
+    # Only check login routes
+    if request.path != '/login':
+        return None
+
+    # Skip if POW is disabled
+    if not app.config.get('POW_ENABLED', False):
+        return None
+
+    # Authenticated users don't need POW
+    if current_user.is_authenticated:
+        return None
+
+    # Check for valid POW token
+    pow_token = request.cookies.get('pow_token')
+    if pow_token:
+        try:
+            token = PowToken.get(PowToken.token == pow_token)
+
+            # Validate IP binding
+            if app.config.get('POW_BIND_TO_IP', True):
+                # Check if either IP is a privacy proxy (iCloud Private Relay, etc)
+                is_privacy_proxy = False
+                if app.config.get('POW_ALLOW_PRIVACY_PROXIES', True):
+                    proxy_ranges = app.config.get('POW_PRIVACY_PROXY_RANGES', [])
+                    for prefix in proxy_ranges:
+                        if token.ip_address.startswith(prefix) or request.remote_addr.startswith(prefix):
+                            is_privacy_proxy = True
+                            break
+
+                # Only enforce IP binding for non-privacy-proxy IPs
+                if not is_privacy_proxy and token.ip_address != request.remote_addr:
+                    raise PowToken.DoesNotExist()
+
+            # Validate time-based expiry
+            expiry_minutes = app.config.get('POW_TOKEN_EXPIRY_MINUTES', 15)
+            age = datetime.datetime.now() - token.created_at
+            if age.total_seconds() > (expiry_minutes * 60):
+                raise PowToken.DoesNotExist()
+
+            # Token is valid - allow login page access
+            return None
+
+        except PowToken.DoesNotExist:
+            pass  # Fall through to require POW
+
+    # No valid token - redirect to POW challenge
+    return render_template('pow_challenge.html',
+                         return_url=request.url,
+                         SITEURL=get_base_url()), 403
+
 
 # Utility Functions
 
@@ -85,6 +254,33 @@ def get_base_url():
 def inject_siteurl():
   """Inject SITEURL into all templates"""
   return dict(SITEURL=get_base_url())
+
+@app.context_processor
+def inject_signed_url_helper():
+  """Inject signed_s3_url helper for generating private S3 URLs"""
+  def signed_s3_url(photo_uri, size='_b', expiry=None):
+    """
+    Generate signed S3 URL for private objects
+
+    Args:
+      photo_uri: Photo URI (sha1 path without extension)
+      size: Size suffix (_t, _m, _n, _c, _b)
+      expiry: URL expiry in seconds (default: read from config S3_SIGNED_URL_EXPIRY)
+
+    Returns:
+      Signed S3 URL string
+    """
+    if expiry is None:
+      expiry = app.config.get('S3_SIGNED_URL_EXPIRY', 3600)
+    s3_key = f'{photo_uri}{size}.jpg'
+    return aws.getPrivateURL(app.config, s3_key, expiry)
+
+  return dict(signed_s3_url=signed_s3_url)
+
+@app.context_processor
+def inject_gallery_config():
+  """Inject gallery configuration into all templates"""
+  return dict(gallery_thumbnail_size=app.config.get('GALLERY_THUMBNAIL_SIZE', 'n'))
 
 @app.template_filter('format_datetime')
 def format_datetime_filter(value, format='%Y-%m-%d %H:%M'):
@@ -161,9 +357,16 @@ def internal_server_error(error):
   return render_template('500.html'), 500
 
 
+@app.route('/robots.txt')
+def robots_txt():
+  """Serve robots.txt to block AI scrapers"""
+  return send_from_directory('static', 'robots.txt', mimetype='text/plain')
+
+
 @app.route('/', defaults={'page': 1})
 @app.route('/photostream', defaults={'page': 1})
 @app.route('/photostream/page/<int:page>')
+@require_access(pow=True)
 def photostream(page):
   """the list of the most recently added pictures"""
   baseurl = '%s/photostream' % (get_base_url())
@@ -187,6 +390,7 @@ def photostream(page):
   return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, in_context=in_context)
 
 @app.route('/photos/<int:photo_id>')
+@require_access(pow=True)
 def show_photo(photo_id):
   """a single photo"""
   photo = Photo.select().where(Photo.id == photo_id).get()
@@ -444,7 +648,7 @@ def show_original_photo(photo_id):
     abort(403)
 
   (sha1Path,filename) = getSha1Path(photo.sha1)
-  S3Key = '/'+sha1Path+'/'+filename+'.'+photo.filetype
+  S3Key = sha1Path+'/'+filename+'.'+photo.filetype
   originalURL = aws.getPrivateURL(app.config,S3Key)
   return redirect(originalURL)
 
@@ -787,6 +991,7 @@ def bulk_edit_photos(page):
     return redirect(url_for('photostream'))
 
 @app.route('/tags')
+@require_access(pow=True)
 def show_tags():
   # Filter tags to only show counts for photos user can see (treat NULL as public)
   visible_levels = get_visible_privacy_levels(current_user)
@@ -809,6 +1014,7 @@ def show_tags():
 
 @app.route('/tags/<string:tag>', defaults={'page': 1})
 @app.route('/tags/<string:tag>/page/<int:page>')
+@require_access(pow=True)
 def show_taged_photos(tag,page):
   # Parse comma-separated tags for multi-tag filtering
   tags_list = [t.strip() for t in tag.split(',') if t.strip()]
@@ -964,6 +1170,7 @@ def merge_tag_inline(tag):
 
 @app.route('/date/<string:date>', defaults={'page': 1})
 @app.route('/date/<string:date>/page/<int:page>')
+@require_access(pow=True)
 def show_date_photos(date,page):
   baseurl = '%s/date/%s' % (get_base_url(),date)
   visible_levels = get_visible_privacy_levels(current_user)
@@ -1107,6 +1314,7 @@ def delete_photo(photo_id):
 
 @app.route('/photosets', defaults={'page': 1})
 @app.route('/photosets/page/<int:page>')
+@require_access(pow=True)
 def show_photosets(page):
   thumbCount = 2
   baseurl = '%s/photosets' % (get_base_url())
@@ -1162,7 +1370,8 @@ def show_photosets(page):
         thumbs_by_photoset[photoset_id] = []
       if len(thumbs_by_photoset[photoset_id]) < thumbCount:
         (sha1Path, filename) = getSha1Path(thumb.sha1)
-        thumb.uri = '%s/%s_m.jpg' % (sha1Path, filename)
+        gallery_size = app.config.get('GALLERY_THUMBNAIL_SIZE', 'n')
+        thumb.uri = f'{sha1Path}/{filename}_{gallery_size}.jpg'
         thumbs_by_photoset[photoset_id].append(thumb)
 
     # Attach thumbnails to photosets
@@ -1198,6 +1407,7 @@ def show_photosets(page):
 
 @app.route('/photosets/<int:photoset_id>', defaults={'page': 1})
 @app.route('/photosets/<int:photoset_id>/page/<int:page>')
+@require_access(pow=True)
 def show_photoset(photoset_id,page):
   baseurl = '%s/photosets/%s' % (get_base_url(), photoset_id)
   visible_levels = get_visible_privacy_levels(current_user)
@@ -1532,8 +1742,11 @@ def upload():
       if not process.checkImportStatusS3(photo_id):
         upload_success = 0
         for thumbFilename in thumbFilenames:
+          # Make large sizes private (AI training protection)
+          # _b (1024px) and _c (800px) are prime AI training data - keep private
+          policy = 'private' if ('_b.jpg' in thumbFilename or '_c.jpg' in thumbFilename) else 'public-read'
           if aws.uploadToS3(localArchivePath + '/' + thumbFilename, thumbFilename,
-                           app.config, regen=True, policy='public-read'):
+                           app.config, regen=True, policy=policy):
             upload_success += 1
         S3success = (upload_success == len(thumbFilenames))
         logger.info('S3_THUMBNAILS_UPLOAD photo_id=%d success=%d/%d',
@@ -2131,7 +2344,7 @@ def download_shared_photo(token):
 
   # Get signed URL for original photo (private S3 object)
   (sha1Path, filename) = getSha1Path(photo.sha1)
-  S3Key = '/' + sha1Path + '/' + filename + '.' + photo.filetype
+  S3Key = sha1Path + '/' + filename + '.' + photo.filetype
   originalURL = aws.getPrivateURL(app.config, S3Key)
 
   if originalURL:
@@ -2318,7 +2531,7 @@ def download_shared_photoset_photo(token, photo_id):
 
   # Get signed URL for original photo (private S3 object)
   (sha1Path, filename) = getSha1Path(photo.sha1)
-  S3Key = '/' + sha1Path + '/' + filename + '.' + photo.filetype
+  S3Key = sha1Path + '/' + filename + '.' + photo.filetype
   originalURL = aws.getPrivateURL(app.config, S3Key)
 
   if originalURL:
@@ -2766,6 +2979,212 @@ def admin_tools_audit_orphaned_meta_fix():
     flash(f'Failed to delete {error_count} records (check logs)', 'warning')
 
   return redirect(url_for('admin_tools_audit_orphaned_meta'))
+
+
+# ============================================================================
+# Proof-of-Work (PoW) Bot Protection Routes
+# ============================================================================
+
+@app.route('/pow/challenge')
+def pow_challenge():
+  """Generate a PoW challenge for client to solve"""
+  if not app.config.get('POW_ENABLED', False):
+    return jsonify({'error': 'PoW not enabled'}), 503
+
+  # Generate random challenge
+  challenge = secrets.token_hex(16)  # 32-char hex string
+  difficulty = app.config.get('POW_DIFFICULTY', 4)
+  expiry_seconds = app.config.get('POW_CHALLENGE_EXPIRY', 300)
+
+  # Store challenge in database with expiry
+  expires_at = datetime.datetime.now() + datetime.timedelta(seconds=expiry_seconds)
+  try:
+    PowChallenge.create(
+      challenge=challenge,
+      expires_at=expires_at
+    )
+  except IntegrityError:
+    # Challenge collision (extremely rare), try once more
+    challenge = secrets.token_hex(16)
+    PowChallenge.create(
+      challenge=challenge,
+      expires_at=expires_at
+    )
+  except Exception as e:
+    logger.error(f'PoW challenge creation failed: {e}')
+    return jsonify({'error': 'Database error - run migration script'}), 500
+
+  logger.info(f'PoW challenge generated: {challenge[:8]}... (difficulty={difficulty})')
+
+  return jsonify({
+    'challenge': challenge,
+    'difficulty': difficulty,
+    'expires_in': expiry_seconds
+  })
+
+
+@app.route('/pow/verify', methods=['POST'])
+def pow_verify():
+  """Verify PoW solution and issue long-lived token"""
+  if not app.config.get('POW_ENABLED', False):
+    return jsonify({'error': 'PoW not enabled'}), 503
+
+  data = request.get_json()
+  if not data or 'challenge' not in data or 'nonce' not in data:
+    return jsonify({'error': 'Missing challenge or nonce'}), 400
+
+  challenge = data['challenge']
+  nonce = data['nonce']
+  difficulty = app.config.get('POW_DIFFICULTY', 4)
+
+  # Check if challenge exists and is not expired
+  try:
+    pow_challenge = PowChallenge.get(PowChallenge.challenge == challenge)
+  except PowChallenge.DoesNotExist:
+    logger.warning(f'PoW verification failed: challenge {challenge[:8]}... not found')
+    return jsonify({'error': 'Invalid or expired challenge'}), 400
+  except Exception as e:
+    logger.error(f'PoW verification database error: {e}')
+    return jsonify({'error': 'Database error - tables may not exist'}), 500
+
+  # Check expiry
+  if pow_challenge.expires_at < datetime.datetime.now():
+    PowChallenge.delete().where(PowChallenge.challenge == challenge).execute()
+    logger.warning(f'PoW verification failed: challenge expired')
+    return jsonify({'error': 'Challenge expired'}), 400
+
+  # Verify the solution
+  hash_input = (challenge + str(nonce)).encode('utf-8')
+  result_hash = hashlib.sha256(hash_input).hexdigest()
+  target = '0' * difficulty
+
+  if not result_hash.startswith(target):
+    logger.warning(f'PoW verification failed: invalid solution (hash={result_hash[:12]}...)')
+    return jsonify({'error': 'Invalid solution'}), 400
+
+  # Solution is valid! Delete challenge (single-use)
+  PowChallenge.delete().where(PowChallenge.challenge == challenge).execute()
+
+  # Generate token with request tracking
+  token = secrets.token_urlsafe(32)
+  token_expiry_minutes = app.config.get('POW_TOKEN_EXPIRY_MINUTES', 15)
+  expires_at = datetime.datetime.now() + datetime.timedelta(minutes=token_expiry_minutes)
+
+  # Store token in database with initial request tracking
+  PowToken.create(
+    token=token,
+    ip_address=request.remote_addr,
+    expires_at=expires_at,
+    request_count=0,  # Initialize counter
+    last_request_at=None  # Will be set on first use
+  )
+
+  logger.info(f'PoW verification SUCCESS: token issued for IP {request.remote_addr} (expires in {token_expiry_minutes} minutes)')
+
+  # Set cookie with token
+  response = jsonify({
+    'success': True,
+    'message': 'Verification successful',
+    'expires_in_minutes': token_expiry_minutes
+  })
+
+  # Determine if we're on HTTPS (check headers from proxy)
+  is_secure = request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https'
+
+  response.set_cookie(
+    'pow_token',
+    token,
+    max_age=token_expiry_minutes * 60,  # minutes to seconds
+    path='/',  # Important: works with subpath deployment
+    httponly=True,
+    secure=is_secure,  # Auto-detect HTTPS
+    samesite='Lax'
+  )
+
+  return response
+
+
+@app.route('/pow/cleanup', methods=['POST'])
+@login_required
+@roles_required('admin')
+def pow_cleanup():
+  """Admin endpoint: Clean up expired challenges and tokens"""
+  now = datetime.datetime.now()
+
+  expired_challenges = PowChallenge.delete().where(PowChallenge.expires_at < now).execute()
+  expired_tokens = PowToken.delete().where(PowToken.expires_at < now).execute()
+
+  logger.info(f'PoW cleanup: deleted {expired_challenges} challenges, {expired_tokens} tokens')
+
+  return jsonify({
+    'deleted_challenges': expired_challenges,
+    'deleted_tokens': expired_tokens
+  })
+
+
+@app.route('/pow/debug')
+def pow_debug():
+  """Debug endpoint: Check PoW configuration and database status"""
+  try:
+    # Check if tables exist
+    tables_exist = False
+    challenge_count = 0
+    token_count = 0
+
+    try:
+      challenge_count = PowChallenge.select().count()
+      token_count = PowToken.select().count()
+      tables_exist = True
+    except Exception as e:
+      tables_exist = False
+
+    # Check cookie presence
+    has_cookie = request.cookies.get('pow_token') is not None
+    cookie_valid = False
+
+    if has_cookie:
+      try:
+        token = PowToken.get(
+          (PowToken.token == request.cookies.get('pow_token')) &
+          (PowToken.expires_at > datetime.datetime.now())
+        )
+        cookie_valid = True
+      except:
+        pass
+
+    # Check HTTPS detection
+    is_secure = request.is_secure or request.headers.get('X-Forwarded-Proto') == 'https'
+
+    return jsonify({
+      'status': 'ok',
+      'config': {
+        'pow_enabled': app.config.get('POW_ENABLED', False),
+        'pow_difficulty': app.config.get('POW_DIFFICULTY', 4),
+        'challenge_expiry_sec': app.config.get('POW_CHALLENGE_EXPIRY', 300),
+        'token_expiry_minutes': app.config.get('POW_TOKEN_EXPIRY_MINUTES', 15),
+        'token_max_requests': app.config.get('POW_TOKEN_MAX_REQUESTS', 50),
+        'require_auth': app.config.get('REQUIRE_AUTH_FOR_PHOTOS', False)
+      },
+      'database': {
+        'tables_exist': tables_exist,
+        'challenge_count': challenge_count,
+        'token_count': token_count
+      },
+      'request': {
+        'path': request.path,
+        'is_https': is_secure,
+        'has_pow_cookie': has_cookie,
+        'cookie_valid': cookie_valid,
+        'is_authenticated': current_user.is_authenticated,
+        'forwarded_proto': request.headers.get('X-Forwarded-Proto'),
+        'remote_addr': request.remote_addr
+      }
+    })
+  except Exception as e:
+    return jsonify({
+      'status': 'error',
+      'error': str(e)
+    }), 500
 
 
 if __name__ == '__main__':
