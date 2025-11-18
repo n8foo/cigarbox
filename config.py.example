@@ -100,6 +100,7 @@ POW_PRIVACY_PROXY_RANGES = [
     '104.29.',  # Cloudflare (used by iCloud Private Relay)
     '172.225.', # Akamai (used by iCloud Private Relay)
 ]  # IP prefixes that are exempt from IP binding when POW_ALLOW_PRIVACY_PROXIES=True
+POW_SPLIT_BRAIN_PHOTOS = True  # Show preview + OG tags even without POW token (200 response), or return 403
 
 PRIVACYFLAGS = {'public':0, 'friends':1, 'family':2, 'private':8, 'disabled':9}
 

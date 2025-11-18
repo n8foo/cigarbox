@@ -400,6 +400,8 @@ def main():
                        help='Delete downloaded files after processing (saves disk space)')
     parser.add_argument('--workers', type=int, default=1,
                        help='Number of parallel workers (default: 1)')
+    parser.add_argument('--yes', action='store_true',
+                       help='Skip confirmation prompt (for non-interactive execution)')
 
     args = parser.parse_args()
 
@@ -453,8 +455,8 @@ def main():
         print(f'  _{size}.jpg -> {acl}')
     print()
 
-    # Confirm unless dry-run
-    if not args.dry_run:
+    # Confirm unless dry-run or --yes flag
+    if not args.dry_run and not args.yes:
         confirm = input(f'Process {total} photos? [y/N]: ')
         if confirm.lower() != 'y':
             print('Cancelled')

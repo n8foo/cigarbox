@@ -14,8 +14,39 @@
 
 {% block body %}
   <div class="container">
-    <!-- Share Link Success Alert -->
+    {% if not has_pow and config['POW_SPLIT_BRAIN_PHOTOS'] %}
+    <!-- Split-brain mode: POW challenge only (no preview to prevent scraping) -->
+    <div class="row" style="margin-top: 30px;">
+      <div class="col-md-8 offset-md-2">
+        <div style="padding: 30px; background-color: var(--bs-secondary-bg); border-radius: 8px;">
+          <h4 class="text-center" style="margin-bottom: 20px;">🔒 Verifying Browser</h4>
+          <p class="text-center text-muted">This one-time check helps prevent automated scraping</p>
+
+          <div id="pow-solving-status" style="text-align: center; margin-top: 20px;">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Solving...</span>
+            </div>
+            <p class="text-muted" style="margin-top: 10px;" id="pow-status-text">Starting verification...</p>
+            <p id="pow-hash-attempts" class="text-muted" style="font-size: 12px;"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POW Challenge Solver -->
+    <script src="{{SITEURL}}/static/js/pow.js"></script>
+    <script>
+      window.addEventListener('load', function() {
+        CigarboxPOW.solve({
+          returnUrl: window.location.pathname + window.location.search
+        });
+      });
+    </script>
+
+    {% else %}
+    <!-- Full photo display (has POW token or split-brain disabled) -->
     {% if session.share_link %}
+    <!-- Share Link Success Alert -->
     <div class="row">
       <div class="col-md-12">
         <div class="alert alert-success alert-dismissible" role="alert">
@@ -25,7 +56,7 @@
           <div class="input-group">
             <input type="text" class="form-control" value="{{ session.share_link }}" id="shareUrlInput" readonly>
             <span class="input-group-btn">
-              <button class="btn btn-primary" type="button" onclick="copyShareLink()">
+              <button class="btn btn-primary" type="button" onclick="Cigarbox.copyShareLink()">
                 <i class="bi bi-clipboard"></i> Copy
               </button>
             </span>
@@ -101,8 +132,9 @@
           </p>
         </div>
         {% endif %}
-        {% if current_user.is_authenticated and can_edit %}
+        {% if current_user.is_authenticated %}
         <div class="btn-group btn-group-sm">
+          {% if can_edit %}
           <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#privacyModal" title="Privacy">
             <i class="bi bi-lock"></i>
             {% if photo.privacy == 0 or photo.privacy is none %}
@@ -121,13 +153,18 @@
           <a href="{{SITEURL}}/photos/{{ photo.id }}/original" class="btn btn-link" target="_blank" title="View Original">
             <i class="bi bi-image"></i> original
           </a>
+          {% endif %}
           <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#shareModal" title="Share">
             <i class="bi bi-share"></i> share
+            {% if can_edit %}
             <span class="badge" id="shareCountBadge" style="display: none; background-color: #d9534f;"></span>
+            {% endif %}
           </button>
+          {% if can_edit %}
           <button type="button" class="btn btn-link text-danger" onclick="deletePhoto({{ photo.id }})" title="Delete">
             <i class="bi bi-trash"></i> delete
           </button>
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -173,6 +210,7 @@
     </div>
     {% endif %}
 
+      {% if current_user.is_authenticated %}
       <!-- Share Modal -->
       <div class="modal fade" id="shareModal" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
@@ -223,6 +261,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
       {% if can_edit %}
       <!-- Privacy Modal -->
@@ -328,26 +367,18 @@
     </div>
   </div>
   <br><br>
+  {% endif %}
 
+<!-- JavaScript Section (flat structure, outside POW conditional) -->
+{% if has_pow or not config['POW_SPLIT_BRAIN_PHOTOS'] %}
+  <!-- Lazy loading for images -->
+  <script src="{{SITEURL}}/static/js/lazy-loading.js"></script>
+
+  {% if current_user.is_authenticated and can_edit %}
+  <!-- Editor utilities -->
+  <script src="{{SITEURL}}/static/js/editor.js"></script>
   <script>
-  function copyShareLink() {
-    var input = document.getElementById('shareUrlInput');
-    input.select();
-    input.setSelectionRange(0, 99999); // For mobile
-
-    try {
-      document.execCommand('copy');
-      var btn = event.target.closest('button');
-      var originalText = btn.innerHTML;
-      btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
-      setTimeout(function() {
-        btn.innerHTML = originalText;
-      }, 2000);
-    } catch (err) {
-      alert('Failed to copy. Please copy manually: ' + input.value);
-    }
-  }
-
+  // Admin-only functions
   function deletePhoto(photoId) {
     if (confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
       window.location.href = '{{SITEURL}}/photos/' + photoId + '/delete';
@@ -355,34 +386,16 @@
   }
 
   // Load share count on page load
-  function loadShareCount() {
-    fetch('{{SITEURL}}/photos/{{ photo.id }}/shares')
-      .then(response => response.json())
-      .then(data => {
-        if (data.shares && data.shares.length > 0) {
-          var badge = document.getElementById('shareCountBadge');
-          badge.textContent = data.shares.length;
-          badge.style.display = 'inline';
-
-          // Make badge clickable to go to admin shares page
-          badge.style.cursor = 'pointer';
-          badge.onclick = function(e) {
-            e.stopPropagation(); // Don't trigger the modal
-            window.location.href = '{{SITEURL}}/admin/shares?search={{ photo.id }}';
-          };
-        }
-      })
-      .catch(error => {
-        console.error('Error loading share count:', error);
-      });
-  }
-
-  // Load count on page load
-  {% if current_user.is_authenticated %}
-  loadShareCount();
+  CigarboxEditor.loadShareCount(
+    '{{SITEURL}}/photos/{{ photo.id }}/shares',
+    'shareCountBadge',
+    '{{SITEURL}}/admin/shares?search={{ photo.id }}'
+  );
+  </script>
   {% endif %}
 
-  // Keyboard shortcuts for photo page
+  <script>
+  // Keyboard shortcuts for photo page (navigation available to all)
   document.addEventListener('keydown', function(e) {
     // Ignore if user is typing in an input field
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
@@ -424,17 +437,21 @@
         window.location.href = backBtn.href;
       }
     }
+    {% if current_user.is_authenticated %}
+    // Share shortcut (all authenticated users)
+    else if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      $('#shareModal').modal('show');
+    }
+    {% endif %}
     {% if current_user.is_authenticated and can_edit %}
-    // Edit shortcuts (logged in users only)
+    // Edit shortcuts (editors only)
     else if (e.key === 't' || e.key === 'T') {
       e.preventDefault();
       $('#tagsModal').modal('show');
     } else if (e.key === 'p' || e.key === 'P') {
       e.preventDefault();
       $('#privacyModal').modal('show');
-    } else if (e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      $('#shareModal').modal('show');
     } else if (e.key === 'o' || e.key === 'O') {
       e.preventDefault();
       window.open('{{SITEURL}}/photos/{{ photo.id }}/original', '_blank');
@@ -452,8 +469,9 @@
     }
   });
 
-  // Auto-focus inputs when modals open
+  // Auto-focus and keyboard shortcuts for modals
   {% if current_user.is_authenticated and can_edit %}
+  // Tags and Privacy modals (editors only)
   $('#tagsModal').on('shown.bs.modal', function() {
     $('#tags').focus();
   });
@@ -461,15 +479,17 @@
     $('#privacy').focus();
   });
 
-  // Submit modal forms with Enter key
+  // Submit tags/privacy forms with Enter key
   $('#tagsModal input, #privacyModal select').on('keydown', function(e) {
     if (e.key === 'Enter') {
       e.preventDefault();
       $(this).closest('form').submit();
     }
   });
+  {% endif %}
 
-  // For share modal, only submit on Enter in text fields, not in selects
+  {% if current_user.is_authenticated %}
+  // Share modal (all authenticated users)
   $('#shareModal input[type="text"], #shareModal input[type="number"], #shareModal textarea').on('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -479,6 +499,7 @@
   {% endif %}
   </script>
 
+  {% if current_user.is_authenticated and can_edit %}
   <!-- Tag autocomplete -->
   <script src="{{SITEURL}}/static/js/tag-autocomplete.js"></script>
   <script>
@@ -493,4 +514,6 @@
     }
   });
   </script>
+  {% endif %}
+  {% endif %}
 {% endblock %}

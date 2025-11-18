@@ -3,7 +3,7 @@
 """utility methods"""
 
 import re, os.path, hashlib, logging
-from PIL import Image,ExifTags
+from PIL import Image, ImageOps, ExifTags
 from PIL.ExifTags import TAGS,GPSTAGS
 # our own libs
 import aws
@@ -87,6 +87,11 @@ def genThumbnail(filename,thumbnailType,config,regen=False):
         raise IOError('Source file does not exist: %s' % sourceFullPath)
 
       img = Image.open(sourceFullPath)
+
+      # Apply EXIF orientation before processing
+      # This physically rotates the image based on EXIF orientation tag
+      img = ImageOps.exif_transpose(img)
+
       original_size = img.size
       original_mode = img.mode
       logger.info('Thumbnail Generation: Opened source image size=%s mode=%s', original_size, original_mode)

@@ -15,7 +15,7 @@ import sys
 import re
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
-  render_template, flash, send_from_directory, jsonify
+  render_template, flash, send_from_directory, jsonify, make_response
 
 from flask_security import Security, PeeweeUserDatastore, UserMixin, RoleMixin, \
   login_required, roles_required, current_user
@@ -165,8 +165,9 @@ def require_access(auth=None, pow=None):
 
             # No valid token - return challenge page (server-side enforcement)
             # Store the requested URL so we can redirect back after solving
-            session['pow_return_url'] = request.url
-            return render_template('pow_challenge.html', return_url=request.url), 403
+            return_url = get_return_url()
+            session['pow_return_url'] = return_url
+            return render_template('pow_challenge.html', return_url=return_url), 403
 
         return decorated_function
     return decorator
@@ -239,8 +240,9 @@ def protect_login_with_pow():
             pass  # Fall through to require POW
 
     # No valid token - redirect to POW challenge
+    return_url = get_return_url()
     return render_template('pow_challenge.html',
-                         return_url=request.url,
+                         return_url=return_url,
                          SITEURL=get_base_url()), 403
 
 
@@ -250,10 +252,29 @@ def get_base_url():
   """Get the base URL dynamically from request"""
   return request.url_root.rstrip('/')
 
+def get_return_url():
+  """Get current URL for return/next parameters (includes subpath prefix)
+
+  IMPORTANT: Always use this for redirect URLs to avoid losing subpath prefix!
+  Example: In subpath deployment (/pictures):
+    - request.path = '/photostream'  ❌ WRONG
+    - get_return_url() = '/pictures/photostream'  ✓ CORRECT
+  """
+  url = request.script_root + request.full_path
+  # Strip trailing ? if there are no query parameters
+  if url.endswith('?'):
+    url = url[:-1]
+  return url
+
 @app.context_processor
 def inject_siteurl():
   """Inject SITEURL into all templates"""
   return dict(SITEURL=get_base_url())
+
+@app.context_processor
+def inject_return_url_helper():
+  """Inject get_return_url helper into templates"""
+  return dict(get_return_url=get_return_url)
 
 @app.context_processor
 def inject_signed_url_helper():
@@ -390,9 +411,60 @@ def photostream(page):
   return render_template('photostream.html', photos=photos, pagination=pagination, baseurl=baseurl, in_context=in_context)
 
 @app.route('/photos/<int:photo_id>')
-@require_access(pow=True)
 def show_photo(photo_id):
   """a single photo"""
+  # Check POW manually for split-brain mode support
+  has_pow = False
+  if current_user.is_authenticated:
+    has_pow = True
+  elif app.config.get('POW_ENABLED', False):
+    # Validate POW token manually (same logic as require_access decorator)
+    pow_token = request.cookies.get('pow_token')
+    if pow_token:
+      try:
+        token = PowToken.get(PowToken.token == pow_token)
+        # Validate expiry and IP binding (same as decorator)
+        if token.expires_at > datetime.datetime.now():
+          if app.config.get('POW_BIND_TO_IP', True):
+            is_privacy_proxy = False
+            if app.config.get('POW_ALLOW_PRIVACY_PROXIES', True):
+              proxy_ranges = app.config.get('POW_PRIVACY_PROXY_RANGES', [])
+              for prefix in proxy_ranges:
+                if token.ip_address.startswith(prefix) or request.remote_addr.startswith(prefix):
+                  is_privacy_proxy = True
+                  break
+            if is_privacy_proxy or token.ip_address == request.remote_addr:
+              # Check request count and time limits
+              max_requests = app.config.get('POW_TOKEN_MAX_REQUESTS', 50)
+              expiry_minutes = app.config.get('POW_TOKEN_EXPIRY_MINUTES', 15)
+              age = datetime.datetime.now() - token.created_at
+              if token.request_count < max_requests and age.total_seconds() <= (expiry_minutes * 60):
+                has_pow = True
+                token.request_count += 1
+                token.last_request_at = datetime.datetime.now()
+                token.save()
+      except PowToken.DoesNotExist:
+        pass
+  else:
+    # POW not enabled, allow access
+    has_pow = True
+
+  # If split-brain mode disabled and no POW, return 403 challenge (old behavior)
+  if not has_pow and not app.config.get('POW_SPLIT_BRAIN_PHOTOS', True):
+    logger.info(f'Photo {photo_id}: 403 challenge (POW required, split-brain disabled)')
+    return_url = get_return_url()
+    session['pow_return_url'] = return_url
+    return render_template('pow_challenge.html', return_url=return_url), 403
+
+  # Log access mode for monitoring
+  if has_pow:
+    access_reason = 'authenticated' if current_user.is_authenticated else 'pow_token'
+    access_mode = 'full'
+    logger.info(f'Photo {photo_id}: Full access (200, {access_reason})')
+  else:
+    access_mode = 'preview'
+    logger.info(f'Photo {photo_id}: Split-brain preview (200, no POW token)')
+
   photo = Photo.select().where(Photo.id == photo_id).get()
   # Check if user has permission to view this photo
   if not can_view_photo(current_user, photo):
@@ -587,11 +659,16 @@ def show_photo(photo_id):
   # Get all tags for autocomplete
   all_tags = Tag.select().order_by(Tag.name)
 
-  return render_template('photos.html', photo=photo, tags=tags,
+  # Create response with custom header for nginx logging
+  response = make_response(render_template('photos.html', photo=photo, tags=tags,
                         photo_photosets=photo_photosets, can_edit=can_edit,
                         in_context=in_context, context_name=context_name, context_url=context_url,
                         prev_photo=prev_photo, next_photo=next_photo,
-                        context_photoset_id=context_photoset_id, all_tags=all_tags)
+                        context_photoset_id=context_photoset_id, all_tags=all_tags, has_pow=has_pow))
+
+  # Add header for nginx to distinguish preview vs full access
+  response.headers['X-Cigarbox-Access'] = access_mode
+  return response
 
 
 @app.route('/photos/<int:photo_id>/update', methods=['POST'])

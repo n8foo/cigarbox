@@ -2,17 +2,29 @@
 # Copy this file to fabric.yaml and customize for your environment
 # SSH connection settings should be configured in ~/.ssh/config
 
-# Host definitions
+# Role definitions (recommended structure)
+roles:
+  test:
+    host: your-test-server
+    uid: 1000  # UID for cigarbox user in Docker containers
+    description: "Docker test server"
+
+  prod:
+    host: your-prod-server
+    uid: 1001  # UID for cigarbox user in Docker containers
+    description: "Docker production server"
+
+# Legacy host definitions (deprecated, use roles instead)
 hosts:
   ec2:
     host: your-ec2-hostname
-    description: "EC2 production server (monit deployment)"
+    description: "EC2 production server (monit deployment - deprecated)"
 
   docker_test:
     host: your-test-server
     user: your-username
-    description: "Docker test server"
+    description: "Docker test server (deprecated - use roles.test)"
 
   docker_prod:
     host: your-prod-server
-    description: "Docker production server"
+    description: "Docker production server (deprecated - use roles.prod)"

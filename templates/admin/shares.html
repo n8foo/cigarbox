@@ -96,11 +96,11 @@
             </td>
             <td>
               {% if share.share_type == 'photo' %}
-              <button type="button" class="btn btn-xs btn-secondary" onclick="copyToClipboard('{{SITEURL}}/shared/{{ share.token }}')" title="Copy Link">
+              <button type="button" class="btn btn-xs btn-secondary" onclick="Cigarbox.copyToClipboard('{{SITEURL}}/shared/{{ share.token }}', this)" title="Copy Link">
                 <span class="bi bi-clipboard"></span>
               </button>
               {% elif share.share_type == 'photoset' %}
-              <button type="button" class="btn btn-xs btn-secondary" onclick="copyToClipboard('{{SITEURL}}/shared/photoset/{{ share.token }}')" title="Copy Link">
+              <button type="button" class="btn btn-xs btn-secondary" onclick="Cigarbox.copyToClipboard('{{SITEURL}}/shared/photoset/{{ share.token }}', this)" title="Copy Link">
                 <span class="bi bi-clipboard"></span>
               </button>
               {% endif %}
@@ -123,25 +123,5 @@
   </div>
 </div>
 
-<script>
-function copyToClipboard(text) {
-  // Create temporary textarea
-  var textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = 0;
-  document.body.appendChild(textarea);
-  textarea.select();
-
-  try {
-    document.execCommand('copy');
-    alert('Link copied to clipboard!');
-  } catch (err) {
-    alert('Failed to copy link. Please copy manually: ' + text);
-  }
-
-  document.body.removeChild(textarea);
-}
-</script>
 
 {% endblock admin_content %}

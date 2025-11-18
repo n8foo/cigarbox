@@ -236,36 +236,8 @@
 }
 </style>
 
-<script>
-// Lazy load images
-document.addEventListener('DOMContentLoaded', function() {
-  var lazyImages = document.querySelectorAll('img.lazy');
-
-  if ('IntersectionObserver' in window) {
-    var imageObserver = new IntersectionObserver(function(entries, observer) {
-      entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          var img = entry.target;
-          img.src = img.dataset.src;
-          img.classList.remove('lazy');
-          imageObserver.unobserve(img);
-        }
-      });
-    }, {
-      rootMargin: '200px'
-    });
-
-    lazyImages.forEach(function(img) {
-      imageObserver.observe(img);
-    });
-  } else {
-    // Fallback for older browsers
-    lazyImages.forEach(function(img) {
-      img.src = img.dataset.src;
-    });
-  }
-});
-</script>
+<!-- Lazy loading for images -->
+<script src="{{SITEURL}}/static/js/lazy-loading.js"></script>
 
 
 {% if can_manage and tags|length == 1 %}

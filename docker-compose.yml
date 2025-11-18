@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        CIGARBOX_UID: ${CIGARBOX_UID:-1000}
     container_name: cigarbox-web
     restart: unless-stopped
     volumes:
@@ -32,7 +35,10 @@ services:
       retries: 3
 
   api:
-    build: .
+    build:
+      context: .
+      args:
+        CIGARBOX_UID: ${CIGARBOX_UID:-1000}
     container_name: cigarbox-api
     restart: unless-stopped
     volumes:

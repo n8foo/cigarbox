@@ -80,11 +80,9 @@
         This one-time check helps prevent automated scraping.
       </p>
 
-      <div id="status">Starting verification...</div>
+      <div id="pow-status-text">Starting verification...</div>
 
-      <div class="progress-bar-container">
-        <div class="progress-bar-fill" id="progress"></div>
-      </div>
+      <p id="pow-hash-attempts" class="help-text" style="font-weight: 600; min-height: 20px;"></p>
 
       <p class="help-text">
         Should complete in 2-5 seconds
@@ -96,119 +94,14 @@
       window.CIGARBOX_SITEURL = "{{SITEURL}}";
     </script>
 
+    <!-- POW Challenge Solver -->
+    <script src="{{SITEURL}}/static/js/pow.js"></script>
     <script>
-      (function() {
-        'use strict';
-
-        const baseUrl = window.CIGARBOX_SITEURL || '';
-        const statusEl = document.getElementById('status');
-        const progressEl = document.getElementById('progress');
-        const returnUrl = '{{ return_url }}' || '/';
-
-        async function startPoW() {
-          try {
-            // Step 1: Fetch challenge
-            statusEl.textContent = 'Fetching challenge...';
-            progressEl.style.width = '10%';
-
-            const challengeResp = await fetch(baseUrl + '/pow/challenge');
-            if (!challengeResp.ok) {
-              throw new Error('Failed to fetch challenge');
-            }
-
-            const { challenge, difficulty } = await challengeResp.json();
-            console.log(`[PoW] Challenge: ${challenge.substring(0,8)}... difficulty=${difficulty}`);
-
-            // Step 2: Solve puzzle
-            statusEl.textContent = 'Solving puzzle...';
-            progressEl.style.width = '30%';
-
-            const solution = await solvePuzzle(challenge, difficulty, (progress) => {
-              const percent = Math.min(30 + Math.floor(progress * 50), 80);
-              progressEl.style.width = percent + '%';
-            });
-
-            console.log(`[PoW] Solution: nonce=${solution.nonce}`);
-
-            // Step 3: Verify solution
-            statusEl.textContent = 'Verifying solution...';
-            progressEl.style.width = '90%';
-
-            const verifyResp = await fetch(baseUrl + '/pow/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                challenge,
-                nonce: solution.nonce,
-                return_url: returnUrl
-              })
-            });
-
-            if (!verifyResp.ok) {
-              const error = await verifyResp.json();
-              throw new Error(error.error || 'Verification failed');
-            }
-
-            // Success!
-            statusEl.textContent = 'Verified! ✓';
-            progressEl.style.width = '100%';
-
-            // Redirect to original URL
-            setTimeout(() => {
-              window.location.href = returnUrl;
-            }, 500);
-
-          } catch (error) {
-            console.error('[PoW] Error:', error);
-            statusEl.className = 'error-text';
-            statusEl.textContent = 'Verification failed: ' + error.message;
-
-            // Show retry option
-            setTimeout(() => {
-              if (confirm('Verification failed. Retry?')) {
-                window.location.reload();
-              } else {
-                window.location.href = baseUrl + '/';
-              }
-            }, 2000);
-          }
-        }
-
-        function solvePuzzle(challenge, difficulty, onProgress) {
-          return new Promise((resolve, reject) => {
-            const worker = new Worker(baseUrl + '/static/js/pow-worker.js');
-
-            worker.onmessage = function(e) {
-              if (e.data.error) {
-                worker.terminate();
-                reject(new Error(e.data.error));
-              } else if (e.data.progress) {
-                const percent = e.data.progress / 100000;
-                onProgress(Math.min(percent, 0.99));
-              } else if (e.data.solution) {
-                worker.terminate();
-                resolve(e.data.solution);
-              }
-            };
-
-            worker.onerror = function(error) {
-              worker.terminate();
-              reject(error);
-            };
-
-            worker.postMessage({ challenge, difficulty });
-
-            // Timeout after 60 seconds
-            setTimeout(() => {
-              worker.terminate();
-              reject(new Error('Timeout: puzzle took too long'));
-            }, 60000);
-          });
-        }
-
-        // Start immediately on page load
-        window.addEventListener('load', startPoW);
-      })();
+      window.addEventListener('load', function() {
+        CigarboxPOW.solve({
+          returnUrl: '{{ return_url }}'
+        });
+      });
     </script>
   </body>
 </html>

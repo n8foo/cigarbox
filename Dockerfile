@@ -34,8 +34,11 @@ COPY static/ ./static/
 # Create necessary directories
 RUN mkdir -p /app/logs /app/static/cigarbox /tmp/cigarbox
 
-# Create non-root user
-RUN useradd -m -u 1001 cigarbox && \
+# Accept UID as build argument (defaults to 1000 for backwards compatibility)
+ARG CIGARBOX_UID=1000
+
+# Create non-root user with configurable UID
+RUN useradd -m -u ${CIGARBOX_UID} cigarbox && \
     chown -R cigarbox:cigarbox /app && \
     chown -R cigarbox:cigarbox /tmp/cigarbox
 

@@ -13,7 +13,7 @@
       <div class="input-group">
         <input type="text" class="form-control" value="{{ session.share_link }}" id="shareUrlInput" readonly>
         <span class="input-group-btn">
-          <button class="btn btn-primary" type="button" onclick="copyShareLink()">
+          <button class="btn btn-primary" type="button" onclick="Cigarbox.copyShareLink()">
             <span class="bi bi-clipboard"></span> Copy
           </button>
         </span>
@@ -216,39 +216,22 @@
   background: rgba(0, 0, 0, 0.7);
 }
 </style>
+{% endif %}
 
+{% if can_manage %}
+<!-- Editor utilities -->
+<script src="{{SITEURL}}/static/js/editor.js"></script>
 <script>
 var selectMode = false;
 
 // Load share count on page load
-{% if can_manage %}
-function loadShareCount() {
-  fetch('{{SITEURL}}/photosets/{{ photoset.id }}/shares')
-    .then(response => response.json())
-    .then(data => {
-      if (data.shares && data.shares.length > 0) {
-        var badge = document.getElementById('shareCountBadge');
-        badge.textContent = data.shares.length;
-        badge.style.display = 'inline';
-
-        // Make badge clickable to go to admin shares page
-        badge.style.cursor = 'pointer';
-        badge.onclick = function(e) {
-          e.stopPropagation(); // Don't trigger the modal
-          window.location.href = '{{SITEURL}}/admin/shares?search={{ photoset.id }}';
-        };
-      }
-    })
-    .catch(error => {
-      console.error('Error loading share count:', error);
-    });
-}
-
-loadShareCount();
-{% endif %}
+CigarboxEditor.loadShareCount(
+  '{{SITEURL}}/photosets/{{ photoset.id }}/shares',
+  'shareCountBadge',
+  '{{SITEURL}}/admin/shares?search={{ photoset.id }}'
+);
 
 // Keyboard shortcuts for photoset page
-{% if can_manage %}
 document.addEventListener('keydown', function(e) {
   // Ignore if user is typing in an input field
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
@@ -268,7 +251,6 @@ document.addEventListener('keydown', function(e) {
     window.location.href = document.getElementById('bulkEditBtn').href;
   }
 });
-{% endif %}
 
 function deletePhotoset() {
   if (confirm('Delete this photoset? This will NOT delete the photos, only remove the photoset.')) {
@@ -323,56 +305,11 @@ function removeSelected() {
   form.submit();
 }
 
-function copyShareLink() {
-  var input = document.getElementById('shareUrlInput');
-  input.select();
-  input.setSelectionRange(0, 99999); // For mobile
-
-  try {
-    document.execCommand('copy');
-    var btn = event.target.closest('button');
-    var originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="bi bi-check"></span> Copied!';
-    setTimeout(function() {
-      btn.innerHTML = originalText;
-    }, 2000);
-  } catch (err) {
-    alert('Failed to copy. Please copy manually: ' + input.value);
-  }
-}
 </script>
 {% endif %}
 
-<script>
-// Lazy load images
-document.addEventListener('DOMContentLoaded', function() {
-  var lazyImages = document.querySelectorAll('img.lazy');
-
-  if ('IntersectionObserver' in window) {
-    var imageObserver = new IntersectionObserver(function(entries, observer) {
-      entries.forEach(function(entry) {
-        if (entry.isIntersecting) {
-          var img = entry.target;
-          img.src = img.dataset.src;
-          img.classList.remove('lazy');
-          imageObserver.unobserve(img);
-        }
-      });
-    }, {
-      rootMargin: '200px'
-    });
-
-    lazyImages.forEach(function(img) {
-      imageObserver.observe(img);
-    });
-  } else {
-    // Fallback for older browsers
-    lazyImages.forEach(function(img) {
-      img.src = img.dataset.src;
-    });
-  }
-});
-</script>
+<!-- Lazy loading for images -->
+<script src="{{SITEURL}}/static/js/lazy-loading.js"></script>
 
 
 <br><br>

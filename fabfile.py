@@ -53,6 +53,20 @@ def get_host_from_role(role):
         return config['roles'][role]['host']
 
 
+def get_uid_from_role(role):
+    """Get UID for Docker container user from role defined in fabric.yaml
+
+    Returns:
+        int: UID for cigarbox user in Docker containers (defaults to 1000)
+    """
+    try:
+        with open('fabric.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+            return config['roles'][role].get('uid', 1000)
+    except (FileNotFoundError, KeyError):
+        return 1000  # Default to 1000 if not specified
+
+
 def get_nginx_log_paths():
     """Get nginx log paths from config.py
 
@@ -607,9 +621,13 @@ def deploy(c, role='test', package=None, rebuild=False, force_db=False):
             # Build and start containers
             print(f'📦 Using {compose_file} for {role} environment')
 
+            # Get UID for this environment
+            uid = get_uid_from_role(role)
+            print(f'🔧 Container UID: {uid}')
+
             if rebuild:
                 print('🔨 Rebuilding containers (this will take a few minutes)...')
-                conn.run(f'docker-compose -f {compose_file} build --pull')
+                conn.run(f'CIGARBOX_UID={uid} docker-compose -f {compose_file} build --pull')
             else:
                 print('⚡ Fast deploy: skipping container build (code is volume-mounted)')
 
@@ -943,8 +961,9 @@ def rollback(c, role='test', backup=None):
         conn.run(f'cd {deploy_dir} && tar xzf {backups_dir}/{backup}')
 
         # Restart containers
+        uid = get_uid_from_role(role)
         with conn.cd(deploy_dir):
-            conn.run(f'docker-compose -f {compose_file} build --pull')
+            conn.run(f'CIGARBOX_UID={uid} docker-compose -f {compose_file} build --pull')
             conn.run(f'docker-compose -f {compose_file} up -d')
             conn.run(f'docker-compose -f {compose_file} ps')
 

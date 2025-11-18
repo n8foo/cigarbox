@@ -3,6 +3,40 @@
 All notable changes to this project are documented here.
 
 ---
+## [2025-11-17] - EXIF Rotation Fix and JavaScript Reorganization
+
+### Added
+- **JavaScript modules** - Extracted 555 lines of duplicate/inline code to reusable modules
+  - `pow.js` - Unified POW solver with pure JS SHA-256 fallback for HTTP contexts
+  - `cigarbox-utils.js` - Dark mode toggle and clipboard utilities
+  - `editor.js` - Share count badges and modal helpers
+  - `lazy-loading.js` - Generic IntersectionObserver for image loading
+- **Subpath URL helper** - `get_return_url()` function prevents redirect bugs in subpath deployments (web.py:257)
+- **Configurable Docker UID** - `fabric.yaml` defines per-role UID, passed to Dockerfile via build arg
+- **Non-interactive reprocessing** - `--yes` flag skips confirmation prompt (scripts/reprocess_thumbnails.py)
+
+### Changed
+- Templates restructured with JavaScript outside POW conditionals (reduced nesting 3-4 levels → 1-2)
+- Editor functions properly gated with `{% if can_edit %}` (fixes information disclosure)
+- Login/logout links use `get_return_url()` instead of `request.path`
+
+### Fixed
+- **EXIF rotation** - Thumbnails respect camera orientation via `ImageOps.exif_transpose()` (util.py:93)
+- **POW subpath redirects** - All POW routes preserve subpath prefix (web.py:168, 243, 451)
+- **JavaScript leakage** - Admin functions and full tag list no longer sent to unauthenticated users
+- **POW on HTTP** - Pure JS SHA-256 fallback when crypto.subtle unavailable (non-HTTPS contexts)
+
+### Configuration
+Add to `fabric.yaml`:
+```yaml
+roles:
+  test:
+    uid: 1000
+  prod:
+    uid: 1001
+```
+
+---
 ## [2025-11-09] - POW Bot Defense and AI Protection
 
 ### Added
