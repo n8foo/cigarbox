@@ -163,6 +163,96 @@
   }
 
   // ============================================================================
+  // NOTIFICATIONS
+  // ============================================================================
+
+  /**
+   * Show Bootstrap alert notification
+   * @param {string} message - Message to display
+   * @param {string} type - Alert type: success, info, warning, danger (default: info)
+   * @param {number} duration - Auto-dismiss after milliseconds (default: 5000, 0 = no auto-dismiss)
+   */
+  function showNotification(message, type = 'info', duration = 5000) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.style.maxWidth = '500px';
+
+    alertDiv.innerHTML = `
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      ${message}
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Auto-dismiss after duration
+    if (duration > 0) {
+      setTimeout(() => {
+        const bsAlert = bootstrap.Alert.getInstance(alertDiv) || new bootstrap.Alert(alertDiv);
+        bsAlert.close();
+      }, duration);
+    }
+  }
+
+  /**
+   * Show confirmation dialog using Bootstrap modal
+   * @param {string} message - Confirmation message
+   * @param {Function} onConfirm - Callback if confirmed
+   * @param {Function} onCancel - Callback if cancelled (optional)
+   */
+  function showConfirm(message, onConfirm, onCancel) {
+    // Create modal HTML
+    const modalId = 'confirmModal-' + Date.now();
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal fade';
+    modalDiv.id = modalId;
+    modalDiv.tabIndex = -1;
+
+    modalDiv.innerHTML = `
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            ${message}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary confirm-btn">OK</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalDiv);
+
+    const modal = new bootstrap.Modal(modalDiv);
+    const confirmBtn = modalDiv.querySelector('.confirm-btn');
+
+    confirmBtn.addEventListener('click', () => {
+      modal.hide();
+      if (onConfirm) onConfirm();
+    });
+
+    modalDiv.addEventListener('hidden.bs.modal', () => {
+      if (onCancel && !confirmBtn.clicked) onCancel();
+      modalDiv.remove();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      confirmBtn.clicked = true;
+    });
+
+    modal.show();
+  }
+
+  // ============================================================================
   // INITIALIZATION
   // ============================================================================
 
@@ -177,5 +267,7 @@
   // Export public API
   window.Cigarbox.copyToClipboard = copyToClipboard;
   window.Cigarbox.copyShareLink = copyShareLink;
+  window.Cigarbox.showNotification = showNotification;
+  window.Cigarbox.showConfirm = showConfirm;
 
 })();

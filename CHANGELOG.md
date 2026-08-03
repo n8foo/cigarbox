@@ -3,6 +3,28 @@
 All notable changes to this project are documented here.
 
 ---
+## [2026-08-02] - Share Management Inline Editing and Temp File Cleanup
+
+### Added
+- **Inline share editing** - Click-to-edit for comments and expiry dates on share management page
+  - Comment field: click to edit, Enter to save, Escape to cancel
+  - Expiry dropdown: Never, +30 days, +90 days, +1 year options
+- **Share renewal button** - Extends expiry by original duration from now (works on expired shares)
+- **Automatic temp file cleanup** - Removes files older than 3 hours from `/tmp/cigarbox` on each upload (api.py:128-138)
+- **Admin temp file management UI** - `/admin/tools/cleanup` shows stats and manual cleanup
+  - Real-time statistics: file count, total size, oldest file age
+  - Manual cleanup with configurable age threshold
+  - System Maintenance section in admin tools dashboard
+- **Bootstrap notification system** - Replaced JavaScript alerts with in-app notifications
+  - `Cigarbox.showNotification()` - Fixed-position toast alerts with auto-dismiss
+  - `Cigarbox.showConfirm()` - Bootstrap modal confirmation dialogs
+  - All share management actions use in-app notifications
+
+### Changed
+- Share management page now uses Bootstrap modals instead of `alert()` and `confirm()`
+- Upload endpoint cleans temp files before processing new uploads
+
+---
 ## [2025-11-17] - EXIF Rotation Fix and JavaScript Reorganization
 
 ### Added

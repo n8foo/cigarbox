@@ -72,19 +72,23 @@
               {% endif %}
             </td>
             <td>
-              {% if share.comment %}
-              {{ share.comment }}
-              {% else %}
-              <span class="text-muted">-</span>
-              {% endif %}
+              <span class="editable-comment" data-share-id="{{ share.id }}" style="cursor: pointer;" title="Click to edit">
+                {% if share.comment %}
+                {{ share.comment }}
+                {% else %}
+                <span class="text-muted">Click to add comment...</span>
+                {% endif %}
+              </span>
             </td>
             <td>{{ share.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
             <td>
-              {% if share.expires_at %}
-              {{ share.expires_at.strftime('%Y-%m-%d %H:%M') }}
-              {% else %}
-              <span class="text-muted">Never</span>
-              {% endif %}
+              <span class="editable-expiry" data-share-id="{{ share.id }}" data-created-at="{{ share.created_at.isoformat() }}" style="cursor: pointer;" title="Click to edit">
+                {% if share.expires_at %}
+                {{ share.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                <span class="text-muted">Never</span>
+                {% endif %}
+              </span>
             </td>
             <td>{{ share.views }}</td>
             <td>
@@ -104,11 +108,14 @@
                 <span class="bi bi-clipboard"></span>
               </button>
               {% endif %}
-              <form method="POST" action="{{SITEURL}}/admin/shares/{{ share.id }}/revoke" style="display: inline;">
-                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Revoke this share link?');" title="Revoke">
-                  <span class="bi bi-x-circle"></span>
-                </button>
-              </form>
+              {% if share.expires_at %}
+              <button type="button" class="btn btn-xs btn-info renew-share-btn" data-share-id="{{ share.id }}" title="Renew (extend by same duration)">
+                <span class="bi bi-arrow-clockwise"></span>
+              </button>
+              {% endif %}
+              <button type="button" class="btn btn-xs btn-danger revoke-share-btn" data-share-id="{{ share.id }}" title="Revoke">
+                <span class="bi bi-x-circle"></span>
+              </button>
             </td>
           </tr>
           {% endfor %}
@@ -125,3 +132,218 @@
 
 
 {% endblock admin_content %}
+
+{% block extra_scripts %}
+<script>
+// Inline edit for comment
+document.querySelectorAll('.editable-comment').forEach(el => {
+  el.addEventListener('click', function() {
+    const shareId = this.dataset.shareId;
+    const currentText = this.textContent.trim();
+    const currentComment = currentText === 'Click to add comment...' ? '' : currentText;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.value = currentComment;
+    input.style.width = '200px';
+
+    const originalEl = this;
+    this.replaceWith(input);
+    input.focus();
+
+    const saveComment = () => {
+      const newComment = input.value.trim();
+
+      fetch('{{SITEURL}}/admin/shares/' + shareId + '/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ comment: newComment })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          originalEl.innerHTML = data.comment || '<span class="text-muted">Click to add comment...</span>';
+          input.replaceWith(originalEl);
+        } else {
+          Cigarbox.showNotification('Error: ' + (data.error || 'Unknown error'), 'danger');
+          input.replaceWith(originalEl);
+        }
+      })
+      .catch(error => {
+        Cigarbox.showNotification('Error updating comment', 'danger');
+        input.replaceWith(originalEl);
+      });
+    };
+
+    input.addEventListener('blur', saveComment);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        saveComment();
+      } else if (e.key === 'Escape') {
+        input.replaceWith(originalEl);
+      }
+    });
+  });
+});
+
+// Inline edit for expiry
+document.querySelectorAll('.editable-expiry').forEach(el => {
+  el.addEventListener('click', function() {
+    const shareId = this.dataset.shareId;
+    const createdAt = this.dataset.createdAt;
+    const tr = this.closest('tr');
+
+    const select = document.createElement('select');
+    select.className = 'form-control form-control-sm';
+    select.style.width = '150px';
+
+    // Calculate common durations from created_at
+    const created = new Date(createdAt);
+    const now = new Date();
+
+    const addOption = (label, value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    };
+
+    addOption('Never expire', 'never');
+    addOption('+30 days', new Date(now.getTime() + 30*24*60*60*1000).toISOString());
+    addOption('+90 days', new Date(now.getTime() + 90*24*60*60*1000).toISOString());
+    addOption('+1 year', new Date(now.getTime() + 365*24*60*60*1000).toISOString());
+
+    const originalEl = this;
+    this.replaceWith(select);
+    select.focus();
+
+    const saveExpiry = () => {
+      const newExpiry = select.value;
+
+      fetch('{{SITEURL}}/admin/shares/' + shareId + '/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expires_at: newExpiry })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          if (data.expires_at === 'Never') {
+            originalEl.innerHTML = '<span class="text-muted">Never</span>';
+          } else {
+            originalEl.textContent = data.expires_at;
+          }
+          select.replaceWith(originalEl);
+
+          // Update status badge
+          const statusCell = tr.querySelector('td:nth-child(7)');
+          statusCell.innerHTML = '<span class="badge bg-success">Active</span>';
+
+          // Remove danger class from row
+          tr.classList.remove('danger');
+
+          // Show renew button if expiry is set
+          const actionsCell = tr.querySelector('td:last-child');
+          if (data.expires_at !== 'Never' && !actionsCell.querySelector('.renew-share-btn')) {
+            const renewBtn = document.createElement('button');
+            renewBtn.type = 'button';
+            renewBtn.className = 'btn btn-xs btn-info renew-share-btn';
+            renewBtn.dataset.shareId = shareId;
+            renewBtn.title = 'Renew (extend by same duration)';
+            renewBtn.innerHTML = '<span class="bi bi-arrow-clockwise"></span>';
+
+            // Insert before the revoke button
+            const revokeForm = actionsCell.querySelector('form');
+            revokeForm.parentNode.insertBefore(renewBtn, revokeForm);
+
+            // Attach event listener
+            attachRenewListener(renewBtn);
+          }
+        } else {
+          Cigarbox.showNotification('Error: ' + (data.error || 'Unknown error'), 'danger');
+          select.replaceWith(originalEl);
+        }
+      })
+      .catch(error => {
+        Cigarbox.showNotification('Error updating expiry', 'danger');
+        select.replaceWith(originalEl);
+      });
+    };
+
+    select.addEventListener('change', saveExpiry);
+    select.addEventListener('blur', () => {
+      select.replaceWith(originalEl);
+    });
+    select.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        select.replaceWith(originalEl);
+      }
+    });
+  });
+});
+
+// Renew share button
+function attachRenewListener(btn) {
+  btn.addEventListener('click', function() {
+    const shareId = this.dataset.shareId;
+    const tr = this.closest('tr');
+    const originalBtn = this;
+
+    Cigarbox.showConfirm('Renew this share link by extending the expiry date?', () => {
+      fetch('{{SITEURL}}/admin/shares/' + shareId + '/renew', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Update expiry display
+          const expiryCell = tr.querySelector('.editable-expiry');
+          expiryCell.textContent = data.expires_at;
+
+          // Update status badge
+          const statusCell = tr.querySelector('td:nth-child(7)');
+          statusCell.innerHTML = '<span class="badge bg-success">Active</span>';
+
+          // Remove danger class from row
+          tr.classList.remove('danger');
+
+          Cigarbox.showNotification('Share link renewed until ' + data.expires_at, 'success');
+        } else {
+          Cigarbox.showNotification('Error: ' + (data.error || 'Unknown error'), 'danger');
+        }
+      })
+      .catch(error => {
+        Cigarbox.showNotification('Error renewing share', 'danger');
+      });
+    });
+  });
+}
+
+document.querySelectorAll('.renew-share-btn').forEach(attachRenewListener);
+
+// Revoke share button
+document.querySelectorAll('.revoke-share-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const shareId = this.dataset.shareId;
+    const tr = this.closest('tr');
+
+    Cigarbox.showConfirm('Revoke this share link?', () => {
+      // Create form and submit
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '{{SITEURL}}/admin/shares/' + shareId + '/revoke';
+      document.body.appendChild(form);
+      form.submit();
+    });
+  });
+});
+</script>
+{% endblock extra_scripts %}

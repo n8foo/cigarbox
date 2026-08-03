@@ -29,6 +29,7 @@ import process
 
 import os
 import re
+import time
 
 app = Flask(__name__)
 
@@ -123,6 +124,32 @@ def health():
 @app.route('/api/upload', methods=['POST'])
 @api_key_required
 def apiupload():
+
+  # Clean up old temp files (older than 3 hours)
+  try:
+    now = time.time()
+    cutoff = now - (3 * 60 * 60)  # 3 hours in seconds
+
+    # Clean upload staging directory (always safe to clean)
+    for root, dirs, files in os.walk(app.config['UPLOAD_FOLDER']):
+      for filename in files:
+        filepath = os.path.join(root, filename)
+        if os.path.getmtime(filepath) < cutoff:
+          os.remove(filepath)
+          rel_path = os.path.relpath(filepath, app.config['UPLOAD_FOLDER'])
+          logger.info('Cleaned up old upload file: %s', rel_path)
+
+    # Clean processing cache directory (only if using S3)
+    if app.config.get('USE_S3', True):
+      for root, dirs, files in os.walk(app.config['LOCALARCHIVEPATH']):
+        for filename in files:
+          filepath = os.path.join(root, filename)
+          if os.path.getmtime(filepath) < cutoff:
+            os.remove(filepath)
+            rel_path = os.path.relpath(filepath, app.config['LOCALARCHIVEPATH'])
+            logger.info('Cleaned up old archive file: %s', rel_path)
+  except Exception as e:
+    logger.warning('Failed to clean temp files: %s', e)
 
   response=dict()
   photo_ids=set()

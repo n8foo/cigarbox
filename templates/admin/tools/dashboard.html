@@ -76,4 +76,33 @@
   </div>
 </div>
 
+<!-- System Maintenance Section -->
+<div class="row">
+  <div class="col-md-12">
+    <h2>System Maintenance</h2>
+    <p>Manage temporary files and system resources</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-success">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+          <span class="bi bi-trash"></span>
+          Temp File Cleanup
+        </h3>
+      </div>
+      <div class="panel-body">
+        {% if config.get('USE_S3', True) %}
+        <p>View and clean up temporary files in <code>/tmp/cigarbox</code> (upload staging) and <code>static/cigarbox</code> (processing cache). Files older than 3 hours are automatically removed during uploads.</p>
+        {% else %}
+        <p>View and clean up temporary files in <code>/tmp/cigarbox</code> (upload staging). <code>static/cigarbox</code> files are preserved since S3 is disabled.</p>
+        {% endif %}
+        <a href="{{SITEURL}}/admin/tools/cleanup" class="btn btn-success">Manage Temp Files</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock admin_content %}

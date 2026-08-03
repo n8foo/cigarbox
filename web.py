@@ -2679,7 +2679,188 @@ def admin_revoke_share(share_id):
   return redirect(url_for('admin_shares'))
 
 
+@app.route('/admin/shares/<int:share_id>/update', methods=['POST'])
+@roles_required('admin')
+def admin_update_share(share_id):
+  """Update a share link (comment or expiry)"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.id == share_id).get()
+
+    # Get update data from JSON
+    data = request.get_json()
+
+    if 'comment' in data:
+      share_token.comment = data['comment'] if data['comment'] else None
+      share_token.save()
+      return jsonify({'success': True, 'comment': share_token.comment})
+
+    if 'expires_at' in data:
+      if data['expires_at'] == 'never':
+        share_token.expires_at = None
+      else:
+        # Parse ISO datetime string
+        share_token.expires_at = datetime.datetime.fromisoformat(data['expires_at'])
+      share_token.save()
+
+      expires_display = share_token.expires_at.strftime('%Y-%m-%d %H:%M') if share_token.expires_at else 'Never'
+      return jsonify({'success': True, 'expires_at': expires_display})
+
+    return jsonify({'success': False, 'error': 'No valid fields to update'})
+
+  except ShareToken.DoesNotExist:
+    return jsonify({'success': False, 'error': 'Share link not found'}), 404
+  except Exception as e:
+    return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/admin/shares/<int:share_id>/renew', methods=['POST'])
+@roles_required('admin')
+def admin_renew_share(share_id):
+  """Renew a share link by extending expiry by the same duration from now"""
+  try:
+    share_token = ShareToken.select().where(ShareToken.id == share_id).get()
+
+    if not share_token.expires_at:
+      return jsonify({'success': False, 'error': 'Share has no expiry date to renew'})
+
+    # Calculate original duration
+    duration = share_token.expires_at - share_token.created_at
+
+    # Set new expiry from now
+    share_token.expires_at = datetime.datetime.now() + duration
+    share_token.save()
+
+    expires_display = share_token.expires_at.strftime('%Y-%m-%d %H:%M')
+    is_expired = False
+
+    return jsonify({'success': True, 'expires_at': expires_display, 'is_expired': is_expired})
+
+  except ShareToken.DoesNotExist:
+    return jsonify({'success': False, 'error': 'Share link not found'}), 404
+  except Exception as e:
+    return jsonify({'success': False, 'error': str(e)}), 400
+
+
 # Admin Tools routes
+
+def get_temp_dir_stats():
+  """Calculate statistics for temp directories"""
+  import time
+
+  def scan_directory(directory):
+    """Scan a single directory recursively and return stats"""
+    dir_stats = {
+      'total_files': 0,
+      'total_bytes': 0,
+      'oldest_file_age': None,
+      'oldest_file_name': None
+    }
+
+    try:
+      if not os.path.exists(directory):
+        return dir_stats
+
+      now = time.time()
+      oldest_mtime = now
+
+      # Walk directory tree recursively
+      for root, dirs, files in os.walk(directory):
+        for filename in files:
+          filepath = os.path.join(root, filename)
+          dir_stats['total_files'] += 1
+          dir_stats['total_bytes'] += os.path.getsize(filepath)
+
+          mtime = os.path.getmtime(filepath)
+          if mtime < oldest_mtime:
+            oldest_mtime = mtime
+            # Store relative path from base directory
+            dir_stats['oldest_file_name'] = os.path.relpath(filepath, directory)
+
+      if dir_stats['oldest_file_name']:
+        dir_stats['oldest_file_age'] = int(now - oldest_mtime)  # seconds
+
+    except Exception as e:
+      logger.error('Failed to scan %s: %s', directory, e)
+
+    return dir_stats
+
+  # Scan both directories
+  upload_stats = scan_directory(app.config['UPLOAD_FOLDER'])
+  archive_stats = scan_directory(app.config['LOCALARCHIVEPATH'])
+
+  # Return combined stats with directory breakdown
+  return {
+    'upload': upload_stats,
+    'archive': archive_stats,
+    'total_files': upload_stats['total_files'] + archive_stats['total_files'],
+    'total_bytes': upload_stats['total_bytes'] + archive_stats['total_bytes']
+  }
+
+
+def cleanup_temp_files(max_age_hours=3):
+  """Clean up temp files older than max_age_hours from both directories. Returns dict with cleanup results."""
+  import time
+
+  result = {
+    'deleted_count': 0,
+    'deleted_bytes': 0,
+    'upload_deleted': 0,
+    'archive_deleted': 0,
+    'error': None
+  }
+
+  def clean_directory(directory, label):
+    """Clean a single directory recursively and return counts"""
+    deleted_count = 0
+    deleted_bytes = 0
+
+    try:
+      if not os.path.exists(directory):
+        return deleted_count, deleted_bytes
+
+      now = time.time()
+      cutoff = now - (max_age_hours * 60 * 60)
+
+      # Walk directory tree recursively
+      for root, dirs, files in os.walk(directory):
+        for filename in files:
+          filepath = os.path.join(root, filename)
+          if os.path.getmtime(filepath) < cutoff:
+            file_size = os.path.getsize(filepath)
+            os.remove(filepath)
+            deleted_count += 1
+            deleted_bytes += file_size
+            # Log relative path from base directory
+            rel_path = os.path.relpath(filepath, directory)
+            logger.info('Cleaned up %s file: %s (%d bytes)', label, rel_path, file_size)
+
+    except Exception as e:
+      logger.error('Failed to cleanup %s: %s', directory, e)
+      raise
+
+    return deleted_count, deleted_bytes
+
+  try:
+    # Always clean upload staging directory
+    upload_count, upload_bytes = clean_directory(app.config['UPLOAD_FOLDER'], 'upload')
+    result['upload_deleted'] = upload_count
+
+    # Only clean processing cache if using S3
+    archive_count = 0
+    archive_bytes = 0
+    if app.config.get('USE_S3', True):
+      archive_count, archive_bytes = clean_directory(app.config['LOCALARCHIVEPATH'], 'archive')
+
+    result['archive_deleted'] = archive_count
+    result['deleted_count'] = upload_count + archive_count
+    result['deleted_bytes'] = upload_bytes + archive_bytes
+
+  except Exception as e:
+    result['error'] = str(e)
+
+  return result
+
+
 @app.route('/admin/tools')
 @roles_required('admin')
 def admin_tools():
@@ -3056,6 +3237,28 @@ def admin_tools_audit_orphaned_meta_fix():
     flash(f'Failed to delete {error_count} records (check logs)', 'warning')
 
   return redirect(url_for('admin_tools_audit_orphaned_meta'))
+
+
+@app.route('/admin/tools/cleanup')
+@roles_required('admin')
+def admin_tools_cleanup():
+  """Temp file cleanup interface"""
+  stats = get_temp_dir_stats()
+  return render_template('admin/tools/cleanup.html', stats=stats)
+
+
+@app.route('/admin/tools/cleanup/run', methods=['POST'])
+@roles_required('admin')
+def admin_tools_cleanup_run():
+  """Execute temp file cleanup and return JSON results"""
+  max_age_hours = int(request.form.get('max_age_hours', 3))
+  result = cleanup_temp_files(max_age_hours)
+
+  # Get updated stats after cleanup
+  stats = get_temp_dir_stats()
+  result['stats'] = stats
+
+  return jsonify(result)
 
 
 # ============================================================================

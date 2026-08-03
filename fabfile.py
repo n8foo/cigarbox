@@ -544,7 +544,8 @@ def deploy(c, role='test', package=None, rebuild=False, force_db=False):
         result = conn.run(f'test -d {deploy_dir} && ls {deploy_dir}', warn=True, hide=True)
         if result.ok and result.stdout.strip():
             print(f'💾 Backing up existing deployment...')
-            conn.run(f'cd {deploy_dir} && tar czf {backups_dir}/cigarbox-backup-{timestamp}.tar.gz .')
+            # Exclude temp dirs: tmp is always temp, static/cigarbox is cache when using S3
+            conn.run(f'cd {deploy_dir} && tar czf {backups_dir}/cigarbox-backup-{timestamp}.tar.gz --exclude=./tmp --exclude=./static/cigarbox .')
             print(f'✓ Backup created: {backups_dir}/cigarbox-backup-{timestamp}.tar.gz')
 
         # Upload new deployment package
@@ -947,7 +948,8 @@ def rollback(c, role='test', backup=None):
 
         # Backup current state before rollback
         print(f'💾 Backing up current deployment before rollback...')
-        conn.run(f'cd {deploy_dir} && tar czf {backups_dir}/cigarbox-pre-rollback-{timestamp}.tar.gz .')
+        # Exclude temp dirs: tmp is always temp, static/cigarbox is cache when using S3
+        conn.run(f'cd {deploy_dir} && tar czf {backups_dir}/cigarbox-pre-rollback-{timestamp}.tar.gz --exclude=./tmp --exclude=./static/cigarbox .')
 
         # Stop containers
         with conn.cd(deploy_dir):
